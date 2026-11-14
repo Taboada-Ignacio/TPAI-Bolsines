@@ -1,0 +1,11 @@
+.git
+node_modules
+.next
+out
+coverage
+prisma/generated
+next-env.d.ts
+*.tsbuildinfo
+*.log
+.env
+.env.*

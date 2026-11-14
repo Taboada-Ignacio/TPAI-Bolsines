@@ -1,0 +1,48 @@
+services:
+  backend:
+    build: .
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://${POSTGRES_USER:-bolsines}:${POSTGRES_PASSWORD:-bolsines_dev}@postgres:5432/${POSTGRES_DB:-bolsines}}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    develop:
+      watch:
+        - path: ./src
+          action: sync
+          target: /app/src
+          initial_sync: true
+        - path: ./prisma
+          action: rebuild
+          ignore:
+            - generated/
+        - path: ./prisma.config.ts
+          action: rebuild
+        - path: ./package.json
+          action: rebuild
+        - path: ./package-lock.json
+          action: rebuild
+
+  postgres:
+    image: postgres:17.12-bookworm
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bolsines}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bolsines_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-bolsines}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'pg_isready -h 127.0.0.1 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"'
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+volumes:
+  postgres_data:
