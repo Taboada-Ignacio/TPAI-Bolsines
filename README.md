@@ -2,13 +2,23 @@
 
 Implementación del caso de uso 36 «Consultar seguimiento de bolsines» del Trabajo Práctico Integrador de Diseño de Sistemas de Información, 3.er año de Ingeniería en Sistemas de Información, UTN FRC.
 
-Esta etapa prepara el backend y su entorno local. La aplicación ofrece una página de inicio mínima y el endpoint técnico `GET /api/health`.
+La aplicación ofrece una página de inicio mínima y el endpoint técnico `GET /api/health`. El modelo inicial del dominio del CU 36 está definido en TypeScript.
 
 ## Estado de implementación
 
-El trabajo de inicialización está en `feature/backend`. El alcance actual cubre la estructura en capas, la configuración de desarrollo y el endpoint de salud. El inicio de sesión, los modelos de negocio, las migraciones y la integración externa del CU 36 quedan para etapas posteriores.
+El trabajo de backend está en `feature/backend`. El alcance actual cubre la estructura en capas, la configuración de desarrollo, el endpoint de salud y las entidades del dominio. El inicio de sesión, las reglas de negocio, las migraciones y la integración externa del CU 36 quedan para etapas posteriores.
 
-### Verificaciones del 14 de noviembre de 2026
+### Entidades del CU 36
+
+En `src/domain` se encuentran `Sesion`, `Usuario`, `Empleado`, `Rol`, `ComisionMedica`, `Bolsin`, `CambioEstadoBolsin` y `Estado`. Cada clase declara atributos privados, un constructor y métodos públicos para leer y actualizar sus datos y asociaciones.
+
+`Sesion` referencia a un `Usuario`. `Empleado` referencia a su `Usuario`, su `Rol` y su `ComisionMedica`. `Bolsin` referencia a las comisiones de origen y destino y conserva un historial de `CambioEstadoBolsin`. Cada cambio referencia a un `Estado` y al `Empleado` responsable.
+
+`Bolsin.fecha` usa `Date`. `Sesion.fechaHoraFin` y `CambioEstadoBolsin.fechaHoraFin` aceptan `null` para períodos abiertos. El historial tiene multiplicidad UML `1..*`; el mínimo de un cambio se validará al implementar las reglas de negocio. El constructor, el getter y el setter copian el array del historial para evitar que se modifique por fuera de `Bolsin`.
+
+Las pruebas de `tests/domain.test.ts` se ejecutan con `npm run test:run` y usan las entidades directamente en memoria. Se verificaron `typecheck`, `lint`, `format:check`, `test:run` y `build`. Vitest aprobó las nueve pruebas del dominio y la prueba del endpoint de salud.
+
+### Verificaciones de la inicialización del 14 de noviembre de 2026
 
 | Verificación                                       | Resultado                                                                                                                                                                                                                                                                                                     |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -94,7 +104,7 @@ Cuando incorpores el primer modelo, ejecutá `npm run prisma:migrate:dev -- --na
 | Adapter        | `src/adapters`       | Aloja los futuros adaptadores GoF para transformar contratos de sistemas externos.                 |
 | DTO            | `src/dtos`           | Aloja esquemas Zod y tipos para los contratos HTTP.                                                |
 
-La página mínima y el layout viven en `src/app`. `prisma/` contiene el esquema y alojará las migraciones. `tests/` contiene la prueba unitaria. El alias `@/*` apunta a `src/*` tanto en Next.js como en Vitest.
+La página mínima y el layout viven en `src/app`. `prisma/` contiene el esquema y alojará las migraciones. `tests/` contiene las pruebas del endpoint y del dominio. El alias `@/*` apunta a `src/*` tanto en Next.js como en Vitest.
 
 ## Comandos npm
 
@@ -110,7 +120,7 @@ Para trabajar desde el anfitrión, instalá las dependencias con `npm ci` despu�
 | `npm run format`                              | Aplica el formato de Prettier.                                                             |
 | `npm run format:check`                        | Comprueba el formato.                                                                      |
 | `npm run test`                                | Ejecuta Vitest en modo observación.                                                        |
-| `npm run test:run`                            | Ejecuta la prueba unitaria del endpoint y termina.                                         |
+| `npm run test:run`                            | Ejecuta las pruebas unitarias y termina.                                                   |
 | `npm run prisma:validate`                     | Valida el esquema de Prisma.                                                               |
 | `npm run prisma:generate`                     | Genera Prisma Client.                                                                      |
 | `npm run prisma:migrate:dev -- --name nombre` | Crea y aplica una migración local.                                                         |
