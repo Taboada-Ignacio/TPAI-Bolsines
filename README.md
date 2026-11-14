@@ -6,7 +6,7 @@ La aplicación ofrece una página de inicio mínima y el endpoint técnico `GET 
 
 ## Estado de implementación
 
-El trabajo de backend está en `feature/backend`. El alcance actual cubre la estructura en capas, la configuración de desarrollo, el endpoint de salud y las entidades del dominio. El inicio de sesión, las reglas de negocio, las migraciones y la integración externa del CU 36 quedan para etapas posteriores.
+El trabajo de backend está en `feature/backend`. El alcance actual incluye la estructura en capas, el endpoint de salud, las entidades del dominio y la migración inicial del modelo de persistencia. El inicio de sesión, las reglas de negocio y la integración externa del CU 36 quedan para etapas posteriores.
 
 ### Entidades del CU 36
 
@@ -40,33 +40,20 @@ Las pruebas de `tests/domain.test.ts` se ejecutan con `npm run test:run` y usan 
 
 ## Iniciar y detener Docker Compose
 
-Desde la raíz del repositorio, con Docker Desktop iniciado, ejecutá estos comandos en PowerShell. Si todavía falta el lockfile, el segundo comando lo genera antes de construir la imagen.
+Desde la raíz del repositorio, con Docker Desktop iniciado, ejecutá en PowerShell:
 
 ```powershell
-if (-not (Test-Path .env)) { Copy-Item .env.example .env }
-if (-not (Test-Path package-lock.json)) {
-    npm.cmd install --package-lock-only
-    if ($LASTEXITCODE -ne 0) { throw "No se pudo generar package-lock.json." }
-}
 docker compose up --build -d
-docker compose ps
+docker compose ps -a
+docker compose logs migrate
 curl.exe --fail-with-body -i http://localhost:3000/api/health
 ```
 
-El Dockerfile usa `package-lock.json` con `npm ci` para instalar las mismas versiones en cada construcción. Incorporá el lockfile a Git cuando se genere correctamente. Si Next.js todavía está iniciando al consultar el endpoint, mirá `docker compose logs backend` y repetí la consulta cuando esté listo.
+Compose espera a que PostgreSQL esté saludable. El servicio `migrate` aplica las migraciones pendientes, comprueba el historial y compara el esquema de PostgreSQL con el modelo Prisma. Next.js inicia después de que `migrate` termine con código 0. En `docker compose ps -a`, `Exited (0)` es el estado esperado para `migrate`. Si falla, revisá sus logs antes de iniciar el backend. Si Next.js todavía está arrancando, consultá `docker compose logs backend` y repetí la consulta HTTP.
 
-El endpoint responde con HTTP 200 y el siguiente JSON cuando Next.js está atendiendo solicitudes. La respuesta verifica la disponibilidad del servidor HTTP.
+Compose usa los valores de desarrollo por defecto en un clon nuevo. Para personalizarlos, copiá `.env.example` a `.env`. Para recargar cambios de código, ejecutá `docker compose watch` en otra terminal. Cuando incorpores migraciones nuevas, volvé a ejecutar `docker compose up --build -d` para reconstruir y ejecutar el servicio de migraciones. Si ya tenés un backend activo y querés detenerlo antes de validar un cambio de esquema, ejecutá `docker compose stop backend` antes del arranque.
 
-```json
-{
-  "status": "ok",
-  "application": "TPAI-Bolsines"
-}
-```
-
-Para recargar en desarrollo cuando guardás cambios, ejecutá `docker compose watch` en otra terminal. Compose sincroniza `src` en el contenedor y Next.js recarga el código. Los cambios en Prisma, su configuración, `package.json` o el lockfile reconstruyen el backend. Cada imagen tiene su propio `node_modules` de Linux.
-
-Para detener ambos servicios, ejecutá `docker compose down`. Los datos de PostgreSQL permanecen en el volumen `postgres_data`.
+Para detener el proyecto, ejecutá `docker compose down`. Los datos se conservan en el volumen `postgres_data` y Prisma omite las migraciones ya aplicadas al volver a iniciar.
 
 ## Variables de entorno
 
@@ -89,9 +76,70 @@ Compose espera a que el healthcheck de PostgreSQL indique que la instancia acept
 docker compose exec backend node -e "const { Client } = require('pg'); const client = new Client({ connectionString: process.env.DATABASE_URL }); (async () => { try { await client.connect(); console.log((await client.query('SELECT 1 AS ok')).rows); } finally { await client.end(); } })().catch((error) => { console.error(error.message); process.exitCode = 1; });"
 ```
 
-`prisma.config.ts` carga `.env` para los comandos ejecutados en el anfitrión. El esquema inicial solo declara PostgreSQL y el generador. El script `prisma:generate` usa `--allow-no-models` para generar el cliente mientras el esquema está vacío. Docker ejecuta este script durante la construcción y deja el cliente en `prisma/generated`, un directorio excluido de Git. `getPrisma()` crea el cliente cuando se necesita y lo reutiliza durante la recarga en desarrollo.
+`prisma.config.ts` carga `.env` para los comandos ejecutados en el anfitrión. Ejecutá `npm.cmd run prisma:generate` para generar Prisma Client en `prisma/generated`. Docker también lo genera durante la construcción. `getPrisma()` crea el cliente cuando se necesita y lo reutiliza durante la recarga en desarrollo.
 
-Cuando incorpores el primer modelo, ejecutá `npm run prisma:migrate:dev -- --name nombre_de_la_migracion` desde el anfitrión con PostgreSQL iniciado. Luego ejecutá `npm run prisma:generate` y guardá en Git los archivos de `prisma/migrations`. Para aplicar migraciones existentes desde Docker, ejecutá `docker compose exec backend npm run prisma:migrate:deploy` con el backend construido a partir del código que las contiene. La ejecución de migraciones es un paso explícito del flujo de trabajo.
+### Modelo de persistencia del CU 36
+
+Todas las tablas tienen una clave primaria `id` de tipo `INTEGER` autoincremental. Prisma usa PascalCase para los modelos y camelCase para los campos. PostgreSQL usa snake_case en tablas y columnas.
+
+| Modelo Prisma        | Tabla                  | Columnas además de `id`                                                              | Claves foráneas                                                                               | Unicidad adicional              |
+| -------------------- | ---------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- | ------------------------------- |
+| `Usuario`            | `usuario`              | `nombre`, `contrasena`                                                               | —                                                                                             | —                               |
+| `Sesion`             | `sesion`               | `fecha_hora_inicio`, `fecha_hora_fin`, `usuario_id`                                  | `usuario_id` → `usuario.id`                                                                   | —                               |
+| `Empleado`           | `empleado`             | `nombre`, `apellido`, `email`, `usuario_id`, `rol_id`, `comision_medica_id`          | `usuario_id` → `usuario.id`, `rol_id` → `rol.id`, `comision_medica_id` → `comision_medica.id` | `usuario_id`                    |
+| `Rol`                | `rol`                  | `nombre`, `descripcion`                                                              | —                                                                                             | `nombre`                        |
+| `ComisionMedica`     | `comision_medica`      | `codigo`, `direccion`, `email`, `nombre`, `telefono`                                 | —                                                                                             | `codigo`                        |
+| `Bolsin`             | `bolsin`               | `fecha`, `numero_bolsin`, `numero_precinto`, `peso`, `cm_origen_id`, `cm_destino_id` | `cm_origen_id` y `cm_destino_id` → `comision_medica.id`                                       | `(cm_origen_id, numero_bolsin)` |
+| `CambioEstadoBolsin` | `cambio_estado_bolsin` | `fecha_hora_inicio`, `fecha_hora_fin`, `bolsin_id`, `estado_id`, `responsable_ce_id` | `bolsin_id` → `bolsin.id`, `estado_id` → `estado.id`, `responsable_ce_id` → `empleado.id`     | —                               |
+| `Estado`             | `estado`               | `nombre`, `descripcion`, `ambito`                                                    | —                                                                                             | `(nombre, ambito)`              |
+
+Los textos usan `TEXT`, los identificadores y números de bolsín y precinto usan `INTEGER`, y el peso usa `DOUBLE PRECISION`. Todas las fechas usan `TIMESTAMPTZ(3)`. Solo `sesion.fecha_hora_fin` y `cambio_estado_bolsin.fecha_hora_fin` admiten `NULL`.
+
+Cada sesión pertenece a un usuario. Cada empleado tiene un usuario, un rol y una comisión. Un usuario puede tener cero o muchas sesiones y, como máximo, un empleado asociado. Un rol y una comisión pueden corresponder a muchos empleados. Cada bolsín tiene una comisión de origen y una de destino, con asociaciones independientes. Cada cambio corresponde a un bolsín, un estado y un empleado responsable. Un estado o un responsable pueden aparecer en muchos cambios.
+
+El nombre de usuario admite duplicados. Un mismo número de bolsín puede repetirse entre comisiones de origen distintas, y un nombre de estado puede repetirse entre ámbitos distintos. Todas las claves foráneas tienen `ON DELETE RESTRICT` y un índice propio o uno con la clave foránea como primera columna. La multiplicidad UML `1..*` del historial queda pendiente de una regla de negocio. La base permite insertar un bolsín sin historial y registrar varios cambios con fecha de fin nula.
+
+### Verificar y crear migraciones
+
+Para verificar el historial desde la red interna de Compose, ejecutá:
+
+```powershell
+docker compose run --rm --no-deps migrate npx --no-install prisma migrate status
+```
+
+En una base vacía, el arranque aplica `20261114202500_init_domain_entities` y registra el resultado en `_prisma_migrations`. Para una base con migraciones aplicadas, Prisma ejecuta solo las pendientes. Si hay tablas sin historial compatible, una migración fallida o diferencias en el esquema que Prisma puede comparar, revisá `docker compose logs migrate`. La inicialización automática deja el diagnóstico para revisión y evita reiniciar o marcar migraciones por su cuenta.
+
+Para **crear** una migración, configurá `DATABASE_URL` en `.env` con el puerto publicado en Windows, editá `prisma/schema.prisma` y ejecutá `npm.cmd run prisma:migrate:dev -- --name nombre_de_la_migracion` contra tu base de desarrollo. Guardá el esquema y los archivos de `prisma/migrations` en Git para que los demás integrantes reciban el mismo historial. Para **aplicar** esas migraciones versionadas en otro equipo, basta con `docker compose up --build -d`.
+
+### Inspeccionar PostgreSQL
+
+Abrí `psql` desde PowerShell con `docker compose exec postgres sh -c 'exec psql -X -U "$POSTGRES_USER" -d "$POSTGRES_DB"'`. Las siguientes consultas de solo lectura muestran los objetos existentes, los tipos y la nulabilidad, las claves y los índices. Verificá que el contenedor corresponda a la base indicada en `DATABASE_URL`. Después de aplicar la migración deben aparecer las ocho tablas del modelo y la tabla técnica `_prisma_migrations`.
+
+```sql
+SELECT c.relname AS objeto, c.relkind AS tipo
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')
+ORDER BY c.relname;
+
+SELECT table_name, column_name, data_type, datetime_precision, is_nullable, column_default
+FROM information_schema.columns
+WHERE table_schema = 'public' AND table_name <> '_prisma_migrations'
+ORDER BY table_name, ordinal_position;
+
+SELECT t.relname AS tabla, c.conname AS restriccion, pg_get_constraintdef(c.oid) AS definicion
+FROM pg_constraint c
+JOIN pg_class t ON t.oid = c.conrelid
+JOIN pg_namespace n ON n.oid = t.relnamespace
+WHERE n.nspname = 'public' AND c.contype IN ('p', 'f', 'u')
+  AND t.relname <> '_prisma_migrations'
+ORDER BY t.relname, c.conname;
+
+SELECT tablename, indexname, indexdef
+FROM pg_indexes
+WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'
+ORDER BY tablename, indexname;
+```
 
 ## Estructura
 
@@ -104,7 +152,7 @@ Cuando incorpores el primer modelo, ejecutá `npm run prisma:migrate:dev -- --na
 | Adapter        | `src/adapters`       | Aloja los futuros adaptadores GoF para transformar contratos de sistemas externos.                 |
 | DTO            | `src/dtos`           | Aloja esquemas Zod y tipos para los contratos HTTP.                                                |
 
-La página mínima y el layout viven en `src/app`. `prisma/` contiene el esquema y alojará las migraciones. `tests/` contiene las pruebas del endpoint y del dominio. El alias `@/*` apunta a `src/*` tanto en Next.js como en Vitest.
+La página mínima y el layout viven en `src/app`. `prisma/` contiene el esquema y las migraciones. `tests/` contiene las pruebas del endpoint y del dominio. El alias `@/*` apunta a `src/*` tanto en Next.js como en Vitest.
 
 ## Comandos npm
 

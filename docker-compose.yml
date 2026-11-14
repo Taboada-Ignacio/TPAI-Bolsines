@@ -1,13 +1,14 @@
 services:
   backend:
-    build: .
+    build: &app-build .
     ports:
       - "127.0.0.1:3000:3000"
-    environment:
+    environment: &app-environment
       DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://${POSTGRES_USER:-bolsines}:${POSTGRES_PASSWORD:-bolsines_dev}@postgres:5432/${POSTGRES_DB:-bolsines}}
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+        restart: true
     develop:
       watch:
         - path: ./src
@@ -24,6 +25,21 @@ services:
           action: rebuild
         - path: ./package-lock.json
           action: rebuild
+
+  migrate:
+    build: *app-build
+    environment: *app-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    command:
+      - sh
+      - -ec
+      - |
+        npx --no-install prisma migrate deploy
+        npx --no-install prisma migrate status
+        npx --no-install prisma migrate diff --from-config-datasource --to-schema=prisma/schema.prisma --exit-code
 
   postgres:
     image: postgres:17.12-bookworm
