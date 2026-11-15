@@ -2,10 +2,12 @@ import { House } from "lucide-react";
 import { describe, expect, it } from "vitest";
 import {
   DESTINOS,
+  ROL_ADMIN,
   esDestinoActivo,
   getBreadcrumbSegments,
   getDestinoActivo,
   getDestinosTablero,
+  getDestinosVisibles,
   repartirDestinosPildora,
   type Destino,
 } from "@/lib/navigation";
@@ -28,13 +30,40 @@ describe("navigation", () => {
   it("resuelve getDestinoActivo sobre DESTINOS", () => {
     expect(getDestinoActivo("/inicio")?.id).toBe("inicio");
     expect(getDestinoActivo("/seguimiento/8420")?.id).toBe("seguimiento");
+    expect(getDestinoActivo("/empleados")?.id).toBe("empleados");
+    expect(getDestinoActivo("/perfil")?.id).toBe("perfil");
     expect(getDestinoActivo("/inexistente")).toBeUndefined();
+  });
+
+  it("filtra destinos visibles según rol (incluye Empleados solo para admin)", () => {
+    const admin = getDestinosVisibles(ROL_ADMIN);
+    expect(admin.map((d) => d.id)).toEqual([
+      "inicio",
+      "seguimiento",
+      "comisiones-medicas",
+      "bolsines",
+      "empleados",
+      "perfil",
+    ]);
+
+    const operador = getDestinosVisibles("Operador");
+    expect(operador.map((d) => d.id)).toEqual([
+      "inicio",
+      "seguimiento",
+      "comisiones-medicas",
+      "bolsines",
+      "perfil",
+    ]);
   });
 
   it("reparte como máximo 3 destinos en la píldora y el resto en Más", () => {
     const base = repartirDestinosPildora(DESTINOS);
     expect(base.principales).toHaveLength(3);
-    expect(base.extras).toHaveLength(0);
+    expect(base.extras.map((d) => d.id)).toEqual([
+      "bolsines",
+      "empleados",
+      "perfil",
+    ]);
 
     const mockCinco: Destino[] = [1, 2, 3, 4, 5].map((n) => ({
       id: `d-${n}`,
@@ -61,6 +90,7 @@ describe("navigation", () => {
     expect(tablero.map((d) => d.id)).toEqual([
       "seguimiento",
       "comisiones-medicas",
+      "bolsines",
     ]);
   });
 
@@ -75,6 +105,12 @@ describe("navigation", () => {
     expect(getBreadcrumbSegments("/seguimiento/mi-bolsin")).toEqual([
       { href: "/seguimiento", label: "Seguimiento" },
       { href: "/seguimiento/mi-bolsin", label: "mi bolsin" },
+    ]);
+    expect(getBreadcrumbSegments("/perfil")).toEqual([
+      { href: "/perfil", label: "Perfil" },
+    ]);
+    expect(getBreadcrumbSegments("/empleados")).toEqual([
+      { href: "/empleados", label: "Empleados" },
     ]);
   });
 });

@@ -1,4 +1,14 @@
-import { Building2, House, MapPinned, type LucideIcon } from "lucide-react";
+import {
+  Building2,
+  House,
+  MapPinned,
+  Package,
+  User,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
+
+export const ROL_ADMIN = "Parametrizador del sistema";
 
 export type Destino = {
   id: string;
@@ -9,6 +19,7 @@ export type Destino = {
   icono: LucideIcon;
   cuerpo: "padded" | "bleed";
   enTablero: boolean;
+  roles?: readonly string[];
 };
 
 export const DESTINOS: Destino[] = [
@@ -42,9 +53,50 @@ export const DESTINOS: Destino[] = [
     cuerpo: "padded",
     enTablero: true,
   },
+  {
+    id: "bolsines",
+    href: "/bolsines",
+    nombre: "Bolsines",
+    nombreCorto: "Bolsines",
+    detalle: "Listado general, alta, edición e historial de cada bolsín",
+    icono: Package,
+    cuerpo: "padded",
+    enTablero: true,
+  },
+  {
+    id: "empleados",
+    href: "/empleados",
+    nombre: "Empleados",
+    nombreCorto: "Empleados",
+    detalle: "Administración de empleados, roles y comisiones médicas",
+    icono: Users,
+    cuerpo: "padded",
+    enTablero: false,
+    roles: [ROL_ADMIN],
+  },
+  {
+    id: "perfil",
+    href: "/perfil",
+    nombre: "Mi perfil",
+    nombreCorto: "Perfil",
+    detalle: "Datos de usuario, rol y comisión médica asignada",
+    icono: User,
+    cuerpo: "padded",
+    enTablero: false,
+  },
 ];
 
 export const MAX_DESTINOS_PILDORA = 3;
+
+export function getDestinosVisibles(
+  rol?: string,
+  destinos: readonly Destino[] = DESTINOS,
+): Destino[] {
+  return destinos.filter(
+    (destino) =>
+      !destino.roles || (rol !== undefined && destino.roles.includes(rol)),
+  );
+}
 
 export function esDestinoActivo(
   pathname: string,
@@ -80,6 +132,11 @@ export type BreadcrumbSegment = {
   label: string;
 };
 
+const RUTAS_ETIQUETAS: Record<string, string> = {
+  "/perfil": "Perfil",
+  "/empleados": "Empleados",
+};
+
 export function getBreadcrumbSegments(
   pathname: string,
   destinos: readonly Destino[] = DESTINOS,
@@ -92,7 +149,7 @@ export function getBreadcrumbSegments(
     const decoded = decodeURIComponent(part).replace(/-/g, " ");
     return {
       href,
-      label: destino?.nombreCorto ?? decoded,
+      label: destino?.nombreCorto ?? RUTAS_ETIQUETAS[href] ?? decoded,
     };
   });
 }

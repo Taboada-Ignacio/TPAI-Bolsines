@@ -3,13 +3,22 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/cn";
 
+export type SplitFlapSize = "xs" | "sm" | "md" | "lg";
+
 export interface SplitFlapProps {
   text: string;
-  size?: "xs" | "sm" | "lg";
+  size?: SplitFlapSize;
   flipTrigger?: string | number;
   variant?: "tiles" | "inline";
   className?: string;
 }
+
+const SIZE_CLASSES: Record<SplitFlapSize, string> = {
+  xs: "w-[19px] h-[28px] text-[12px] rounded-[4px]",
+  sm: "w-[23px] h-[34px] text-[15px] rounded-[5px]",
+  md: "w-[30px] h-[44px] text-[19px] rounded-[6px]",
+  lg: "h-[1.5em] w-[1.05em] text-[clamp(1.4rem,2.6vw,2.2rem)] rounded-[6px]",
+};
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
@@ -58,7 +67,7 @@ function SplitFlapChar({
 }: {
   char: string;
   index: number;
-  size: "xs" | "sm" | "lg";
+  size: SplitFlapSize;
   variant: "tiles" | "inline";
   flipTrigger?: string | number;
 }) {
@@ -112,12 +121,7 @@ function SplitFlapChar({
     );
   }
 
-  const sizeClass =
-    size === "lg"
-      ? "h-[1.5em] w-[1.05em] text-[clamp(1.4rem,2.6vw,2.2rem)] rounded-[6px]"
-      : size === "xs"
-        ? "w-[19px] h-[28px] text-[12px] rounded-[4px]"
-        : "w-[23px] h-[34px] text-[15px] rounded-[5px]";
+  const sizeClass = SIZE_CLASSES[size];
 
   return (
     <span

@@ -25,32 +25,48 @@ export function useLiquidIndicator({
 }: UseLiquidIndicatorOptions) {
   const isFirstPlacement = useRef(true);
   const lastActiveId = useRef<string | undefined>(undefined);
+  const hasVisibleBlob = useRef(false);
 
   function placeInstant() {
     const blob = blobRef.current;
     const item = activeId ? itemRefs.current[activeId] : null;
-    if (!blob || !item) return;
+    if (!blob) return;
+    if (!item) {
+      gsap.set(blob, { autoAlpha: 0 });
+      hasVisibleBlob.current = false;
+      return;
+    }
 
     if (axis === "y") {
-      gsap.set(blob, { y: item.offsetTop, scaleX: 1, scaleY: 1 });
+      gsap.set(blob, { autoAlpha: 1, y: item.offsetTop, scaleX: 1, scaleY: 1 });
     } else {
       gsap.set(blob, {
+        autoAlpha: 1,
         x: item.offsetLeft - paddingOffset,
         width: item.offsetWidth,
         scaleX: 1,
         scaleY: 1,
       });
     }
+    hasVisibleBlob.current = true;
   }
 
   useGSAP(
     () => {
       const blob = blobRef.current;
       const item = activeId ? itemRefs.current[activeId] : null;
-      if (!blob || !item) return;
+      if (!blob) return;
+      if (!item) {
+        gsap.set(blob, { autoAlpha: 0 });
+        hasVisibleBlob.current = false;
+        lastActiveId.current = activeId;
+        return;
+      }
 
       const shouldAnimate =
-        !isFirstPlacement.current && lastActiveId.current !== activeId;
+        !isFirstPlacement.current &&
+        hasVisibleBlob.current &&
+        lastActiveId.current !== activeId;
       isFirstPlacement.current = false;
       lastActiveId.current = activeId;
 
@@ -68,6 +84,9 @@ export function useLiquidIndicator({
             placeInstant();
             return;
           }
+
+          gsap.set(blob, { autoAlpha: 1 });
+          hasVisibleBlob.current = true;
 
           if (axis === "y") {
             gsap.to(blob, {

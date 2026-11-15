@@ -14,6 +14,7 @@ import { SplitFlap } from "@/components/ui/display/SplitFlap";
 import { Field } from "@/components/ui/forms/Field";
 import { Input } from "@/components/ui/forms/Input";
 import { Pagination } from "@/components/ui/navigation/Pagination";
+import { MasterDetailSplit } from "@/components/ui/surfaces/MasterDetailSplit";
 import { ResponsiveSheet } from "@/components/ui/surfaces/ResponsiveSheet";
 import {
   COMISIONES_MEDICAS_SEED,
@@ -44,6 +45,7 @@ export function ComisionesMedicasView() {
   );
   const [busqueda, setBusqueda] = useState("");
   const [page, setPage] = useState(1);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editando, setEditando] = useState<ComisionMedica | null>(null);
@@ -73,6 +75,10 @@ export function ComisionesMedicasView() {
     const start = (safePage - 1) * PAGE_SIZE;
     return filtradas.slice(start, start + PAGE_SIZE);
   }, [filtradas, safePage]);
+
+  const indiceSeleccionado = filtradas.findIndex((cm) => cm.id === selectedId);
+  const seleccionada =
+    indiceSeleccionado >= 0 ? filtradas[indiceSeleccionado]! : null;
 
   useGSAP(
     () => {
@@ -322,7 +328,7 @@ export function ComisionesMedicasView() {
                   >
                     <div className="flex items-start justify-between gap-2.5">
                       <div className="flex items-start gap-3 min-w-0 flex-1">
-                        <SplitFlap text={siglaCorta} size="xs" className="mt-0.5 shrink-0" />
+                        <SplitFlap text={siglaCorta} size="sm" className="mt-0.5 shrink-0" />
                         <div className="min-w-0 flex-1">
                           <strong className="block font-display text-[17px] font-bold tracking-[-0.03em] leading-tight text-fg truncate">
                             {cm.nombre}
@@ -366,72 +372,211 @@ export function ComisionesMedicasView() {
               })}
             </div>
 
-            {/* Desktop: Tablero */}
-            <div className="hidden sm:block border-t border-hair">
-              {paginadas.map((cm) => {
-                const siglaCorta = cm.codigo.replace(/^CM-/i, "");
-                return (
-                  <div
-                    key={cm.id}
-                    data-cm-item=""
-                    className="group grid grid-cols-[auto_1fr_auto] items-center gap-3.5 px-2.5 py-4 border-b border-hair transition-colors duration-120 hover:bg-hover"
-                  >
-                    <div className="flex items-center gap-3 min-w-[96px]">
-                      <SplitFlap text={siglaCorta} size="xs" />
-                    </div>
+            {/* Desktop: Tablero + Panel de detalle integrado */}
+            <MasterDetailSplit
+              storageKey="bolsines:comisiones:panel-ancho"
+              detailLabel="Detalle de comisión médica"
+              className="hidden sm:block"
+              posicion={
+                seleccionada && indiceSeleccionado >= 0
+                  ? { actual: indiceSeleccionado + 1, total: filtradas.length }
+                  : null
+              }
+              hasAnterior={indiceSeleccionado > 0}
+              hasSiguiente={
+                indiceSeleccionado >= 0 &&
+                indiceSeleccionado < filtradas.length - 1
+              }
+              onAnterior={() => {
+                if (indiceSeleccionado > 0) {
+                  setSelectedId(filtradas[indiceSeleccionado - 1]!.id);
+                }
+              }}
+              onSiguiente={() => {
+                if (indiceSeleccionado < filtradas.length - 1) {
+                  setSelectedId(filtradas[indiceSeleccionado + 1]!.id);
+                }
+              }}
+              onCerrar={() => setSelectedId(null)}
+              master={
+                <div>
+                  {/* Encabezado de columnas */}
+                  <div className="grid grid-cols-[140px_minmax(0,1fr)_auto] @lg:grid-cols-[140px_minmax(180px,1.3fr)_minmax(150px,1fr)_minmax(190px,1.1fr)_84px] items-center gap-4 px-3 py-2.5 border-y border-hair">
+                    <MicroLabel>Código</MicroLabel>
+                    <MicroLabel>Sede</MicroLabel>
+                    <MicroLabel className="hidden @lg:block">Ubicación</MicroLabel>
+                    <MicroLabel className="hidden @lg:block">Contacto</MicroLabel>
+                    <MicroLabel className="text-right">Acciones</MicroLabel>
+                  </div>
 
-                    <div className="min-w-0">
-                      <div className="flex items-baseline gap-2 flex-wrap">
-                        <strong className="font-display text-[19px] font-bold tracking-[-0.03em] leading-snug text-fg">
-                          {cm.nombre}
-                        </strong>
-                        <span className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
-                          {cm.codigo}
-                        </span>
+                  <div>
+                    {paginadas.map((cm) => {
+                      const siglaCorta = cm.codigo.replace(/^CM-/i, "");
+                      const estaSeleccionada = cm.id === seleccionada?.id;
+                      return (
+                        <div
+                          key={cm.id}
+                          data-cm-item=""
+                          onClick={() => setSelectedId(cm.id)}
+                          className={
+                            estaSeleccionada
+                              ? "group grid grid-cols-[140px_minmax(0,1fr)_auto] @lg:grid-cols-[140px_minmax(180px,1.3fr)_minmax(150px,1fr)_minmax(190px,1.1fr)_84px] items-center gap-4 px-3 py-3.5 border-b border-hair border-l-2 border-l-accent bg-raised/90 cursor-pointer transition-colors duration-120"
+                              : "group grid grid-cols-[140px_minmax(0,1fr)_auto] @lg:grid-cols-[140px_minmax(180px,1.3fr)_minmax(150px,1fr)_minmax(190px,1.1fr)_84px] items-center gap-4 px-3 py-3.5 border-b border-hair transition-colors duration-120 hover:bg-hover cursor-pointer"
+                          }
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <SplitFlap text={siglaCorta} size="md" />
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="flex items-baseline gap-2 flex-wrap">
+                              <strong className="font-display text-[17px] font-bold tracking-[-0.025em] leading-snug text-fg truncate">
+                                {cm.nombre}
+                              </strong>
+                              <span className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted shrink-0">
+                                {cm.codigo}
+                              </span>
+                            </div>
+                            <p className="text-[12.5px] text-muted mt-0.5 truncate @lg:hidden">
+                              {cm.direccion} · {cm.telefono}
+                            </p>
+                          </div>
+
+                          <div className="hidden @lg:block min-w-0">
+                            <p className="text-[13.5px] text-fg/90 truncate">
+                              {cm.direccion}
+                            </p>
+                          </div>
+
+                          <div className="hidden @lg:block min-w-0">
+                            <p className="font-mono text-[12px] text-fg/90 truncate">
+                              {cm.email}
+                            </p>
+                            <p className="font-mono text-[12px] text-muted mt-0.5 tabular-nums">
+                              {cm.telefono}
+                            </p>
+                          </div>
+
+                          <div
+                            className="flex items-center justify-end gap-1"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <IconButton
+                              aria-label={`Editar ${cm.nombre}`}
+                              title="Editar"
+                              onClick={() => abrirEditar(cm)}
+                              className="rounded-full"
+                            >
+                              <Pencil className="size-4" aria-hidden="true" />
+                            </IconButton>
+                            <IconButton
+                              aria-label={`Eliminar ${cm.nombre}`}
+                              title="Eliminar"
+                              onClick={() => setEliminando(cm)}
+                              className="rounded-full hover:text-danger-ink"
+                            >
+                              <Trash2 className="size-4" aria-hidden="true" />
+                            </IconButton>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <Pagination
+                    page={safePage}
+                    totalPages={totalPages}
+                    totalItems={filtradas.length}
+                    pageSize={PAGE_SIZE}
+                    onPageChange={setPage}
+                  />
+                </div>
+              }
+              detail={
+                seleccionada ? (
+                  <div className="flex flex-col gap-5">
+                    <div className="flex items-start gap-3.5">
+                      <SplitFlap
+                        text={seleccionada.codigo.replace(/^CM-/i, "")}
+                        size="md"
+                        className="shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <MicroLabel>{seleccionada.codigo}</MicroLabel>
+                        <h3 className="font-display text-[20px] font-bold tracking-[-0.03em] leading-tight text-fg mt-0.5">
+                          {seleccionada.nombre}
+                        </h3>
                       </div>
-                      <p className="text-[13px] text-muted mt-0.5 truncate">
-                        {cm.direccion}
-                      </p>
-                      <p className="font-mono text-[12px] text-muted/85 mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
-                        <span>{cm.email}</span>
-                        <span aria-hidden="true">·</span>
-                        <span>{cm.telefono}</span>
-                      </p>
                     </div>
 
-                    <div className="flex items-center gap-1">
-                      <IconButton
-                        aria-label={`Editar ${cm.nombre}`}
-                        title="Editar"
-                        onClick={() => abrirEditar(cm)}
-                        className="rounded-full"
+                    <dl className="border-t border-hair divide-y divide-hair">
+                      <div className="py-3">
+                        <dt>
+                          <MicroLabel>Dirección</MicroLabel>
+                        </dt>
+                        <dd className="text-[14px] text-fg mt-1">
+                          {seleccionada.direccion}
+                        </dd>
+                      </div>
+                      <div className="py-3">
+                        <dt>
+                          <MicroLabel>Email de contacto</MicroLabel>
+                        </dt>
+                        <dd className="font-mono text-[13px] text-fg mt-1 break-all">
+                          {seleccionada.email}
+                        </dd>
+                      </div>
+                      <div className="py-3">
+                        <dt>
+                          <MicroLabel>Teléfono</MicroLabel>
+                        </dt>
+                        <dd className="font-mono text-[13px] text-fg mt-1">
+                          {seleccionada.telefono}
+                        </dd>
+                      </div>
+                    </dl>
+
+                    <div className="pt-2 border-t border-hair flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="primary"
+                        size="sm"
+                        leftIcon={<Pencil className="size-3.5" />}
+                        onClick={() => abrirEditar(seleccionada)}
+                        className="rounded-full flex-1"
                       >
-                        <Pencil className="size-4" aria-hidden="true" />
-                      </IconButton>
-                      <IconButton
-                        aria-label={`Eliminar ${cm.nombre}`}
-                        title="Eliminar"
-                        onClick={() => setEliminando(cm)}
-                        className="rounded-full hover:text-danger-ink"
+                        Editar sede
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        leftIcon={
+                          <Trash2 className="size-3.5 text-danger-ink" />
+                        }
+                        onClick={() => setEliminando(seleccionada)}
+                        className="rounded-full text-danger-ink"
                       >
-                        <Trash2 className="size-4" aria-hidden="true" />
-                      </IconButton>
+                        Eliminar
+                      </Button>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                ) : null
+              }
+            />
           </>
         )}
       </div>
 
-      <Pagination
-        page={safePage}
-        totalPages={totalPages}
-        totalItems={filtradas.length}
-        pageSize={PAGE_SIZE}
-        onPageChange={setPage}
-      />
+      <div className="sm:hidden">
+        <Pagination
+          page={safePage}
+          totalPages={totalPages}
+          totalItems={filtradas.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
+      </div>
 
       {/* SideSheet en desktop / BottomSheet en mobile: Crear / Editar */}
       <ResponsiveSheet

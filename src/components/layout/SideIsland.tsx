@@ -98,7 +98,10 @@ export function SideIsland({ destinos, sesion }: SideIslandProps) {
       </div>
 
       {/* Destinos */}
-      <div ref={itemsRef} className="relative flex flex-col gap-1.5 flex-1">
+      <div
+        ref={itemsRef}
+        className="relative flex flex-col gap-1.5 flex-1 min-h-0 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         <div
           ref={blobRef}
           aria-hidden="true"
@@ -143,7 +146,11 @@ export function SideIsland({ destinos, sesion }: SideIslandProps) {
 
       {/* Pie: perfil + cerrar sesión directo */}
       <div className="flex flex-col gap-1.5 pt-2 border-t border-hair">
-        <div className="flex items-center gap-[11px] whitespace-nowrap">
+        <Link
+          href="/perfil"
+          aria-label="Ir a Mi perfil"
+          className="flex items-center gap-[11px] whitespace-nowrap rounded-[14px] hover:bg-hover transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
           <span className="flex-none size-[42px] rounded-[14px] border border-edge grid place-items-center font-mono text-[11px] font-semibold tracking-[0.06em] text-fg">
             {sesion.iniciales}
           </span>
@@ -155,7 +162,7 @@ export function SideIsland({ destinos, sesion }: SideIslandProps) {
               {sesion.cm.nombre}
             </MicroLabel>
           </span>
-        </div>
+        </Link>
 
         <button
           type="button"

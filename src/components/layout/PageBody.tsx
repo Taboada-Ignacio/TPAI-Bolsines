@@ -36,7 +36,7 @@ export function PageBody({
       )}
     >
       <div className="min-h-[calc(100dvh-var(--shell-top)-max(var(--isle-gap),var(--shell-bottom)))] w-full rounded-[var(--isle-r)] border border-edge bg-surface/90 p-5 sm:p-7 md:p-8 backdrop-blur-sm">
-        <div className="max-w-[940px]">{children}</div>
+        <div className="w-full">{children}</div>
       </div>
     </main>
   );

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { MicroLabel } from "@/components/ui/display/MicroLabel";
 import { Sheet } from "@/components/ui/surfaces/Sheet";
+import { cn } from "@/lib/cn";
 import type { Destino } from "@/lib/navigation";
 import type { SesionVista } from "@/services/auth/sesion-actual";
 
@@ -86,7 +87,12 @@ export function MoreSheet({
                 href={destino.href}
                 onClick={onClose}
                 aria-current={isActive ? "page" : undefined}
-                className="flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-sm font-semibold text-fg hover:bg-hover transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className={cn(
+                  "flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+                  isActive
+                    ? "bg-lime text-on-lime border border-lime-edge font-bold"
+                    : "font-semibold text-fg hover:bg-hover",
+                )}
               >
                 <Icon className="size-[18px]" aria-hidden="true" />
                 <span>{destino.nombre}</span>

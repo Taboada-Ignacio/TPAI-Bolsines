@@ -10,7 +10,7 @@ import { EnterCurtain } from "@/components/layout/EnterCurtain";
 import { IdentityIsland } from "@/components/layout/IdentityIsland";
 import { SideIsland } from "@/components/layout/SideIsland";
 import { SkipLink } from "@/components/layout/SkipLink";
-import { DESTINOS } from "@/lib/navigation";
+import { getDestinosVisibles } from "@/lib/navigation";
 import type { SesionVista } from "@/services/auth/sesion-actual";
 
 gsap.registerPlugin(useGSAP);
@@ -23,6 +23,7 @@ export interface AppShellProps {
 
 export function AppShell({ sesion, entrada = false, children }: AppShellProps) {
   const pathname = usePathname();
+  const destinosVisibles = getDestinosVisibles(sesion.rol);
   const shellRef = useRef<HTMLDivElement>(null);
   const curtainRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef(true);
@@ -140,7 +141,7 @@ export function AppShell({ sesion, entrada = false, children }: AppShellProps) {
         <div className="absolute -left-12 bottom-[16%] h-28 w-[300px] -rotate-12 bg-brand-cobalt/25 dark:bg-brand-cobalt/35" />
       </div>
 
-      <SideIsland destinos={DESTINOS} sesion={sesion} />
+      <SideIsland destinos={destinosVisibles} sesion={sesion} />
 
       <header
         data-top-islands=""
@@ -150,7 +151,7 @@ export function AppShell({ sesion, entrada = false, children }: AppShellProps) {
         <ActionsIsland sesion={sesion} />
       </header>
 
-      <DockPill destinos={DESTINOS} sesion={sesion} />
+      <DockPill destinos={destinosVisibles} sesion={sesion} />
 
       {children}
 

@@ -49,6 +49,7 @@ export function DockPill({ destinos, sesion }: DockPillProps) {
   const activo = useDestinoActivo();
   const router = useRouter();
   const { principales, extras } = repartirDestinosPildora(destinos);
+  const isExtraActivo = extras.some((destino) => destino.id === activo?.id);
   const navRef = useRef<HTMLElement>(null);
   const blobRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
@@ -155,7 +156,13 @@ export function DockPill({ destinos, sesion }: DockPillProps) {
         <button
           type="button"
           onClick={() => setMoreOpen(true)}
-          className="relative h-[42px] rounded-full flex items-center gap-1.5 px-2.5 text-[12.5px] font-semibold text-muted whitespace-nowrap cursor-pointer transition-[color,transform] duration-200 active:scale-95 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          aria-expanded={moreOpen}
+          className={cn(
+            "relative h-[42px] rounded-full flex items-center gap-1.5 px-2.5 text-[12.5px] whitespace-nowrap cursor-pointer transition-[color,background-color,transform] duration-200 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+            isExtraActivo
+              ? "bg-lime text-on-lime font-bold border border-lime-edge"
+              : "text-muted font-semibold hover:text-fg",
+          )}
         >
           <Menu className="size-[17px]" strokeWidth={2.2} aria-hidden="true" />
           <span>Más</span>

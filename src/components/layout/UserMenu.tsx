@@ -2,12 +2,14 @@
 
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { LogOut } from "lucide-react";
+import { LogOut, User, Users } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { MicroLabel } from "@/components/ui/display/MicroLabel";
 import { cn } from "@/lib/cn";
+import { ROL_ADMIN } from "@/lib/navigation";
 import type { SesionVista } from "@/services/auth/sesion-actual";
 
 gsap.registerPlugin(useGSAP);
@@ -131,12 +133,32 @@ export function UserMenu({ sesion, compact = false }: UserMenuProps) {
               <p className="text-[12px] text-muted mt-0.5">{sesion.rol}</p>
               <MicroLabel className="block mt-1">{sesion.cm.nombre}</MicroLabel>
             </div>
+            <Link
+              href="/perfil"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="mt-1.5 w-full flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-semibold text-fg hover:bg-hover transition-colors duration-120 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              <User className="size-4 text-muted" aria-hidden="true" />
+              <span>Mi perfil</span>
+            </Link>
+            {sesion.rol === ROL_ADMIN ? (
+              <Link
+                href="/empleados"
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                className="mt-0.5 w-full flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-semibold text-fg hover:bg-hover transition-colors duration-120 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                <Users className="size-4 text-muted" aria-hidden="true" />
+                <span>Empleados</span>
+              </Link>
+            ) : null}
             <button
               type="button"
               role="menuitem"
               disabled={loggingOut}
               onClick={handleLogout}
-              className="mt-1.5 w-full flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-semibold text-danger-ink hover:bg-hover transition-colors duration-120 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
+              className="mt-0.5 w-full flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-semibold text-danger-ink hover:bg-hover transition-colors duration-120 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
             >
               <LogOut className="size-4" aria-hidden="true" />
               <span>{loggingOut ? "Cerrando sesión…" : "Cerrar sesión"}</span>
