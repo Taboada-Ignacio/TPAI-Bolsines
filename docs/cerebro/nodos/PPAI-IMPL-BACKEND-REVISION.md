@@ -153,3 +153,15 @@ La implementación de los métodos pendientes de las entidades, la integración 
 ### [NACHO] Métodos de dominio y alcance GPS vigente
 
 `Bolsin.obtenerCodCMOrigen(): string` y `Bolsin.obtenerCodCMDestino(): string` delegan en sus respectivas comisiones. `Empleado.esTuCM(cm: ComisionMedica): boolean` compara por código. `Empleado.sosGCM(): boolean` delega en `Rol.esGCM(): boolean`, que reconoce el nombre exacto del catálogo. Las pruebas cubren asociaciones distintas, identidad lógica y delegación. Queda pendiente integrar los tres recorridos en el gestor.
+
+### [NACHO] Inicialización automática de PostgreSQL
+
+El servicio existente `migrate` clasifica la base antes de aplicar Prisma. Una base nueva registra un marcador pendiente en el esquema técnico `bolsines_bootstrap`. La carga, la comprobación de un GCM con usuario y correo por cada una de las 24 comisiones y la confirmación del marcador son atómicas. Una base completa aplica las migraciones pendientes y omite el seed. Para adoptar una base legada se exige el esquema, el historial y evidencia de datos. Las bases parciales bloquean el arranque dependiente.
+
+Pasaron 213 pruebas de Vitest, TypeScript, ESLint, la validación de Prisma y `docker compose config --quiet`. Cuatro pruebas HTTP quedaron omitidas. Siete escenarios con dobles verificaron el orden de inicialización, la omisión del seed, la adopción legada y el rollback. Las pruebas de primer arranque, reinicio, conservación de datos e inicialización incompleta con PostgreSQL quedan pendientes por acceso denegado al motor de Docker.
+
+### [NACHO] CU 31 disponible para prueba independiente
+
+El Route Handler autenticado delega en `PantNotificarUbicacionBolsin`, que invoca al gestor. Se usa el prefijo `/api/auth` por el alcance de la cookie vigente. El gestor valida el DTO y depende de `ServicioCorreo`. Nodemailer envía a Mailpit por SMTP local. Las pruebas cubren validación, composición, aceptación y rechazo SMTP, errores HTTP y sesión. La futura integración con CU 36 aportará el destinatario y la ubicación preparados.
+
+Pasaron 230 pruebas de Vitest, incluidas 17 del CU 31. Cuatro pruebas HTTP de GPS quedaron omitidas. Pasaron TypeScript, ESLint, Prisma, el build de producción con Webpack y la validación de Compose. El envío real a Mailpit queda por verificar porque el entorno denegó acceso al motor de Docker. El README incluye la prueba manual con sesión y datos ficticios.

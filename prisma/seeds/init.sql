@@ -86,6 +86,28 @@ BEGIN
 END;
 $seed$;
 
+-- 4a. Gerentes de demostración para las comisiones que todavía no tienen uno.
+-- Usa el bloqueo de empleado adquirido en la sección anterior.
+WITH gerentes_faltantes AS (
+  SELECT cm.id AS comision_medica_id, cm.codigo, r.id AS rol_id,
+    'gcm.' || lower(cm.codigo) AS usuario
+  FROM public.comision_medica cm
+  CROSS JOIN public.rol r
+  WHERE r.nombre = 'Gerente de Comisión Médica'
+    AND NOT EXISTS (
+      SELECT 1 FROM public.empleado e
+      WHERE e.comision_medica_id = cm.id AND e.rol_id = r.id
+    )
+), usuarios_nuevos AS (
+  INSERT INTO public.usuario (nombre, contrasena)
+  SELECT usuario, '123456' FROM gerentes_faltantes
+  RETURNING id, nombre
+)
+INSERT INTO public.empleado (nombre, apellido, email, usuario_id, rol_id, comision_medica_id)
+SELECT 'Gerente', g.codigo, g.usuario || '@example.test', u.id, g.rol_id, g.comision_medica_id
+FROM gerentes_faltantes g
+JOIN usuarios_nuevos u ON u.nombre = g.usuario;
+
 -- 5. Bolsines ficticios para el CU 36 (números reservados 36001 a 36035)
 DO $bolsines$
 DECLARE

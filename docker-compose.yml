@@ -8,6 +8,9 @@ services:
       SESSION_SIGNING_KEY: ${SESSION_SIGNING_KEY:-}
       GPS_SIMULADOR_API_KEY: ${GPS_SIMULADOR_API_KEY:-simulador-local}
       GPS_SIMULADOR_BASE_URL: ${GPS_SIMULADOR_BASE_URL:-http://127.0.0.1:3000}
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_FROM: ${SMTP_FROM:-notificaciones@bolsines.test}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -37,14 +40,12 @@ services:
       postgres:
         condition: service_healthy
     restart: "no"
-    command:
-      - sh
-      - -ec
-      - |
-        npx --no-install prisma migrate deploy
-        npx --no-install prisma migrate status
-        npx --no-install prisma migrate diff --from-config-datasource --to-schema=prisma/schema.prisma --exit-code
-        node prisma/seeds/run-init.mjs
+    command: ["node", "prisma/seeds/run-init.mjs"]
+
+  mailpit:
+    image: axllent/mailpit:v1.33.1
+    ports:
+      - "127.0.0.1:8025:8025"
 
   postgres:
     image: postgres:17.12-bookworm

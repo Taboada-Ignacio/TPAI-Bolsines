@@ -143,7 +143,22 @@ ORDER BY tablename, indexname;
 
 ## Datos iniciales de la base de datos
 
-Al ejecutar `docker compose up --build -d`, Compose espera a que PostgreSQL esté saludable. El servicio `migrate` aplica las migraciones de Prisma, valida el historial y compara el esquema. Después, `prisma/seeds/run-init.mjs` usa el cliente `pg` y la conexión `DATABASE_URL` para ejecutar `prisma/seeds/init.sql`. Next.js inicia cuando `migrate` termina con código 0. Si la carga falla, revisá `docker compose logs migrate`.
+Al ejecutar `docker compose up -d --build`, Compose espera a que PostgreSQL esté saludable. El servicio `migrate` ejecuta `prisma/seeds/run-init.mjs` y el backend espera su finalización exitosa. El script clasifica la base antes de ejecutar Prisma. En una base nueva registra la inicialización pendiente en `bolsines_bootstrap.inicializacion`, aplica y verifica las migraciones, y ejecuta `init.sql`. El seed, la verificación de las 24 comisiones con un GCM con usuario y correo por comisión y la confirmación del marcador se ejecutan en una sola transacción.
+
+En los siguientes arranques se aplican las migraciones pendientes y se omite el seed. Una instalación anterior al marcador se adopta si tiene el esquema esperado, historial de Prisma válido y usuarios y empleados existentes. Esta evidencia permite reconocer instalaciones legadas sin exigir que los datos sigan iguales al seed. Las bases ambiguas, con tablas faltantes o con un marcador pendiente requieren diagnóstico. Revisá `docker compose logs migrate`, el historial de Prisma y el marcador antes de recuperar una primera carga fallida. El arranque se detiene y el seed fallido se revierte.
+
+Para verificar los gerentes del seed, ejecutá esta consulta desde `psql` en la base de prueba. Debe devolver 24 filas con `gerentes = 1` y `con_usuario_y_correo = 1`. Un valor mayor que uno en `gerentes` indica duplicados.
+
+```sql
+SELECT cm.codigo, count(r.id) AS gerentes,
+       count(u.id) FILTER (WHERE r.id IS NOT NULL AND btrim(e.email) <> '') AS con_usuario_y_correo
+FROM public.comision_medica cm
+LEFT JOIN public.empleado e ON e.comision_medica_id = cm.id
+LEFT JOIN public.rol r ON r.id = e.rol_id AND r.nombre = 'Gerente de Comisión Médica'
+LEFT JOIN public.usuario u ON u.id = e.usuario_id
+GROUP BY cm.codigo
+ORDER BY cm.codigo;
+```
 
 | Catálogo           | Cantidad | Datos iniciales                                                                                                                    |
 | ------------------ | -------: | ---------------------------------------------------------------------------------------------------------------------------------- |
@@ -764,6 +779,47 @@ npm.cmd run test:run -- tests/gps-adapter-http.test.ts
 Si ejecutás Next.js directamente, usá su origen local en `GPS_ADAPTER_TEST_BASE_URL`. Las pruebas consultan los tres modelos y comprueban que el `503` del simulador llegue a la frontera.
 
 La suite de Adapter comprueba las firmas, las asociaciones, los lotes, la concurrencia de los adaptadores y los errores. La comprobación dentro de Docker depende del acceso al motor local.
+
+## CU 31 — Notificar ubicación de bolsín
+
+`POST /api/auth/cu31/notificar-ubicacion` permite probar la notificación con una sesión válida. La ruta queda bajo `/api/auth` para reutilizar el alcance de la cookie `bolsines_sesion`.
+
+| Participante                            | Operación                                                                              | Responsabilidad                                                                |
+| --------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `PantNotificarUbicacionBolsin`          | `atender(request: Request): Promise<Response>`                                         | Lee el JSON, llama al gestor y traduce su resultado a HTTP.                    |
+| `GestorNotificarUbicacionBolsin`        | `notificarUbicacionDeBolsin(solicitud: SolicitudNotificacionUbicacion): Promise<void>` | Valida el DTO, prepara el mensaje en texto plano y delega en `ServicioCorreo`. |
+| `ServicioCorreo` y `ServicioCorreoSMTP` | `enviarCorreo(destinatario: string, asunto: string, contenido: string): Promise<void>` | La implementación usa Nodemailer y espera la aceptación SMTP.                  |
+
+El Route Handler autentica antes de llamar a la pantalla. El gestor recibe el correo del GCM y la última ubicación por DTO, incluida la fecha original del GPS. Al integrar el CU 36, su gestor deberá resolver esos datos antes de invocar este flujo.
+
+Compose configura `SMTP_HOST=mailpit`, `SMTP_PORT=1025` y `SMTP_FROM=notificaciones@bolsines.test`. `SMTP_FROM` se puede configurar desde `.env`. El SMTP queda dentro de la red de Compose y la bandeja de Mailpit se publica en [http://localhost:8025](http://localhost:8025).
+
+### Prueba manual desde PowerShell
+
+```powershell
+# Si el entorno de prueba todavía no tiene SESSION_SIGNING_KEY, configurala una vez:
+# $env:SESSION_SIGNING_KEY = node -p "require('node:crypto').randomBytes(32).toString('hex')"
+docker compose up -d --build
+docker compose ps -a
+
+$base = 'http://127.0.0.1:3000'
+$login = @{ nombre = 'bolsines.demo'; contrasena = '123456' } | ConvertTo-Json
+Invoke-RestMethod "$base/api/auth/login" -Method Post -ContentType 'application/json' -Body $login -SessionVariable sesion | Out-Null
+$datos = @{
+  emailDestino = 'gcm.cm-cba@example.test'
+  nroBolsin = 36001
+  latitud = '-31.4201'
+  longitud = '-64.1888'
+  fechaHoraActualizacion = '2026-11-15T17:35:00.000Z'
+} | ConvertTo-Json
+Invoke-RestMethod "$base/api/auth/cu31/notificar-ubicacion" -Method Post -ContentType 'application/json' -Body $datos -WebSession $sesion
+```
+
+Usá la clave de sesión vigente si querés conservar sesiones existentes. Con el usuario de demostración de `init.sql`, la respuesta esperada es `200` con `{"aceptada":true}`. En Mailpit, abrí el mensaje para verificar el destinatario, el asunto, la fecha GPS y el enlace de Google Maps. Los errores esperados son `400` para JSON o datos inválidos, `401` para sesión ausente o inválida, `503` para un fallo SMTP y `500` para otros errores internos.
+
+```powershell
+npm.cmd run test:run -- tests/notificar-ubicacion.test.ts
+```
 
 ## Comandos npm
 
