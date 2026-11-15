@@ -623,6 +623,90 @@ Se esperan `204` al cerrar, `401` al reutilizar la cookie y una fecha de fin no 
 
 El gestor que coordinará estas operaciones queda pendiente.
 
+## Simulador local de GPS Tracker
+
+El backend Next.js simula los tres modelos de GPS de la ERS para que los futuros adaptadores del CU 36 puedan consumir sus formatos originales. Los endpoints usan rutas locales y funcionan sin acceso a servicios externos ni a PostgreSQL.
+
+| Modelo           | Endpoint GET                                     | Parámetros obligatorios               | Respuesta 200                                                                         |
+| ---------------- | ------------------------------------------------ | ------------------------------------- | ------------------------------------------------------------------------------------- |
+| XTR-4500L        | `/api/gps-simulator/xtr-4500l/getBolsinLocation` | `apiKey`, `nroBolsin`, `codCMOrigen`  | Objeto JSON con `numeroBolsin`, `latitud`, `longitud` y `fechaHoraActualizacion`      |
+| NavTrack QX-7A   | `/api/gps-simulator/qx-7a/retrieveTrackingData`  | `apiKey`, `nroBolsin`, `codCMDestino` | Texto CSV de una sola fila `nroBolsin,latitud,longitud,fechaHora`                     |
+| GeoPulse MTR-900 | `/api/gps-simulator/mtr-900/fetchCargoPositions` | `apiKey`, `nroBolsin`                 | Matriz JSON `[[nroBolsin, latitud, longitud, fechaHora]]` con cuatro cadenas por fila |
+
+`nroBolsin` es un entero de 32 bits. Los códigos de comisión requeridos deben contener texto. Las respuestas se sirven con `Cache-Control: no-store`.
+
+El resto módulo tres del número de bolsín, ajustado al rango de 0 a 2, asigna siempre el mismo bolsín a RN 7, RN 9 o RN 40. En cada consulta se elige al azar uno de los segmentos de esa ruta y se interpolan la latitud y la longitud con la misma proporción. Cada consulta toma una lectura del reloj del servidor y resta un retraso aleatorio de 0 a 3.600.000 milisegundos, ambos inclusive. La fecha resultante se informa una sola vez por posición, en ISO 8601 UTC con sufijo `Z`.
+
+### Cartografía
+
+[`rutas-nacionales.geojson`](src/lib/gps-simulator/rutas-nacionales.geojson) contiene geometrías de la Dirección Nacional de Vialidad. La descarga se realizó el 15 de noviembre de 2026 desde el WFS del IGN, capa `transporte:vial_nacional`, en formato Shapefile con `srsName=EPSG:4326` y sin el parámetro `maxFeatures` del enlace del catálogo. El catálogo indica la licencia «Otra (Abierta)» y atribuye el relevamiento a la Dirección Nacional de Vialidad. [Catálogo de rutas nacionales](https://datos.transporte.gob.ar/dataset/rutas-nacionales) · [Recurso Shapefile](https://datos.transporte.gob.ar/dataset/rutas-nacionales/archivo/d58b91ee-c46a-4260-8d89-69438417d73b).
+
+El WFS informó 2.723 registros para la capa completa. Ese total coincidió con los registros del `.shp`, `.shx` y `.dbf`. Se verificó el CRC del ZIP y se conservó su SHA-256 para identificar la descarga: `cf49c79a392ddaef4279ade7fe8cb91a88e692be9973ff689620f040f39507af`.
+
+Se seleccionaron los registros cuyo campo `designacio` contiene el código `7`, `9` o `40` como valor exacto o componente separado por guiones. Por ejemplo, `7-40` se incorpora en ambas rutas. Cada parte original se conserva como línea independiente dentro de un `MultiLineString` en WGS84 (`EPSG:4326`), con vértices `[longitud, latitud]`. Los segmentos conectan únicamente vértices consecutivos del mismo tramo. Los totales cuentan los tramos compartidos dentro de cada ruta a la que pertenecen.
+
+| Ruta  | Tramos | Vértices | Segmentos |
+| ----- | -----: | -------: | --------: |
+| RN 7  |     81 |    9.672 |     9.591 |
+| RN 9  |    131 |   17.520 |    17.389 |
+| RN 40 |    281 |   44.605 |    44.324 |
+
+El archivo se guarda en el repositorio. La cartografía se lee desde disco y queda disponible sin Internet durante el arranque y las consultas.
+
+Compose pasa `GPS_SIMULADOR_API_KEY` al servicio `backend` y usa `simulador-local` por defecto. Para usar otra clave, configurala en `.env` o en el entorno. Cuando ejecutás Next.js directamente desde el anfitrión, definí esa variable antes del arranque. El Dockerfile incorpora el GeoJSON al copiar el árbol fuente en `/app`.
+
+### Consultar desde PowerShell
+
+```powershell
+docker compose up -d --build
+$direccion = docker compose port backend 3000
+$gps = "http://$direccion/api/gps-simulator"
+$clave = [uri]::EscapeDataString("simulador-local")
+$consulta = "apiKey=$clave&nroBolsin=42"
+
+(Invoke-WebRequest "$gps/xtr-4500l/getBolsinLocation?$consulta&codCMOrigen=CM-CBA").Content
+(Invoke-WebRequest "$gps/qx-7a/retrieveTrackingData?$consulta&codCMDestino=CM-SF").Content
+(Invoke-WebRequest "$gps/mtr-900/fetchCargoPositions?$consulta").Content
+curl.exe -i "$gps/mtr-900/fetchCargoPositions?$consulta&simularFallo=1"
+
+docker compose exec backend node -e "console.log(JSON.parse(require('node:fs').readFileSync('src/lib/gps-simulator/rutas-nacionales.geojson', 'utf8')).features.length)"
+```
+
+Los errores se devuelven como JSON con el campo `error`. El código `400` indica parámetros ausentes o inválidos, `401` indica una clave incorrecta y `503` indica que el simulador está indisponible. En desarrollo, `simularFallo=1` devuelve `503` con una consulta válida para poder probar el flujo A3. Compose inicia el backend con `next dev`.
+
+### Ejemplos de respuestas
+
+Respuestas registradas durante la comprobación de los manejadores compilados. El reloj del servidor marcaba aproximadamente `2026-11-15T18:58:10Z`.
+
+**XTR-4500L · bolsín 42 · RN 7**
+
+```json
+{
+  "numeroBolsin": 42,
+  "latitud": -34.06973494457621,
+  "longitud": -63.77891256268853,
+  "fechaHoraActualizacion": "2026-11-15T18:52:54.162Z"
+}
+```
+
+**NavTrack QX-7A · bolsín 43 · RN 9**
+
+```text
+43,-24.173485620256116,-65.36430665397333,2026-11-15T18:30:30.367Z
+```
+
+**GeoPulse MTR-900 · bolsín 44 · RN 40**
+
+```json
+[["44", "-37.41777711965108", "-70.22719734263802", "2026-11-15T18:28:38.384Z"]]
+```
+
+### Pruebas
+
+Ejecutá `npm.cmd run test:run -- tests/gps-simulator.test.ts` para verificar los tres formatos, las validaciones, la lectura local, los cortes entre tramos y la interpolación. Las pruebas fijan el reloj y el generador aleatorio para comprobar ambos límites de la antigüedad y los valores intermedios en las respuestas.
+
+En la verificación de esta actualización pasaron las 182 pruebas, `typecheck`, `lint` y el build de producción con Webpack. Los tres endpoints devolvieron `200` por HTTP al ejecutar el backend compilado en Windows. `docker compose config --quiet` validó la configuración. La verificación dentro del contenedor quedó pendiente por falta de acceso al motor Docker desde el entorno de prueba.
+
 ## Comandos npm
 
 Para trabajar desde el anfitrión, instalá las dependencias con `npm ci` después de obtener el lockfile. Para levantar únicamente la base de datos, usá `docker compose up -d postgres`. Para arrancar Next.js desde una instalación local nueva, ejecutá `npm run prisma:generate` y luego `npm run dev`.

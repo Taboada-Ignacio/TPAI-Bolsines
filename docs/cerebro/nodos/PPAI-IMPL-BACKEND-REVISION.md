@@ -112,3 +112,7 @@ Como avance parcial de P1, `Bolsin.esCMOrigenIgualCMLogueado()` compara el códi
 ### [NACHO] Consultas de dominio para identificar al gerente de destino
 
 `Empleado.esTuCM()` compara el código de la comisión asociada con el de destino. `Empleado.sosGCM()` delega en `Rol.esGCM()`, que reconoce el nombre exacto `Gerente de Comisión Médica`. Estas consultas son independientes y preparan la selección del gerente por el futuro gestor del CU 36.
+
+### [NACHO] Simulador local de los tres GPS
+
+El backend ofrece tres endpoints en `/api/gps-simulator` con los formatos JSON, CSV y matriz de la ERS. Cada consulta selecciona un punto sobre la ruta nacional asignada al número de bolsín. El GeoJSON local incorpora los tramos oficiales de RN 7, RN 9 y RN 40 relevados por Vialidad Nacional. La fecha de última actualización se elige entre la hora del servidor y los 60 minutos anteriores. En desarrollo, `simularFallo=1` permite reproducir la falta de respuesta prevista en A3. Los adaptadores y el gestor del CU 36 corresponden a la siguiente integración.
