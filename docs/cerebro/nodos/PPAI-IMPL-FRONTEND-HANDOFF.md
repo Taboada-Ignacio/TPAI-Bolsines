@@ -59,7 +59,8 @@ npm run dev
   - `/inicio`: tablero de bienvenida dentro del App Shell en islas (tema claro/oscuro desde la isla superior derecha).
   - `/comisiones-medicas`: CRUD completo de sedes (búsqueda, paginado, crear/editar en `ResponsiveSheet`, eliminar con confirmación). Actualmente opera sobre `COMISIONES_MEDICAS_SEED`; para conectar con PostgreSQL real, apuntar a `GET/POST /api/comisiones-medicas` y `PATCH/DELETE /api/comisiones-medicas/[id]` ya implementados por Nacho en `origin/feature/backend` (commits `0634975` y `42d5590`).
   - `/seguimiento`: placeholder visual a sangre esperando la nueva spec + maqueta del CU 36.
-- **Checks locales:** `npm run typecheck`, `npm run lint`, `npm run test:run` (`31` tests en verde), `npm run build`.
+- **Checks locales:** `npm run typecheck`, `npm run lint`, `npm run test:run` (`216` tests en verde), `npm run build`.
+- **Base en memoria (`pg-mem`) vs. Docker/PostgreSQL:** si no tenés Docker levantado localmente, podés usar `USE_PG_MEM=true` en `.env` para que `src/infrastructure/prisma.ts` delegue en `crearPrismaEnMemoria()` (`src/infrastructure/pg-mem-prisma.ts` con el DDL de migración + seeds). **Para conectarse a PostgreSQL en Docker como antes**, simplemente quitá `USE_PG_MEM` de `.env` (o dejalo en `USE_PG_MEM=false`) y asegurate de tener `DATABASE_URL` configurada; `docker-compose.yml` no define `USE_PG_MEM`, así que en contenedor usa PostgreSQL real automáticamente.
 - **Nota de integración con Backend (`feature/backend`):** ya existen CRUD + seeds de `roles`, `estados` y `comisiones-medicas`; siguen pendientes `/api/auth/login` (para reemplazar el mock de `src/app/api/auth/`) y `GestorSeguimientoBolsines` + endpoints del CU 36. Detail en [`PPAI-IMPL-BACKEND-REVISION`](./PPAI-IMPL-BACKEND-REVISION.md).
 
 ## 4. Reglas del usuario (obligatorias)

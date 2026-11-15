@@ -64,3 +64,18 @@ La separación en capas (`domain`, `services`, `infrastructure`, `adapters`, `dt
 - [ ] Implementación de `IGPSTrackerAdapter`, adaptadores concretos (`XTR4500LAdapter`, `NavTrackQX7AAdapter`, `GeoPulseMTR900Adapter`) y `GPSTrackerAdapterFactory` en `src/adapters/`.
 - [ ] `GestorSeguimientoBolsines` en `src/services/` + endpoints del CU 36 en `src/app/api/`.
 - [ ] Integración de notificación por email (CU 30/31 — Microsoft Graph o servicio equivalente).
+
+---
+
+## 4. Modo en memoria con `pg-mem` (y cómo desactivarlo para Docker)
+
+Para desarrollar y testear el frontend sin depender de Docker ni de una instancia externa de PostgreSQL, en `feature/frontend` se agregó soporte opcional de PostgreSQL en memoria (`pg-mem`):
+
+- **Archivos:**
+  - `src/infrastructure/prisma.ts`: `getPrisma()` revisa `process.env.USE_PG_MEM === "true"`.
+  - `src/infrastructure/pg-mem-prisma.ts`: `crearPrismaEnMemoria()` levanta una instancia `pg-mem`, ejecuta el DDL de `prisma/migrations/20261114202500_init_domain_entities/migration.sql` y carga los seeds iniciales (`rol`, `estado`, `comision_medica`, `usuario`, `empleado`).
+  - `tests/pg-mem-integration.test.ts`: test de integración que valida tablas, seeds, login, registro y actualización de perfil sobre `pg-mem`.
+- **Cómo desactivarlo para correr con Docker + PostgreSQL real (como antes):**
+  1. En `.env` (o en el entorno del contenedor), **no definir `USE_PG_MEM`** o dejar **`USE_PG_MEM=false`** (en `docker-compose.yml` no está seteada, así que por defecto ya usa PostgreSQL real).
+  2. Asegurar que `DATABASE_URL` apunte al servicio `postgres` (en Docker Compose ya se arma con `DOCKER_DATABASE_URL` / `POSTGRES_*`).
+  3. Con `USE_PG_MEM` ausente o distinto de `"true"`, `getPrisma()` instancia `new PrismaClient({ adapter: new PrismaPg({ connectionString }) })` y se conecta normalmente a PostgreSQL.
