@@ -36,7 +36,7 @@ flowchart LR
     node_PPAI_PAT_ADAPTER_GPS["PPAI-PAT-ADAPTER-GPS<br/>Patrón Adapter para Modelos de GPS Tracker (XTR-4500L, NavTrack QX-7A, GeoPulse MTR-900)<br/><i>[patron-gof]</i>"]:::patron
     node_PPAI_PAT_STATE_BOLSIN["PPAI-PAT-STATE-BOLSIN<br/>Aplicación del Patrón State y Trazabilidad CambioEstadoBolsin en el PPAI<br/><i>[patron-gof]</i>"]:::patron
     node_PPAI_UX_EMPATIA["PPAI-UX-EMPATIA<br/>UX PPAI - Mapa de Empatía del Encargado de Bolsines y Diseño de Mapa CU 36<br/><i>[convencion]</i>"]:::conv
-    node_PPAI_UX_MANUAL_MARCA["PPAI-UX-MANUAL-MARCA<br/>Manual de Marca, Tokens Visuales y Estrategia de Motion (CU 36)<br/><i>[convencion]</i>"]:::conv
+    node_PPAI_UX_MANUAL_MARCA["PPAI-UX-MANUAL-MARCA<br/>Manual de Marca, Craft Kit (Rumbo/Costado) y Estrategia de Motion (CU 36)<br/><i>[convencion]</i>"]:::conv
     node_PPAI_CU_30 -->|"depende de"| node_PPAI_CU_36
     ext_DSI_00_CONVENCIONES["DSI-00-CONVENCIONES"]:::external
     node_PPAI_CU_30 -.->|"conecta con"| ext_DSI_00_CONVENCIONES
@@ -311,7 +311,7 @@ flowchart TD
     node_PPAI_PAT_ADAPTER_GPS["PPAI-PAT-ADAPTER-GPS<br/>Patrón Adapter para Modelos de GPS Tracker (XTR-4500L, NavTrack QX-7A, GeoPulse MTR-900)<br/><i>[patron-gof]</i>"]:::patron
     node_PPAI_PAT_STATE_BOLSIN["PPAI-PAT-STATE-BOLSIN<br/>Aplicación del Patrón State y Trazabilidad CambioEstadoBolsin en el PPAI<br/><i>[patron-gof]</i>"]:::patron
     node_PPAI_UX_EMPATIA["PPAI-UX-EMPATIA<br/>UX PPAI - Mapa de Empatía del Encargado de Bolsines y Diseño de Mapa CU 36<br/><i>[convencion]</i>"]:::conv
-    node_PPAI_UX_MANUAL_MARCA["PPAI-UX-MANUAL-MARCA<br/>Manual de Marca, Tokens Visuales y Estrategia de Motion (CU 36)<br/><i>[convencion]</i>"]:::conv
+    node_PPAI_UX_MANUAL_MARCA["PPAI-UX-MANUAL-MARCA<br/>Manual de Marca, Craft Kit (Rumbo/Costado) y Estrategia de Motion (CU 36)<br/><i>[convencion]</i>"]:::conv
     node_DSI_00_CONVENCIONES -.->|"conecta con"| node_DSI_U1_REALIZACIONES_CU
     node_DSI_00_CONVENCIONES -.->|"conecta con"| node_DSI_U1_MAQUINA_ESTADOS
     node_DSI_00_CONVENCIONES -.->|"conecta con"| node_DSI_U2_COMPONENTES
@@ -516,4 +516,4 @@ flowchart TD
 | [PPAI-PAT-ADAPTER-GPS](nodos/PPAI-PAT-ADAPTER-GPS.md) | Patrón Adapter para Modelos de GPS Tracker (XTR-4500L, NavTrack QX-7A, GeoPulse MTR-900) | `patron-gof` | PPAI | DSI-U2-PATRONES-ESTRUCTURALES, PPAI-CU-36, PPAI-DIS-ARQUITECTURA |
 | [PPAI-PAT-STATE-BOLSIN](nodos/PPAI-PAT-STATE-BOLSIN.md) | Aplicación del Patrón State y Trazabilidad CambioEstadoBolsin en el PPAI | `patron-gof` | PPAI | DSI-U2-PATRONES-COMPORTAMENTALES, PPAI-DOM-BOLSIN, PPAI-DOM-PRECINTO, PPAI-CU-36 |
 | [PPAI-UX-EMPATIA](nodos/PPAI-UX-EMPATIA.md) | UX PPAI - Mapa de Empatía del Encargado de Bolsines y Diseño de Mapa CU 36 | `convencion` | PPAI | DSI-00-UX-INTERFACES, PPAI-CU-36, PPAI-DOM-ORGANIZACION |
-| [PPAI-UX-MANUAL-MARCA](nodos/PPAI-UX-MANUAL-MARCA.md) | Manual de Marca, Tokens Visuales y Estrategia de Motion (CU 36) | `convencion` | PPAI | PPAI-UX-EMPATIA, DSI-00-UX-INTERFACES, PPAI-CU-36, PPAI-CU-30 |
+| [PPAI-UX-MANUAL-MARCA](nodos/PPAI-UX-MANUAL-MARCA.md) | Manual de Marca, Craft Kit (Rumbo/Costado) y Estrategia de Motion (CU 36) | `convencion` | PPAI | PPAI-UX-EMPATIA, DSI-00-UX-INTERFACES, PPAI-CU-36, PPAI-CU-30 |
