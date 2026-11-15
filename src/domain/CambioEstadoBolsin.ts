@@ -39,6 +39,18 @@ export class CambioEstadoBolsin {
     return this.estado;
   }
 
+  sosActual(): boolean {
+    return this.fechaHoraFin === null;
+  }
+
+  esAmbitoBolsin(): boolean {
+    return this.estado.esAmbitoBolsin();
+  }
+
+  esEnviado(): boolean {
+    return this.estado.esEnviado();
+  }
+
   setEstado(estado: Estado): void {
     this.estado = estado;
   }

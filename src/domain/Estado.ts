@@ -29,6 +29,14 @@ export class Estado {
     return this.ambito;
   }
 
+  esAmbitoBolsin(): boolean {
+    return this.ambito === "BOLSIN";
+  }
+
+  esEnviado(): boolean {
+    return this.nombre === "Enviado";
+  }
+
   setAmbito(ambito: string): void {
     this.ambito = ambito;
   }

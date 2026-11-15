@@ -611,6 +611,18 @@ $id = [int]$perfil.sesion.id
 
 Se esperan `204` al cerrar, `401` al reutilizar la cookie y una fecha de fin no nula en PostgreSQL.
 
+`Empleado.obtenerCM()` devuelve el nombre y la dirección de la comisión médica asociada en el formato `Nombre de la Comisión Médica - Dirección`. En el CU 36, el gestor lo invocará sobre el empleado identificado como logueado.
+
+### Consultas de dominio para el CU 36
+
+- `Bolsin.esCMOrigenIgualCMLogueado()` compara el código de la comisión de origen. `buscarEstadoActualBolsin()` devuelve el único cambio vigente, `null` si no hay ninguno o un error si hay varios.
+- `CambioEstadoBolsin.sosActual()` verifica que la fecha de fin sea nula. `esAmbitoBolsin()` y `esEnviado()` delegan en el estado asociado.
+- `Estado.esAmbitoBolsin()` y `Estado.esEnviado()` comprueban por separado el ámbito exacto `BOLSIN` y el nombre exacto `Enviado`.
+
+- `Empleado.esTuCM()` compara el código de su comisión con el de destino. `Empleado.sosGCM()` delega en `Rol.esGCM()`, que comprueba el nombre exacto `Gerente de Comisión Médica`.
+
+El gestor que coordinará estas operaciones queda pendiente.
+
 ## Comandos npm
 
 Para trabajar desde el anfitrión, instalá las dependencias con `npm ci` después de obtener el lockfile. Para levantar únicamente la base de datos, usá `docker compose up -d postgres`. Para arrancar Next.js desde una instalación local nueva, ejecutá `npm run prisma:generate` y luego `npm run dev`.

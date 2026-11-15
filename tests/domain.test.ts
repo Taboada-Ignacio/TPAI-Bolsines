@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Bolsin } from "@/domain/Bolsin";
 import { CambioEstadoBolsin } from "@/domain/CambioEstadoBolsin";
 import { ComisionMedica } from "@/domain/ComisionMedica";
@@ -32,6 +32,149 @@ describe("Entidades del CU 36", () => {
       crearComision("01"),
     );
   const crearEstado = () => new Estado("Enviado", "En tránsito", "Bolsin");
+
+  describe("Consultas de dominio para el CU 36", () => {
+    const origen = crearComision("CM-CBA");
+    const destino = crearComision("CM-SF");
+    const crearBolsin = (cambios: CambioEstadoBolsin[]) =>
+      new Bolsin(inicio, 100, 200, 2.5, origen, destino, cambios);
+    const crearCambio = (fechaFin: Date | null, estado = crearEstado()) =>
+      new CambioEstadoBolsin(inicio, fechaFin, estado, crearEmpleado());
+
+    it("compara el código de origen incluso entre instancias distintas", () => {
+      const bolsin = crearBolsin([]);
+      expect(bolsin.esCMOrigenIgualCMLogueado(origen)).toBe(true);
+      const mismaComision = crearComision(origen.getCodigo());
+      mismaComision.setNombre("Otro nombre descriptivo");
+      expect(bolsin.esCMOrigenIgualCMLogueado(mismaComision)).toBe(true);
+      expect(bolsin.esCMOrigenIgualCMLogueado(destino)).toBe(false);
+      expect(bolsin.esCMOrigenIgualCMLogueado(crearComision("CM-MZA"))).toBe(
+        false,
+      );
+    });
+
+    it("determina la vigencia únicamente por la fecha de fin", () => {
+      expect(crearCambio(null).sosActual()).toBe(true);
+      expect(crearCambio(fin).sosActual()).toBe(false);
+    });
+
+    it("encuentra un cambio vigente posterior al histórico sin filtrar nombre ni ámbito", () => {
+      const actual = crearCambio(null, new Estado("Creado", "", "OTRO"));
+      const bolsin = crearBolsin([crearCambio(fin), actual, crearCambio(fin)]);
+      expect(bolsin.buscarEstadoActualBolsin()).toBe(actual);
+    });
+
+    it("devuelve null sin un cambio vigente, incluso con historial vacío", () => {
+      expect(
+        crearBolsin([crearCambio(fin)]).buscarEstadoActualBolsin(),
+      ).toBeNull();
+      expect(crearBolsin([]).buscarEstadoActualBolsin()).toBeNull();
+    });
+
+    it("informa la inconsistencia de varios cambios vigentes", () => {
+      const bolsin = crearBolsin([crearCambio(null), crearCambio(null)]);
+      expect(() => bolsin.buscarEstadoActualBolsin()).toThrow(
+        "más de un cambio de estado actual",
+      );
+    });
+
+    it("reconoce solo el ámbito exacto BOLSIN, independientemente del nombre", () => {
+      expect(new Estado("Creado", "", "BOLSIN").esAmbitoBolsin()).toBe(true);
+      expect(new Estado("Enviado", "", "OTRO").esAmbitoBolsin()).toBe(false);
+      expect(new Estado("Enviado", "", "Bolsin").esAmbitoBolsin()).toBe(false);
+    });
+
+    it("reconoce Enviado independientemente del ámbito", () => {
+      expect(new Estado("Enviado", "", "OTRO").esEnviado()).toBe(true);
+    });
+
+    it.each(["Creado", "Cerrado", "RecibidoEnCMDestino", "DeBaja", "enviado"])(
+      "no reconoce %s como Enviado",
+      (nombre) =>
+        expect(new Estado(nombre, "", "BOLSIN").esEnviado()).toBe(false),
+    );
+
+    it("delega el ámbito y el nombre al estado asociado", () => {
+      const estado = new Estado("Creado", "", "OTRO");
+      const ambito = vi.spyOn(estado, "esAmbitoBolsin").mockReturnValue(true);
+      const enviado = vi.spyOn(estado, "esEnviado").mockReturnValue(true);
+      const cambio = crearCambio(null, estado);
+      expect(cambio.esAmbitoBolsin()).toBe(true);
+      expect(cambio.esEnviado()).toBe(true);
+      expect(ambito).toHaveBeenCalledOnce();
+      expect(enviado).toHaveBeenCalledOnce();
+    });
+
+    it("consulta el origen y el estado sin modificar las entidades", () => {
+      const cambio = crearCambio(null, new Estado("Enviado", "", "BOLSIN"));
+      const bolsin = crearBolsin([crearCambio(fin), cambio]);
+      const antes = structuredClone(bolsin);
+      bolsin.esCMOrigenIgualCMLogueado(origen);
+      bolsin.buscarEstadoActualBolsin();
+      cambio.sosActual();
+      cambio.esAmbitoBolsin();
+      cambio.esEnviado();
+      expect(structuredClone(bolsin)).toEqual(antes);
+    });
+  });
+
+  describe("Consultas de dominio para identificar al gerente de destino", () => {
+    const gerente = "Gerente de Comisión Médica";
+
+    it("compara la comisión del empleado por código sin modificar los objetos", () => {
+      const empleado = crearEmpleado();
+      const original = empleado.getComisionMedica();
+      const equivalente = crearComision(original.getCodigo());
+      equivalente.setNombre("Nombre descriptivo distinto");
+      const diferente = crearComision("02");
+      const antes = structuredClone({ empleado, equivalente, diferente });
+
+      expect(empleado.esTuCM(original)).toBe(true);
+      expect(empleado.esTuCM(equivalente)).toBe(true);
+      expect(empleado.esTuCM(diferente)).toBe(false);
+      expect(structuredClone({ empleado, equivalente, diferente })).toEqual(
+        antes,
+      );
+      expect(empleado.getComisionMedica()).toBe(original);
+    });
+
+    it.each([
+      [gerente, true],
+      ["Encargado de Bolsines", false],
+      ["Encargado de Documentación", false],
+      ["Parametrizador del sistema", false],
+      ["Gerente de Comision Medica", false],
+    ])("evalúa el rol %s sin cambiar sus atributos", (nombre, esperado) => {
+      const rol = new Rol(nombre, gerente);
+      const antes = structuredClone(rol);
+      expect(rol.esGCM()).toBe(esperado);
+      expect(structuredClone(rol)).toEqual(antes);
+    });
+
+    it("reconoce al gerente en distintas comisiones y conserva sus datos", () => {
+      const empleado = crearEmpleado();
+      const rol = new Rol(gerente, "Rol del catálogo");
+      empleado.setRol(rol);
+      const antes = structuredClone(empleado);
+      expect(empleado.sosGCM()).toBe(true);
+      expect(structuredClone(empleado)).toEqual(antes);
+      expect(empleado.getRol()).toBe(rol);
+      empleado.setComisionMedica(crearComision("02"));
+      expect(empleado.sosGCM()).toBe(true);
+      empleado.setRol(new Rol("Encargado de Bolsines", gerente));
+      expect(empleado.sosGCM()).toBe(false);
+    });
+
+    it("devuelve el resultado de Rol.esGCM mediante delegación", () => {
+      const empleado = crearEmpleado();
+      const esGCM = vi
+        .spyOn(empleado.getRol(), "esGCM")
+        .mockReturnValueOnce(true);
+      expect(empleado.sosGCM()).toBe(true);
+      expect(empleado.sosGCM()).toBe(false);
+      expect(esGCM).toHaveBeenCalledTimes(2);
+    });
+  });
 
   it("inicializa y actualiza los datos de Usuario", () => {
     const usuario = crearUsuario();
@@ -109,6 +252,46 @@ describe("Entidades del CU 36", () => {
     expect(empleado.getUsuario()).toBe(nuevoUsuario);
     expect(empleado.getRol()).toBe(nuevoRol);
     expect(empleado.getComisionMedica()).toBe(nuevaComision);
+  });
+
+  it.each([
+    [
+      "Comisión Médica Córdoba",
+      "Av. Ejemplo 123",
+      "Comisión Médica Córdoba - Av. Ejemplo 123",
+    ],
+    [
+      "Comisión Médica Santa Fe",
+      "San Martín 456",
+      "Comisión Médica Santa Fe - San Martín 456",
+    ],
+    ["Á É Í Ó Ú Ñ", "á é í ó ú ñ", "Á É Í Ó Ú Ñ - á é í ó ú ñ"],
+  ])(
+    "devuelve el nombre y la dirección de %s",
+    (nombre, direccion, esperado) => {
+      const empleado = crearEmpleado();
+      empleado.setComisionMedica(
+        new ComisionMedica(
+          "02",
+          direccion,
+          "cm@example.com",
+          nombre,
+          "0351-5550100",
+        ),
+      );
+      expect(empleado.obtenerCM()).toBe(esperado);
+    },
+  );
+
+  it("obtiene la comisión sin modificar al empleado ni a su comisión", () => {
+    const empleado = crearEmpleado();
+    const comision = empleado.getComisionMedica();
+    const antes = structuredClone(empleado);
+
+    empleado.obtenerCM();
+
+    expect(structuredClone(empleado)).toEqual(antes);
+    expect(empleado.getComisionMedica()).toBe(comision);
   });
 
   it("inicializa y actualiza las fechas y el usuario de Sesion", () => {

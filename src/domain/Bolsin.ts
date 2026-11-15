@@ -65,6 +65,10 @@ export class Bolsin {
     return this.cmOrigen;
   }
 
+  esCMOrigenIgualCMLogueado(cmLogueado: ComisionMedica): boolean {
+    return this.cmOrigen.getCodigo() === cmLogueado.getCodigo();
+  }
+
   setCmOrigen(cmOrigen: ComisionMedica): void {
     this.cmOrigen = cmOrigen;
   }
@@ -79,6 +83,18 @@ export class Bolsin {
 
   getCambiosEstado(): CambioEstadoBolsin[] {
     return [...this.cambiosEstado];
+  }
+
+  buscarEstadoActualBolsin(): CambioEstadoBolsin | null {
+    let actual: CambioEstadoBolsin | null = null;
+    for (const cambio of this.cambiosEstado) {
+      if (!cambio.sosActual()) continue;
+      if (actual !== null) {
+        throw new Error("El bolsín tiene más de un cambio de estado actual.");
+      }
+      actual = cambio;
+    }
+    return actual;
   }
 
   setCambiosEstado(cambiosEstado: CambioEstadoBolsin[]): void {

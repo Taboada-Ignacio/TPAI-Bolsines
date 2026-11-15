@@ -100,3 +100,15 @@ El ciclo de vida, el patrón State, el seguimiento GPS y los casos de uso de arm
 `Usuario.nombre` identifica al usuario de forma única. La migración comprueba duplicados sin modificar nombres existentes, y el alta de Empleado mantiene su escritura atómica y devuelve `409` ante un nombre repetido. `Sesion.getUsuario()` conserva su asociación. `Empleado.esTuUsuario()` compara el nombre único.
 
 Los endpoints `login`, `me` y `logout` usan una cookie HTTP-only firmada y sesiones persistidas. El cierre conserva el historial. El almacenamiento académico de contraseñas queda sujeto a P4. La implementación específica del CU 36 continúa pendiente.
+
+### [NACHO] Método Empleado.obtenerCM()
+
+`Empleado.obtenerCM()` devuelve el nombre y la dirección de su Comisión Médica, separados por ` - `. Reutiliza `getNombre()` y `getDireccion()` de la comisión asociada, sin consultas de persistencia. El gestor del CU 36 lo invocará sobre el empleado logueado.
+
+### [NACHO] Consultas de dominio para bolsines enviados
+
+Como avance parcial de P1, `Bolsin.esCMOrigenIgualCMLogueado()` compara el código único de origen y `buscarEstadoActualBolsin()` consulta `CambioEstadoBolsin.sosActual()` para identificar un único cambio sin fecha de fin. La ausencia se representa con `null` y varios cambios vigentes generan un error. `CambioEstadoBolsin` delega `esAmbitoBolsin()` y `esEnviado()` a `Estado`, que comprueba ambos criterios por separado. El gestor del CU 36 queda pendiente.
+
+### [NACHO] Consultas de dominio para identificar al gerente de destino
+
+`Empleado.esTuCM()` compara el código de la comisión asociada con el de destino. `Empleado.sosGCM()` delega en `Rol.esGCM()`, que reconoce el nombre exacto `Gerente de Comisión Médica`. Estas consultas son independientes y preparan la selección del gerente por el futuro gestor del CU 36.

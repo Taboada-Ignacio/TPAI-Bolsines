@@ -66,12 +66,25 @@ export class Empleado {
     return this.rol;
   }
 
+  sosGCM(): boolean {
+    return this.rol.esGCM();
+  }
+
   setRol(rol: Rol): void {
     this.rol = rol;
   }
 
   getComisionMedica(): ComisionMedica {
     return this.comisionMedica;
+  }
+
+  esTuCM(cmDestino: ComisionMedica): boolean {
+    return this.comisionMedica.getCodigo() === cmDestino.getCodigo();
+  }
+
+  obtenerCM(): string {
+    const comision = this.getComisionMedica();
+    return `${comision.getNombre()} - ${comision.getDireccion()}`;
   }
 
   setComisionMedica(comisionMedica: ComisionMedica): void {

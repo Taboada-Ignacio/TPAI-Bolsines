@@ -11,6 +11,10 @@ export class Rol {
     return this.nombre;
   }
 
+  esGCM(): boolean {
+    return this.nombre === "Gerente de Comisión Médica";
+  }
+
   setNombre(nombre: string): void {
     this.nombre = nombre;
   }
