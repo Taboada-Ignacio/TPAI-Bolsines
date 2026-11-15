@@ -61,6 +61,8 @@ flowchart LR
     AWS_P -. "Mirroring" .-> AWS_M
 ```
 
+> **Criterio ISP en interfaces de notificación (Criterio de Cátedra):** En el diseño detallado de componentes y microservicios, las interfaces de notificación se segregan por **propósito de negocio** y no como una única interfaz genérica de envío de mails (ej. `INotificacionUbicacionBolsin` para CU 30/31 separada de `INotificacionRecepcionBolsin` para CU 29). Asimismo, el disparo de notificaciones desde el servicio Core hacia el servicio de Notificaciones es tráfico interno **Este-Oeste** (conexión directa socket-lollipop) sin volver a pasar por el API Gateway.
+
 ---
 
 ## 3. Vista de Diseño Global (Alternativa Microservicios DDD)

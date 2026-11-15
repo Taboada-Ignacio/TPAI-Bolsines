@@ -1,7 +1,7 @@
 # Fuentes Extraídas de NotebookLM (Cuaderno DSI)
 
 - **Total fuentes detectadas en panel:** 112
-- **Total fuentes con contenido limpio extraído:** 52
+- **Total fuentes con contenido limpio extraído:** 66
 
 ## Fuentes con contenido extraído
 - [01 Modelado Comp con Diag Maquina de Estados.pdf](01 Modelado Comp con Diag Maquina de Estados.pdf.md) (91169 chars)
@@ -31,7 +31,9 @@
 - [Arquitectura de Integración Visual para Modelado de Software UML 2.0 y Especificación de Requisitos bajo el Protocolo de Contexto de Modelo de Lucidchart: Directrices Metodológicas de Cátedra](Arquitectura de Integración Visual para Modelado de Software UML 2.0 y Especificación de Requisitos.md) (42044 chars)
 - [Audiolibros Arquitectura Microservicios V1-4.pdf](Audiolibros Arquitectura Microservicios V1-4.pdf.md) (39245 chars)
 - [Audiolibros Arquitectura Monolítica V1-2.pdf](Audiolibros Arquitectura Monolítica V1-2.pdf.md) (35221 chars)
+- [Auditoría de Modelo de Dominio Trattoria](Auditoría de Modelo de Dominio Trattoria.md) (4596 chars)
 - [Caso SW para Solicitud de Requerimientos con solución.pdf](Caso SW para Solicitud de Requerimientos con solución.pdf.md) (11510 chars)
+- [Comunicación y API Gateway en Microservicios](Comunicación y API Gateway en Microservicios.md) (15878 chars)
 - [Crustáceo Cascarudo - Microservicios V 1-2.pdf](Crustáceo Cascarudo - Microservicios V 1-2.pdf.md) (41285 chars)
 - [DSI 2026 Ejercicio tipo Parcial 3 FIA Formula 1.pdf](DSI 2026 Ejercicio tipo Parcial 3 FIA Formula 1.pdf.md) (21575 chars)
 - [DSI 2026 Parcial 1 - CreditIn - Caso de estudio.pdf](DSI 2026 Parcial 1 - CreditIn - Caso de estudio.pdf.md) (7408 chars)
@@ -40,6 +42,7 @@
 - [EPC Gestion de eventos- Análisis-PD-V1.0.pdf](EPC Gestion de eventos- Análisis-PD-V1.0.pdf.md) (53151 chars)
 - [EPC_GestiónEventos_Arquitectura Monolítica v 2-9.pdf](EPC_GestiónEventos_Arquitectura Monolítica v 2-9.pdf.md) (56454 chars)
 - [EPC_LineasAreas.V1-35.pdf](EPC_LineasAreas.V1-35.pdf.md) (49472 chars)
+- [Explicación de Arquitectura de Software](Explicación de Arquitectura de Software.md) (2569 chars)
 - [FanaticosDelFutbol_Arquitectura Monolítica V 1-12.pdf](FanaticosDelFutbol_Arquitectura Monolítica V 1-12.pdf.md) (37982 chars)
 - [FanáticosDelFútbol_Arquitectura de Microservicios V1-9.pdf](FanáticosDelFútbol_Arquitectura de Microservicios V1-9.pdf.md) (30386 chars)
 - [MODP TRATTORIA - Página 1.pdf](MODP TRATTORIA - Página 1.pdf.md) (2987 chars)
@@ -53,15 +56,26 @@
 - [PPA_Frigorífico V1-34.pdf](PPA_Frigorífico V1-34.pdf.md) (185788 chars)
 - [PPA_Peaje V1-27.pdf](PPA_Peaje V1-27.pdf.md) (114199 chars)
 - [PPA_PublicidadMultipunto V1-19.pdf](PPA_PublicidadMultipunto V1-19.pdf.md) (75006 chars)
+- [Plan de Pago y Cuotas de Préstamo](Plan de Pago y Cuotas de Préstamo.md) (54982 chars)
 - [RNF ISO 25000 con ejemplos.pdf](RNF ISO 25000 con ejemplos.pdf.md) (23396 chars)
+- [Revisión del examen teórico](Revisión del examen teórico.md) (9094 chars)
+- [Screenshot 2026-06-01 213746.png](Screenshot 2026-06-01 213746.png.md) (544 chars)
+- [Screenshot 2026-11-03 185945.png](Screenshot 2026-11-03 185945.png.md) (780 chars)
+- [Sumérgete en los patrones de diseño.pdf](Sumérgete en los patrones de diseño.pdf.md) (366393 chars)
 - [Texto pegado](Texto pegado.md) (19834 chars)
+- [Tips para Diagramas de Secuencia y Estática](Tips para Diagramas de Secuencia y Estática.md) (10625 chars)
+- [WhatsApp Image 2026-09-24 at 8.44.55 PM.jpeg](WhatsApp Image 2026-09-24 at 8.44.55 PM.jpeg.md) (753 chars)
+- [WhatsApp Image 2026-09-24 at 8.44.56 PM.jpeg](WhatsApp Image 2026-09-24 at 8.44.56 PM.jpeg.md) (703 chars)
+- [WhatsApp Image 2026-09-24 at 8.44.57 PM.jpeg](WhatsApp Image 2026-09-24 at 8.44.57 PM.jpeg.md) (643 chars)
+- [WhatsApp Image 2026-09-24 at 8.44.58 PM.jpeg](WhatsApp Image 2026-09-24 at 8.44.58 PM.jpeg.md) (563 chars)
+- [WhatsApp Image 2026-09-24 at 8.44.59 PM.jpeg](WhatsApp Image 2026-09-24 at 8.44.59 PM.jpeg.md) (993 chars)
 - [dominiodeproblema.pdf](dominiodeproblema.pdf.md) (12095 chars)
 
 ## Chat y Studio
 - [Historial de Chat de NotebookLM](_chat_notebooklm_dsi.md)
 - [Elementos del Panel Studio](_studio_notebooklm_dsi.md)
 
-## Fuentes listadas aún sin snapshot individual (61)
+## Fuentes listadas aún sin snapshot individual (47)
 - todas las fuentes
 - todas las fuentes de los chats de Gemini
 - ¿Qué es la Ingeniería Rápida? - Databricks
@@ -102,24 +116,10 @@
 - Plantilla formato ieee830 | DOC - Slideshare
 - Plantillas de Diagrama de Caso de Uso para Análisis de Sistemas Efectivo | Miro
 - Qué es un caso de uso y cómo redactarlo - Wrike
-- Screenshot 2026-06-01 213746.png
-- Screenshot 2026-11-03 185945.png
 - smartzan63/lucid-mcp-server - GitHub
 - State Diagram - Mermaid Flow
 - State Diagram - Mermaid Studio
 - State Machine DNA
-- Sumérgete en los patrones de diseño.pdf
 - Tesleum/Claude-Agent - Ollama
 - Una guía completa sobre el modelado de casos de uso - Visual Paradigm Guides Spanish
-- WhatsApp Image 2026-09-24 at 8.44.55 PM.jpeg
-- WhatsApp Image 2026-09-24 at 8.44.56 PM.jpeg
-- WhatsApp Image 2026-09-24 at 8.44.57 PM.jpeg
-- WhatsApp Image 2026-09-24 at 8.44.58 PM.jpeg
-- WhatsApp Image 2026-09-24 at 8.44.59 PM.jpeg
 - Workarounds for creating editable diagrams with AI - Lucid Community
-- Auditoría de Modelo de Dominio Trattoria
-- Comunicación y API Gateway en Microservicios
-- Explicación de Arquitectura de Software
-- Plan de Pago y Cuotas de Préstamo
-- Revisión del examen teórico
-- Tips para Diagramas de Secuencia y Estática

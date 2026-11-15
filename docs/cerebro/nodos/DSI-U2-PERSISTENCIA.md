@@ -40,5 +40,5 @@ Basado en `14 Diseño de Persistencia.pdf` de la cátedra DSI (Judith Meles). Ab
 
 ## 4. Aplicación en el PPAI Bolsines (`TPAI-Bolsines`)
 - Motor Relacional: **PostgreSQL** (con requerimiento **RNF 2 & RNF 3**: Database Mirroring en Amazon AWS RDS).
-- Schema mapeado en [`schema.prisma`](../../../TPAI-Bolsines/prisma/schema.prisma):
+- Schema mapeado en `TPAI-Bolsines` (rama `feature/backend`: `prisma/schema.prisma`):
   - `usuario`, `sesion`, `empleado`, `rol`, `comision_medica`, `bolsin`, `cambio_estado_bolsin`, `estado` (con clave única compuesta `[nombre, ambito]` para distinguir estados de `Bolsin`, `Remito`, `Documentacion`).

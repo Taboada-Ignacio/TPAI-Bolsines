@@ -40,3 +40,11 @@ En la Especificación de Requerimientos de Software (ERS) del PPAI Bolsines, los
 | **RNF 6** | Dispositivo GPS Tracker | Compatibilidad / Hardware | Interfaz/Adapter para interpretar las coordenadas de 3 dispositivos GPS en los bolsines. |
 | **RNF 7** | Visualización en el mapa | Usabilidad / Interoperabilidad | Integración con API de Google Maps / mapa interactivo con coordenadas GPS. |
 | **RNF 8** | Generación de reportes | Adecuación funcional | Integración externa con Microsoft Power BI. |
+
+---
+
+## 3. Conflictos Arquitectónicos (Criterio de Parcial Teórico)
+Basado en Sommerville y Len Bass (bibliografía de cátedra): un **conflicto arquitectónico** NO es simplemente "la consecuencia de una decisión arquitectónica", sino la **pugna o contraposición entre dos o más requerimientos (RNF / atributos de calidad) o metas de negocio** donde satisfacer uno degrada directamente al otro:
+- **Desempeño vs. Mantenibilidad**: Componentes de granularidad alta reducen llamadas remotas (mejor performance), pero empeoran la modularidad y mantenibilidad.
+- **Disponibilidad vs. Seguridad / Consistencia**: Introducir réplicas y redundancia (ej. *Database Mirroring*) mejora la disponibilidad, pero complejiza la consistencia y la superficie de ataque.
+- **Time-to-Market / Presupuesto vs. Escalabilidad / Extensibilidad**: Necesidad de salida rápida (monolito modular evolutivo) frente a una arquitectura distribuida de alta escalabilidad inicial.

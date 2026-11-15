@@ -32,11 +32,11 @@ Para aplicar el patrón **Decompose by Subdomain**, el dominio del negocio se cl
 ## 2. Patrones Arquitectónicos Obligatorios de Cátedra
 
 - **Database per Service**: Cada microservicio posee su propia base de datos aislada (`Repository` SOMF) y su propio componente de persistencia. Nunca dos servicios comparten directamente tablas de la misma BD.
-- **API Gateway / Backend for Frontend (BFF)**:
-  - Punto único de entrada para los clientes (`PresWeb`).
-  - Las interfaces en los Gateways son **requeridas** hacia los servicios internos y externos.
-  - Los servicios internos y frontends tienen interfaces **provistas** mediante **API REST** (privilegiando comunicación desacoplada/asincrónica).
-  - En la **API Gateway Pública** se ubican las interfaces requeridas hacia sistemas externos (Servidor de Correo Outlook, Google Maps, GPS Trackers).
+- **API Gateway / Backend for Frontend (BFF) — Tráfico Norte-Sur vs. Este-Oeste**:
+  - **Tráfico Norte-Sur (Cliente $\leftrightarrow$ API Gateway)**: Punto único de entrada para clientes externos (Web/Mobile), ej. login o consultas del frontend. El API Gateway enruta y compone respuestas sin contener lógica de negocio.
+  - **Tráfico Este-Oeste (Servicio $\leftrightarrow$ Servicio)**: Las acciones internas disparadas por lógica de dominio (como enviar una notificación tras un evento) **no pasan por el API Gateway** (evita saltos de red e inversión indebida de dependencias). El servicio Core expone una **interfaz requerida** conectada directamente a la **interfaz provista** del servicio de dominio Genérico (ej. Notificaciones).
+  - **Interfaces Segregadas por Propósito (ISP)**: Las interfaces entre servicios se nombran y diseñan según el **propósito de negocio** y no por canal tecnológico (ej. `INotificacionRecepcionBolsin`, `INotificacionUbicacionBolsin`), garantizando el principio de Segregación de Interfaces.
+  - En la **API Gateway Pública** se ubican las interfaces requeridas hacia sistemas externos de terceros (Servidor de Correo Outlook, Google Maps, GPS Trackers).
 - **Alta Cohesión y Servicios de Conversión**:
   - Los componentes que manejan lógica de conversión de protocolos externos o adaptadores de hardware (como los 3 modelos de GPS Tracker) **no deben colocarse dentro de los servicios Core**, sino en un servicio de dominio Genérico/Integración.
 - **Despliegue y Mirroring (RNF 2)**:
