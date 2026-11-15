@@ -53,9 +53,9 @@ La primera etapa se concentró en representar el diagrama de clases de análisis
 
 La descripción del caso define un dispositivo físico numerado, la ERS no especifica un formato alfanumérico y el diagrama de clases de análisis declara `numeroPrecinto: Int`. Se conserva `number` en TypeScript e `Int` en Prisma, obligatorio y no nullable. El CU 36 consulta bolsines ya despachados con precinto asignado. Registrar, cerrar (CU 39), reabrir (CU 40) y eliminar bolsines quedan fuera de este alcance.
 
-### [NACHO] P3 — Selección del modelo GPS definida, implementación pendiente
+### [NACHO] P3 — Selección explícita del modelo GPS implementada
 
-Se podrá seleccionar uno de los tres modelos de GPS Tracker para cada bolsín. El modelo determinará qué Adapter utilizar. Cada Adapter convertirá el formato externo a una representación común para el CU 36.
+`InterfazGPSTracker` selecciona uno de los tres modelos por consulta a partir de una entrada tipada. Cada adaptador convierte el formato externo a una representación común para el CU 36.
 
 | Modelo | Operación externa | Formato |
 | --- | --- | --- |
@@ -63,7 +63,7 @@ Se podrá seleccionar uno de los tres modelos de GPS Tracker para cada bolsín. 
 | NavTrack QX-7A | `retrieveTrackingData()` | CSV |
 | GeoPulse MTR-900 | `fetchCargoPositions()` | Matriz bidimensional |
 
-Quedan por definir la persistencia de la selección, el uso de una entidad o un enum, la configuración de las conexiones y la factoría.
+La selección es explícita y se mantiene en el ámbito de la consulta. Cualquier futura asociación persistida requiere una decisión de negocio.
 
 ### [NACHO] P4 — Fuera del alcance del trabajo práctico
 
@@ -74,7 +74,7 @@ La seguridad adicional de credenciales queda fuera del alcance académico. Argon
 El desarrollo continúa por etapas. A partir de la infraestructura, el dominio, la persistencia, los CRUD de catálogos y la carga inicial descritos en la sección 2, quedan pendientes:
 
 - Repositorio específico de Bolsín, `GestorSeguimientoBolsines` y endpoints del CU 36.
-- Adaptadores GPS e integración con Google Maps.
+- Integración con Google Maps.
 - Notificación de ubicación por correo (CU 30/31).
 
 ### [NACHO] CRUD de Empleado
@@ -115,4 +115,37 @@ Como avance parcial de P1, `Bolsin.esCMOrigenIgualCMLogueado()` compara el códi
 
 ### [NACHO] Simulador local de los tres GPS
 
-El backend ofrece tres endpoints en `/api/gps-simulator` con los formatos JSON, CSV y matriz de la ERS. Cada consulta selecciona un punto sobre la ruta nacional asignada al número de bolsín. El GeoJSON local incorpora los tramos oficiales de RN 7, RN 9 y RN 40 relevados por Vialidad Nacional. La fecha de última actualización se elige entre la hora del servidor y los 60 minutos anteriores. En desarrollo, `simularFallo=1` permite reproducir la falta de respuesta prevista en A3. Los adaptadores y el gestor del CU 36 corresponden a la siguiente integración.
+El backend ofrece tres endpoints en `/api/gps-simulator` con los formatos JSON, CSV y matriz de la ERS. Cada consulta selecciona un punto sobre la ruta nacional asignada al número de bolsín. El GeoJSON local incorpora los tramos oficiales de RN 7, RN 9 y RN 40 relevados por Vialidad Nacional. La fecha de última actualización se elige entre la hora del servidor y los 60 minutos anteriores. En desarrollo, `simularFallo=1` permite reproducir la falta de respuesta prevista en A3.
+
+### [NACHO] Patrón Adapter para los tres GPS
+
+`InterfazGPSTracker` crea el adaptador según el modelo recibido y usa `IAdaptadorLocalizacionBolsines`. La configuración por constructor conserva el polimorfismo y permite asociar el número de bolsín con su CM origen para XTR o con su CM destino para QX. MTR recibe únicamente los números. Los adaptadores consultan el simulador por HTTP y devuelven una matriz `string[][]` de filas con número, latitud, longitud y fecha ISO 8601 UTC. Los errores se propagan para su tratamiento posterior en el gestor del CU 36.
+
+### [NACHO] Comparación inicial con el diagrama Adapter v8
+
+| Participante UML | Contrato y estado que muestra v8 | Código antes de la refactorización |
+| --- | --- | --- |
+| `InterfazGPSTracker` (`«Boundary»`) | `apisKeys`, `listadoBolsines`, `nrosBolsines`, `codigosCMOrigen`, `codigosCMDestino` y `adaptador` privados. `crearAdaptador(): void` y `obtenerLocalizacionDeBolsines(nrosBolsines, codigosCMOrigen): String[][]` públicos. | Mantiene un adaptador común opcional, un cliente y una clave. Ambas operaciones reciben `SolicitudLocalizacionGps`, que aporta el modelo y, para QX, CM destino. La primera devuelve el adaptador. |
+| `IAdaptadorLocalizacionBolsines` (`«Interface»`) | Tres operaciones sin argumentos. `recibirLocalizacionBolsines(): String[][]`, `solicitarLocalizacionBolsines(): void` y `adaptarLocalizacionBolsines(): void`. | Las tres operaciones existen. Recibir y solicitar retornan `Promise` para esperar HTTP. |
+| `AdaptadorXTR4500L` | Atributos privados `apiKey`, `nrosBolsines`, `codigosCMOrigen`, `jsonBolsines` y `datosLocalizacionAdaptado`. Operación pública `new()` sin argumentos y recepción pública con clave, números y códigos de origen. Asociación hacia el servicio XTR. | Hereda la implementación común. El constructor recibe clave, lote de pares y una operación del cliente compartido. |
+| `AdaptadorQX7A` | Atributos privados `apiKey`, `nrosBolsines`, `codigosCMDestino`, `stringBolsines` y `datosLocalizacionAdaptado`. Recepción pública con clave, números y códigos de destino. Asociación hacia el servicio QX. | Hereda la implementación común. El constructor recibe clave, lote de pares y una operación del cliente compartido. |
+| `AdaptadorMTR900` | Atributos privados `apiKey`, `nrosBolsines`, `matricesBolsines: String[][]` y `datosLocalizacionAdaptado`. Recepción pública con clave y números. Asociación hacia el servicio MTR. | Hereda la implementación común. El constructor recibe clave, lote y una operación del cliente compartido. La base conserva una respuesta matricial por consulta. |
+| `ServicioGPSTrackerXTR4500L` | `getBolsinLocation(apiKey, nroBolsin, codCMOrigen): String` público. | Operación en `ClientesGPSTracker`. |
+| `ServicioGPSTrackerQX7A` | `retrieveTrackingData(apiKey, nroBolsin, codCMDestino): String` público. | Operación en `ClientesGPSTracker`. |
+| `ServicioGPSTrackerMTR900` | `fetchCargoPositions(apiKey, nroBolsin): String[][]` público. | Operación en `ClientesGPSTracker`. |
+
+Un método declarado sin parámetros en una interfaz TypeScript no admite una implementación que exija parámetros adicionales. Además, la firma de la frontera en v8 solo recibe origen y no especifica de dónde salen el código de destino ni el modelo. Estas decisiones afectan el contrato público y quedan pendientes de aprobación. La separación de los servicios y las referencias unidireccionales puede implementarse de forma independiente.
+
+### [NACHO] Servicios concretos y asociaciones del Adapter v8
+
+Cada adaptador tiene una referencia privada a exactamente una instancia de su servicio, inyectada por constructor. Los servicios exponen únicamente su operación de proveedor y reutilizan `TransporteHTTPGPS`. La dirección implementada es `InterfazGPSTracker → IAdaptadorLocalizacionBolsines → adaptador concreto → servicio del proveedor → transporte HTTP → simulador`. La asociación adaptador–servicio usa composición de objetos.
+
+`Int` y `String` se representan como `number` y `string`. El guion de los nombres del modelo se omite en los identificadores TypeScript. Las firmas de servicios conservan los parámetros de v8 y envuelven su retorno en `Promise` para esperar HTTP. La frontera y el Target conservan provisionalmente sus firmas de código previas. Los concretos conservan la clase base compartida del código, que no figura en v8. Queda pendiente decidir las firmas de recepción, cómo se suministran el modelo y CM destino a la frontera, y cómo representar los atributos de los lotes directamente en las clases UML, incluido `matricesBolsines`.
+
+### [NACHO] Adapter finalizado según el UML corregido
+
+La decisión aprobada resuelve los puntos provisionales anteriores. Los tres adaptadores declaran directamente sus atributos y las tres operaciones de `IAdaptadorLocalizacionBolsines`. Se eliminó la clase base. `InterfazGPSTracker` conserva el estado del lote y crea el concreto con `crearAdaptador(): void`. Cada asociación adaptador–servicio tiene navegabilidad hacia exactamente un servicio concreto. La tabla de clases y las firmas para trasladar a draw.io están en [PPAI-PAT-ADAPTER-GPS.md](PPAI-PAT-ADAPTER-GPS.md#nacho-especificación-aprobada-del-adapter-gps).
+
+La suite habitual pasó 212 pruebas. Las cuatro pruebas HTTP también pasaron contra Next.js en desarrollo mediante un canal local de Windows, con casos para XTR, QX, MTR y el `503`. Pasaron TypeScript, ESLint, la validación de Prisma y Prettier para el código, las pruebas y el README. Los tres nodos editados ya tenían diferencias de formato respecto de Prettier en `HEAD`. El build de producción pasó con `npm run build -- --webpack` tras un `EPERM` de Turbopack al crear el enlace de Prisma. `docker compose config --quiet` pasó. El entorno denegó el acceso al motor Linux de Docker, por lo que el arranque y las consultas desde el contenedor quedan por verificar.
+
+La implementación de los métodos pendientes de las entidades, la integración con el gestor, y el desarrollo y la verificación del CU 36 quedan para la etapa siguiente. El [tramo GPS previsto](PPAI-CU-36.md#nacho-tramo-gps-del-cu-36-con-cm-origen) usa XTR-4500L con CM origen y conserva el uso posterior de CM destino para el correo.

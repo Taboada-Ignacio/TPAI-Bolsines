@@ -7,6 +7,7 @@ services:
       DATABASE_URL: &database-url ${DOCKER_DATABASE_URL:-postgresql://${POSTGRES_USER:-bolsines}:${POSTGRES_PASSWORD:-bolsines_dev}@postgres:5432/${POSTGRES_DB:-bolsines}}
       SESSION_SIGNING_KEY: ${SESSION_SIGNING_KEY:-}
       GPS_SIMULADOR_API_KEY: ${GPS_SIMULADOR_API_KEY:-simulador-local}
+      GPS_SIMULADOR_BASE_URL: ${GPS_SIMULADOR_BASE_URL:-http://127.0.0.1:3000}
     depends_on:
       migrate:
         condition: service_completed_successfully
