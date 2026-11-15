@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Usuario {
+  id         Int       @id @default(autoincrement())
+  nombre     String   @unique
+  contrasena String
+  sesiones   Sesion[]
+  empleado   Empleado?
+
+  @@map("usuario")
+}
+
+model Sesion {
+  id              Int       @id @default(autoincrement())
+  fechaHoraInicio DateTime  @map("fecha_hora_inicio") @db.Timestamptz(3)
+  fechaHoraFin    DateTime? @map("fecha_hora_fin") @db.Timestamptz(3)
+  usuarioId       Int       @map("usuario_id")
+  usuario         Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@index([usuarioId])
+  @@map("sesion")
+}
+
+model Empleado {
+  id               Int                  @id @default(autoincrement())
+  nombre           String
+  apellido         String
+  email            String
+  usuarioId        Int                  @unique @map("usuario_id")
+  rolId            Int                  @map("rol_id")
+  comisionMedicaId Int                  @map("comision_medica_id")
+  usuario          Usuario              @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  rol              Rol                  @relation(fields: [rolId], references: [id], onDelete: Restrict)
+  comisionMedica   ComisionMedica       @relation(fields: [comisionMedicaId], references: [id], onDelete: Restrict)
+  cambiosEstado    CambioEstadoBolsin[]
+
+  @@index([rolId])
+  @@index([comisionMedicaId])
+  @@map("empleado")
+}
+
+model Rol {
+  id          Int        @id @default(autoincrement())
+  nombre      String     @unique
+  descripcion String
+  empleados   Empleado[]
+
+  @@map("rol")
+}
+
+model ComisionMedica {
+  id              Int        @id @default(autoincrement())
+  codigo          String     @unique
+  direccion       String
+  email           String
+  nombre          String
+  telefono        String
+  empleados       Empleado[]
+  bolsinesOrigen  Bolsin[]   @relation("BolsinOrigen")
+  bolsinesDestino Bolsin[]   @relation("BolsinDestino")
+
+  @@map("comision_medica")
+}
+
+model Bolsin {
+  id             Int                  @id @default(autoincrement())
+  fecha          DateTime             @db.Timestamptz(3)
+  numeroBolsin   Int                  @map("numero_bolsin")
+  numeroPrecinto Int                  @map("numero_precinto")
+  peso           Float
+  cmOrigenId     Int                  @map("cm_origen_id")
+  cmDestinoId    Int                  @map("cm_destino_id")
+  cmOrigen       ComisionMedica       @relation("BolsinOrigen", fields: [cmOrigenId], references: [id], onDelete: Restrict)
+  cmDestino      ComisionMedica       @relation("BolsinDestino", fields: [cmDestinoId], references: [id], onDelete: Restrict)
+  // La multiplicidad UML 1..* se validará en las reglas de negocio.
+  cambiosEstado  CambioEstadoBolsin[]
+
+  @@unique([cmOrigenId, numeroBolsin])
+  @@index([cmDestinoId])
+  @@map("bolsin")
+}
+
+model CambioEstadoBolsin {
+  id              Int       @id @default(autoincrement())
+  fechaHoraInicio DateTime  @map("fecha_hora_inicio") @db.Timestamptz(3)
+  fechaHoraFin    DateTime? @map("fecha_hora_fin") @db.Timestamptz(3)
+  bolsinId        Int       @map("bolsin_id")
+  estadoId        Int       @map("estado_id")
+  responsableCEId Int       @map("responsable_ce_id")
+  bolsin          Bolsin    @relation(fields: [bolsinId], references: [id], onDelete: Restrict)
+  estado          Estado    @relation(fields: [estadoId], references: [id], onDelete: Restrict)
+  responsableCE   Empleado  @relation(fields: [responsableCEId], references: [id], onDelete: Restrict)
+
+  @@index([bolsinId])
+  @@index([estadoId])
+  @@index([responsableCEId])
+  @@map("cambio_estado_bolsin")
+}
+
+model Estado {
+  id            Int                  @id @default(autoincrement())
+  nombre        String
+  descripcion   String
+  ambito        String
+  cambiosEstado CambioEstadoBolsin[]
+
+  @@unique([nombre, ambito])
+  @@map("estado")
+}
