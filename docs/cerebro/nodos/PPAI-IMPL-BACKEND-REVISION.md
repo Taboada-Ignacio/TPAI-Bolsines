@@ -85,3 +85,13 @@ El CRUD de Empleado incorpora el alta atómica del Usuario asociado y la asignac
 ### [NACHO] Empleados de demostración y prueba transaccional
 
 El seed incorpora cuatro empleados ficticios, uno por rol, con sus cuatro usuarios. Usa el correo de demostración del empleado para conservar los registros existentes en ejecuciones sucesivas. La idempotencia y la reversión real del DELETE ante una sesión vinculada quedan pendientes de ejecución en PostgreSQL. Docker Desktop denegó el acceso al motor Linux. El script `scripts/Test-EmpleadoSeed.ps1` reproduce ambas verificaciones y limpia los registros temporales de la prueba.
+
+### [NACHO] CRUD técnico de Bolsín
+
+Se incorporaron cinco endpoints REST para preparar bolsines ficticios para las futuras pruebas del CU 36. El alta crea atómicamente el bolsín y su cambio de estado inicial a partir de un estado existente del ámbito `BOLSIN`. La consulta por ID muestra el historial. La edición conserva ese historial y la baja elimina explícitamente los cambios del bolsín dentro de la misma transacción.
+
+El ciclo de vida, el patrón State, el seguimiento GPS y los casos de uso de armado, cierre y recepción siguen pendientes. El CRUD se limita a la preparación de datos ficticios.
+
+### [NACHO] Carga inicial de bolsines ficticios
+
+`prisma/seeds/init.sql` define 35 bolsines de demostración, siete por cada estado del ámbito `BOLSIN`. Resuelve las comisiones por código, los responsables por email y los estados por nombre y ámbito. Cada inserción nueva crea un único cambio abierto dentro de la transacción del seed. Las claves existentes y sus historiales se conservan en ejecuciones sucesivas. Esta carga no implementa lógica de transiciones.

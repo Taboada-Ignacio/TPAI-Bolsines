@@ -200,6 +200,103 @@ ORDER BY e.email;
 
 La prueba transaccional y la segunda carga quedaron pendientes de ejecución contra PostgreSQL porque Docker Desktop denegó el acceso a su motor Linux.
 
+### Bolsines de demostración
+
+La carga inicial agrega 35 bolsines ficticios para el CU 36. Cada número reservado se identifica junto con su comisión de origen. El origen rota, en orden, entre `CM-CBA`, `CM-SF`, `CM-CABA`, `CM-MZA` y `CM-BA`. El destino es la siguiente comisión de esa lista, volviendo a Córdoba al final. Las fechas y los pesos varían y los precintos van de 936001 a 936035.
+
+| Estado del ámbito `BOLSIN` | Números de bolsín | Cantidad |
+| -------------------------- | ----------------- | -------: |
+| `Creado`                   | 36001–36007       |        7 |
+| `Cerrado`                  | 36008–36014       |        7 |
+| `Enviado`                  | 36015–36021       |        7 |
+| `RecibidoEnCMDestino`      | 36022–36028       |        7 |
+| `DeBaja`                   | 36029–36035       |        7 |
+
+Los responsables rotan entre Martín Fernández, Lucía González, Nicolás Rodríguez y Carolina Martínez, identificados por su correo ficticio. Cada alta genera un único cambio de estado abierto, con inicio 30 minutos después de la fecha del bolsín.
+
+El seed usa la clave única de origen y número. Solo inserta el cambio inicial cuando PostgreSQL devuelve un bolsín recién creado mediante `RETURNING`. Una nueva ejecución conserva los bolsines y los historiales existentes, incluso si fueron editados. En una base vacía se esperan 111 registros iniciales, incluidos 35 bolsines y 35 cambios.
+
+#### Verificar la carga con PowerShell 7
+
+Desde la raíz del repositorio, con Docker Desktop disponible, arrancá Compose. Para verificar contra una base vacía usá un nombre de proyecto Compose nuevo, con los puertos libres y la conexión apuntando a su servicio `postgres`. Podés asignar `$compose = @('compose', '-p', 'bolsines-seed-qa')` en lugar de la primera línea.
+
+```powershell
+$compose = @('compose')
+docker @compose up --build -d
+if ($LASTEXITCODE) { throw 'Falló el arranque de Compose.' }
+docker @compose ps -a
+docker @compose logs migrate
+
+$sql = @'
+WITH claves AS (
+  SELECT 36000 + n AS numero,
+         (ARRAY['CM-CBA','CM-SF','CM-CABA','CM-MZA','CM-BA'])[(n-1)%5+1] AS origen,
+         (ARRAY['CM-SF','CM-CABA','CM-MZA','CM-BA','CM-CBA'])[(n-1)%5+1] AS destino,
+         (ARRAY['Creado','Cerrado','Enviado','RecibidoEnCMDestino','DeBaja'])[(n-1)/7+1] AS estado,
+         (ARRAY['parametrizador.demo','documentacion.demo','bolsines.demo','gerente.demo'])[(n-1)%4+1]
+           || '@example.com' AS responsable
+  FROM generate_series(1,35) AS serie(n)
+), verificacion AS (
+  SELECT k.numero, k.origen, k.destino, k.estado, k.responsable, b.id,
+         (SELECT count(*) FROM public.cambio_estado_bolsin h WHERE h.bolsin_id = b.id) AS historial,
+         coalesce(d.codigo = k.destino AND e.nombre = k.estado AND e.ambito = 'BOLSIN'
+           AND r.email = k.responsable AND b.peso > 0 AND b.numero_precinto IS NOT NULL
+           AND h.fecha_hora_inicio >= b.fecha AND h.fecha_hora_fin IS NULL, false) AS valido
+  FROM claves k
+  LEFT JOIN public.comision_medica o ON o.codigo = k.origen
+  LEFT JOIN public.bolsin b ON b.cm_origen_id = o.id AND b.numero_bolsin = k.numero
+  LEFT JOIN public.comision_medica d ON d.id = b.cm_destino_id
+  LEFT JOIN public.cambio_estado_bolsin h ON h.bolsin_id = b.id
+  LEFT JOIN public.estado e ON e.id = h.estado_id
+  LEFT JOIN public.empleado r ON r.id = h.responsable_ce_id
+)
+SELECT coalesce(json_agg(v ORDER BY numero), '[]') FROM verificacion v;
+'@
+
+function Consultar-BolsinesSeed {
+    $resultado = $sql | docker @compose exec -T postgres sh -c 'exec psql -XqAt -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+    if ($LASTEXITCODE) { throw 'Falló la consulta SQL.' }
+    $resultado | ConvertFrom-Json
+}
+
+function Huella-Bolsines {
+    @'
+SELECT (SELECT md5(coalesce(json_agg(b ORDER BY b.id)::text, '[]')) FROM public.bolsin b),
+       (SELECT md5(coalesce(json_agg(h ORDER BY h.id)::text, '[]')) FROM public.cambio_estado_bolsin h),
+       (SELECT md5(coalesce(json_agg(e ORDER BY e.id)::text, '[]')) FROM public.empleado e),
+       (SELECT md5(coalesce(json_agg(u ORDER BY u.id)::text, '[]')) FROM public.usuario u),
+       (SELECT count(*) FROM public.cambio_estado_bolsin h
+        WHERE NOT EXISTS (SELECT 1 FROM public.bolsin b WHERE b.id = h.bolsin_id));
+'@ | docker @compose exec -T postgres sh -c 'exec psql -XqAt -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+    if ($LASTEXITCODE) { throw 'Falló el cálculo de huellas.' }
+}
+
+$filas = @(Consultar-BolsinesSeed)
+if ($filas.Count -ne 35 -or @($filas | Where-Object { -not $_.valido -or $_.historial -ne 1 }).Count) {
+    throw 'La carga no coincide con las 35 claves y asociaciones esperadas.'
+}
+$filas | Group-Object estado | Select-Object Name, Count
+
+$api = 'http://localhost:3000/api/bolsines'
+$lista = Invoke-RestMethod $api
+foreach ($fila in $filas) {
+    $resumen = @($lista | Where-Object { $_.numeroBolsin -eq $fila.numero -and $_.cmOrigen.codigo -eq $fila.origen })
+    if ($resumen.Count -ne 1 -or $resumen[0].id -ne $fila.id) { throw "Falta el bolsín $($fila.numero) en el listado." }
+    $detalle = Invoke-RestMethod "$api/$($fila.id)"
+    if (@($detalle.cambiosEstado).Count -ne 1 -or $detalle.cambiosEstado[0].estado.nombre -cne $fila.estado) {
+        throw "Historial incorrecto para $($fila.numero)."
+    }
+}
+
+$antes = Huella-Bolsines
+if (($antes -split '\|')[-1] -ne '0') { throw 'Hay cambios de estado huérfanos.' }
+docker @compose run --rm --no-deps migrate
+if ($LASTEXITCODE) { throw 'Falló la segunda ejecución del seed.' }
+if ((Huella-Bolsines) -cne $antes) { throw 'La segunda carga modificó registros.' }
+```
+
+Las comprobaciones de integración requieren PostgreSQL y los endpoints activos.
+
 ## Estructura
 
 | Componente     | Ubicación            | Responsabilidad                                                                                    |
@@ -355,6 +452,94 @@ La eliminación borra el empleado y su usuario en una transacción. Una sesión 
 La API responde con `400` por datos inválidos, `404` por un empleado o catálogo inexistente, `409` por un conflicto de persistencia y `500` por un error inesperado. Los errores tienen la forma `{"error":"mensaje"}`.
 
 Ejecutá `npm.cmd run test:run -- tests/empleados-api.test.ts` para probar los cinco endpoints con Prisma simulado.
+
+## API técnica de bolsines
+
+Estas rutas permiten preparar bolsines ficticios para las pruebas del CU 36.
+
+| Método | Ruta                 | Resultado                                |
+| ------ | -------------------- | ---------------------------------------- |
+| POST   | `/api/bolsines`      | 201, bolsín con cambio de estado inicial |
+| GET    | `/api/bolsines`      | 200, lista por ID ascendente o `[]`      |
+| GET    | `/api/bolsines/{id}` | 200, bolsín e historial completo         |
+| PUT    | `/api/bolsines/{id}` | 200, datos editables actualizados        |
+| DELETE | `/api/bolsines/{id}` | 204, sin cuerpo                          |
+
+Ejemplo de alta con IDs ilustrativos
+
+```json
+{
+  "fecha": "2026-11-15T12:00:00.000Z",
+  "numeroBolsin": 1001,
+  "numeroPrecinto": 50001,
+  "peso": 850.5,
+  "cmOrigenId": 8,
+  "cmDestinoId": 23,
+  "estadoId": 3,
+  "responsableCEId": 5
+}
+```
+
+Ejemplo de edición con IDs ilustrativos
+
+```json
+{
+  "fecha": "2026-11-15T13:30:00.000Z",
+  "numeroBolsin": 1001,
+  "numeroPrecinto": 50002,
+  "peso": 900.5,
+  "cmOrigenId": 8,
+  "cmDestinoId": 23
+}
+```
+
+Todos los campos de cada ejemplo son obligatorios. La fecha debe incluir zona horaria, los números de bolsín y precinto son enteros, el peso admite decimales y los IDs deben ser enteros positivos. El número de bolsín es único dentro de su comisión de origen.
+
+El alta guarda el bolsín y su cambio inicial en una única escritura. El cambio usa la hora del servidor como inicio y tiene fecha de fin nula. Puede iniciarse en cualquier estado del ámbito `BOLSIN`, incluidos `Creado`, `Cerrado`, `Enviado`, `RecibidoEnCMDestino` y `DeBaja`.
+
+El resumen devuelve ambas comisiones y el estado del cambio vigente más reciente. Si no hay cambios abiertos, `estadoActual` es `null`. La consulta por ID incluye el historial con estado y responsable, ordenado por fecha de inicio e ID. El PUT conserva el historial. El DELETE elimina primero los cambios del bolsín solicitado y luego el bolsín dentro de una transacción Prisma.
+
+La API responde con `400` si la entrada es inválida o el estado pertenece a otro ámbito, `404` si falta el bolsín o una asociación, `409` si se repite un número para el mismo origen o hay un conflicto de persistencia y `500` ante un error inesperado.
+
+#### Prueba manual con PowerShell 7
+
+```powershell
+docker compose up --build -d
+docker compose ps -a
+$api = 'http://localhost:3000/api'
+$comisiones = Invoke-RestMethod "$api/comisiones-medicas"
+$estados = Invoke-RestMethod "$api/estados"
+$empleados = Invoke-RestMethod "$api/empleados"
+$origen = $comisiones | Where-Object codigo -eq 'CM-CBA'
+$destino = $comisiones | Where-Object codigo -eq 'CM-SF'
+$estado = $estados | Where-Object { $_.nombre -eq 'Enviado' -and $_.ambito -eq 'BOLSIN' }
+$responsable = $empleados | Where-Object email -eq 'bolsines.demo@example.com'
+$numero = Get-Random -Minimum 100000000 -Maximum 2147483646
+$datos = @{
+    fecha = [DateTime]::UtcNow.ToString('o')
+    numeroBolsin = $numero
+    numeroPrecinto = $numero
+    peso = 850.5
+    cmOrigenId = $origen.id
+    cmDestinoId = $destino.id
+}
+$alta = $datos + @{ estadoId = $estado.id; responsableCEId = $responsable.id }
+Invoke-RestMethod "$api/bolsines"
+$creado = Invoke-RestMethod "$api/bolsines" -Method Post -ContentType 'application/json' -Body ($alta | ConvertTo-Json)
+$id = [int]$creado.id
+try {
+    Invoke-RestMethod "$api/bolsines/$id" | ConvertTo-Json -Depth 8
+    $datos.peso = 900.5
+    Invoke-RestMethod "$api/bolsines/$id" -Method Put -ContentType 'application/json' -Body ($datos | ConvertTo-Json)
+    Invoke-RestMethod "$api/bolsines/$id" | ConvertTo-Json -Depth 8
+} finally {
+    (Invoke-WebRequest "$api/bolsines/$id" -Method Delete).StatusCode
+}
+"SELECT (SELECT count(*) FROM public.bolsin WHERE id = $id), (SELECT count(*) FROM public.cambio_estado_bolsin WHERE bolsin_id = $id);" |
+    docker compose exec -T postgres sh -c 'exec psql -XAt -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+```
+
+Se espera un único cambio en ambas consultas por ID, `204` al eliminar y `0|0` en PostgreSQL.
 
 ## Comandos npm
 

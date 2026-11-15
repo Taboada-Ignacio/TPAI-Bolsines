@@ -86,4 +86,55 @@ BEGIN
 END;
 $seed$;
 
+-- 5. Bolsines ficticios para el CU 36 (números reservados 36001 a 36035)
+DO $bolsines$
+DECLARE
+  demo record;
+  id_origen integer;
+  id_destino integer;
+  id_estado integer;
+  id_responsable integer;
+BEGIN
+  FOR demo IN
+    SELECT
+      36000 + serie AS numero,
+      936000 + serie AS precinto,
+      500 + serie * 17.5 AS peso,
+      TIMESTAMPTZ '2026-11-01 09:00:00-03' + serie * INTERVAL '11 hours' AS fecha,
+      (ARRAY['CM-CBA', 'CM-SF', 'CM-CABA', 'CM-MZA', 'CM-BA'])[(serie - 1) % 5 + 1] AS origen,
+      (ARRAY['CM-SF', 'CM-CABA', 'CM-MZA', 'CM-BA', 'CM-CBA'])[(serie - 1) % 5 + 1] AS destino,
+      (ARRAY['Creado', 'Cerrado', 'Enviado', 'RecibidoEnCMDestino', 'DeBaja'])[(serie - 1) / 7 + 1] AS estado,
+      (ARRAY[
+        'parametrizador.demo@example.com',
+        'documentacion.demo@example.com',
+        'bolsines.demo@example.com',
+        'gerente.demo@example.com'
+      ])[(serie - 1) % 4 + 1] AS responsable
+    FROM generate_series(1, 35) AS numeros(serie)
+  LOOP
+    SELECT id INTO STRICT id_origen FROM public.comision_medica WHERE codigo = demo.origen;
+
+    IF EXISTS (
+      SELECT 1 FROM public.bolsin WHERE cm_origen_id = id_origen AND numero_bolsin = demo.numero
+    ) THEN
+      CONTINUE;
+    END IF;
+
+    SELECT id INTO STRICT id_destino FROM public.comision_medica WHERE codigo = demo.destino;
+    SELECT id INTO STRICT id_estado FROM public.estado WHERE nombre = demo.estado AND ambito = 'BOLSIN';
+    SELECT id INTO STRICT id_responsable FROM public.empleado WHERE email = demo.responsable;
+
+    WITH nuevo_bolsin AS (
+      INSERT INTO public.bolsin (fecha, numero_bolsin, numero_precinto, peso, cm_origen_id, cm_destino_id)
+      VALUES (demo.fecha, demo.numero, demo.precinto, demo.peso, id_origen, id_destino)
+      ON CONFLICT (cm_origen_id, numero_bolsin) DO NOTHING
+      RETURNING id
+    )
+    INSERT INTO public.cambio_estado_bolsin (fecha_hora_inicio, fecha_hora_fin, bolsin_id, estado_id, responsable_ce_id)
+    SELECT demo.fecha + INTERVAL '30 minutes', NULL, id, id_estado, id_responsable
+    FROM nuevo_bolsin;
+  END LOOP;
+END;
+$bolsines$;
+
 COMMIT;
