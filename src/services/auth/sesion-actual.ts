@@ -1,9 +1,12 @@
 import { cookies } from "next/headers";
-import type { LoginResponse } from "@/dtos/auth.dto";
+import { redirect } from "next/navigation";
+import { servicio } from "@/app/api/auth/sesion";
+import { empleadoService } from "@/app/api/empleados/servicio";
 import {
-  parseSessionCookie,
   SESSION_COOKIE_NAME,
+  verifySessionCookie,
 } from "@/services/auth/session-cookie";
+import { SesionInvalida } from "@/services/SesionService";
 
 export interface SesionVista {
   nombre: string;
@@ -19,19 +22,13 @@ export interface SesionVista {
   };
 }
 
-export const SESION_DEMO: SesionVista = {
-  nombre: "Marcelo",
-  apellido: "Gómez",
-  iniciales: "MG",
-  usuario: "mgomez",
-  rol: "Encargado de Bolsines",
-  horaIngreso: "08:02",
-  cm: {
-    codigo: "CM-01",
-    nombre: "CM Córdoba",
-    sigla: "COR",
-  },
-};
+export interface SesionPerfil {
+  usuario: { nombre: string };
+  empleado: { nombre: string; apellido: string };
+  rol: { nombre: string };
+  comisionMedica: { codigo: string; nombre: string };
+  sesion: { fechaHoraInicio: string | Date };
+}
 
 export function derivarSiglaCm(nombre: string, codigo?: string): string {
   const cleanCode = (codigo ?? "")
@@ -64,26 +61,10 @@ function derivarIniciales(nombre: string, apellido: string): string {
   return `${first}${second}`.toUpperCase() || "US";
 }
 
-function derivarUsuario(nombre: string, apellido: string): string {
-  const first = nombre
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .charAt(0)
-    .toLowerCase();
-  const last = apellido
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .toLowerCase();
-  return `${first}${last}` || "usuario";
-}
-
-function formatearHora(iso: string): string {
-  const date = new Date(iso);
+function formatearHora(value: string | Date): string {
+  const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return "08:02";
+    return "--:--";
   }
   return new Intl.DateTimeFormat("es-AR", {
     hour: "2-digit",
@@ -93,35 +74,65 @@ function formatearHora(iso: string): string {
 }
 
 export function mapLoginResponseToSesionVista(
-  session: LoginResponse,
+  session: SesionPerfil,
 ): SesionVista {
-  const { empleado, sesion } = session;
+  const { usuario, empleado, rol, comisionMedica, sesion } = session;
   return {
     nombre: empleado.nombre,
     apellido: empleado.apellido,
     iniciales: derivarIniciales(empleado.nombre, empleado.apellido),
-    usuario: derivarUsuario(empleado.nombre, empleado.apellido),
-    rol: empleado.rol.nombre,
+    usuario: usuario.nombre,
+    rol: rol.nombre,
     horaIngreso: formatearHora(sesion.fechaHoraInicio),
     cm: {
-      codigo: empleado.comisionMedica.codigo,
-      nombre: empleado.comisionMedica.nombre,
-      sigla: derivarSiglaCm(
-        empleado.comisionMedica.nombre,
-        empleado.comisionMedica.codigo,
-      ),
+      codigo: comisionMedica.codigo,
+      nombre: comisionMedica.nombre,
+      sigla: derivarSiglaCm(comisionMedica.nombre, comisionMedica.codigo),
     },
   };
 }
 
-export async function getSesionActual(): Promise<SesionVista> {
+async function consultarSesionActual() {
   const cookieStore = await cookies();
   const raw = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  const parsed = parseSessionCookie(raw);
+  const sessionId = verifySessionCookie(raw);
 
-  if (!parsed) {
-    return SESION_DEMO;
+  if (sessionId === null) {
+    redirect("/login");
   }
 
-  return mapLoginResponseToSesionVista(parsed);
+  try {
+    return await servicio.consultar(sessionId);
+  } catch (error) {
+    if (error instanceof SesionInvalida) {
+      // Limpia la cookie antes de volver a /login para evitar un bucle 307 con proxy.ts.
+      redirect("/api/auth/limpiar-sesion");
+    }
+    throw error;
+  }
+}
+
+export async function getSesionActual(): Promise<SesionVista> {
+  const perfil = await consultarSesionActual();
+  return mapLoginResponseToSesionVista(perfil);
+}
+
+export interface PerfilActual {
+  sesion: SesionVista;
+  empleadoId: number;
+  email: string;
+  rolId: number;
+  comisionMedicaId: number;
+}
+
+export async function getPerfilActual(): Promise<PerfilActual> {
+  const perfil = await consultarSesionActual();
+  const empleado = await empleadoService.buscarPorId(perfil.empleado.id);
+  return {
+    sesion: mapLoginResponseToSesionVista(perfil),
+    empleadoId: empleado.id,
+    email: empleado.email,
+    rolId: empleado.rol.id,
+    comisionMedicaId: empleado.comisionMedica.id,
+  };
 }

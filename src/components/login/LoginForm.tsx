@@ -125,7 +125,7 @@ export function LoginForm({
             autoCorrect="off"
             spellCheck={false}
             autoFocus
-            placeholder="mgomez"
+            placeholder="bolsines.demo"
             value={usuario}
             readOnly={isLocked}
             invalid={Boolean(usuarioError)}

@@ -305,6 +305,22 @@ function SceneRig({
     camera.lookAt(0, 0.05, 0);
   }, [camera]);
 
+  useEffect(() => {
+    const dom = gl.domElement;
+    const onContextLost = (event: Event) => {
+      event.preventDefault();
+    };
+    const onContextRestored = () => {
+      invalidate();
+    };
+    dom.addEventListener("webglcontextlost", onContextLost);
+    dom.addEventListener("webglcontextrestored", onContextRestored);
+    return () => {
+      dom.removeEventListener("webglcontextlost", onContextLost);
+      dom.removeEventListener("webglcontextrestored", onContextRestored);
+    };
+  }, [gl, invalidate]);
+
   const handleHoverChange = useCallback((over: boolean) => {
     pointerStateRef.current.bolsinHovered = over;
   }, []);

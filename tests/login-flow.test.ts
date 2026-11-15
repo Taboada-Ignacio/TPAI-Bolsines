@@ -2,13 +2,11 @@ import { describe, expect, it } from "vitest";
 import { loginFlowReducer, type LoginState } from "@/hooks/useLoginFlow";
 
 const MOCK_SESSION = {
-  sesion: { fechaHoraInicio: "2026-11-15T03:00:00.000Z" },
-  empleado: {
-    nombre: "Marcelo",
-    apellido: "Gómez",
-    rol: { nombre: "Encargado de Bolsines" },
-    comisionMedica: { codigo: "COR", nombre: "CM Córdoba" },
-  },
+  usuario: { id: 31, nombre: "mgomez" },
+  empleado: { id: 19, nombre: "Marcelo", apellido: "Gómez" },
+  rol: { id: 21, nombre: "Encargado de Bolsines" },
+  comisionMedica: { id: 42, codigo: "COR", nombre: "CM Córdoba" },
+  sesion: { id: 73, fechaHoraInicio: "2026-11-15T03:00:00.000Z" },
 };
 
 describe("loginFlowReducer", () => {

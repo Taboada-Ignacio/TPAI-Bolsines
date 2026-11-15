@@ -33,6 +33,7 @@ export function LoginView() {
   }, [router]);
 
   const handleEnterComplete = useCallback(() => {
+    document.cookie = "bolsines_entrada=1; path=/; max-age=30; samesite=lax";
     router.replace("/inicio");
   }, [router]);
 

@@ -2,7 +2,6 @@
 
 import { useCallback, useReducer, useRef, useState } from "react";
 import {
-  authErrorSchema,
   loginRequestSchema,
   loginResponseSchema,
   type LoginResponse,
@@ -112,7 +111,10 @@ export function useLoginFlow() {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsed.data),
+        body: JSON.stringify({
+          nombre: parsed.data.usuario,
+          contrasena: parsed.data.contrasena,
+        }),
         signal: controller.signal,
       });
 
@@ -128,28 +130,12 @@ export function useLoginFlow() {
       }
 
       if (response.status === 401 || response.status === 400) {
-        let isInvalidCredentials = response.status === 401;
-        try {
-          const errJson: unknown = await response.json();
-          const errParsed = authErrorSchema.safeParse(errJson);
-          if (
-            errParsed.success &&
-            errParsed.data.codigo === "CREDENCIALES_INVALIDAS"
-          ) {
-            isInvalidCredentials = true;
-          }
-        } catch {
-          // ignore parse error
-        }
-
-        if (isInvalidCredentials) {
-          dispatch({ type: "REJECTED" });
-          setContrasenaValue("");
-          requestAnimationFrame(() => {
-            contrasenaRef.current?.focus();
-          });
-          return;
-        }
+        dispatch({ type: "REJECTED" });
+        setContrasenaValue("");
+        requestAnimationFrame(() => {
+          contrasenaRef.current?.focus();
+        });
+        return;
       }
 
       dispatch({ type: "UNREACHABLE" });

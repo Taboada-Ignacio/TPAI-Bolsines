@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   derivarSiglaCm,
   mapLoginResponseToSesionVista,
-  SESION_DEMO,
 } from "@/services/auth/sesion-actual";
 
 describe("sesion-actual", () => {
@@ -14,22 +13,13 @@ describe("sesion-actual", () => {
     expect(derivarSiglaCm("CM Buenos Aires", "CM-02")).toBe("BUE");
   });
 
-  it("expone la sesión demo de Marcelo Gómez", () => {
-    expect(SESION_DEMO.nombre).toBe("Marcelo");
-    expect(SESION_DEMO.apellido).toBe("Gómez");
-    expect(SESION_DEMO.iniciales).toBe("MG");
-    expect(SESION_DEMO.cm.sigla).toBe("COR");
-  });
-
-  it("mapea una LoginResponse a SesionVista", () => {
+  it("mapea una respuesta de sesión del backend a SesionVista", () => {
     const vista = mapLoginResponseToSesionVista({
+      usuario: { nombre: "mgomez" },
+      empleado: { nombre: "Marcelo", apellido: "Gómez" },
+      rol: { nombre: "Encargado de Bolsines" },
+      comisionMedica: { codigo: "CM-01", nombre: "CM Córdoba" },
       sesion: { fechaHoraInicio: "2026-11-15T11:02:00.000Z" },
-      empleado: {
-        nombre: "Marcelo",
-        apellido: "Gómez",
-        rol: { nombre: "Encargado de Bolsines" },
-        comisionMedica: { codigo: "CM-01", nombre: "CM Córdoba" },
-      },
     });
 
     expect(vista.iniciales).toBe("MG");

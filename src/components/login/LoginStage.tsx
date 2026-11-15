@@ -3,9 +3,8 @@
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import {
+  memo,
   useCallback,
-  useEffect,
-  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -25,10 +24,9 @@ export interface LoginStageProps {
   onSceneReady?: (handle: BolsinSceneHandle) => void;
 }
 
-const SCENE_TIMEOUT_MS = 2500;
 const emptySubscribe = () => () => {};
 
-export function LoginStage({
+export const LoginStage = memo(function LoginStage({
   className,
   reducedMotion = false,
   isEntering = false,
@@ -39,33 +37,12 @@ export function LoginStage({
     () => isWebGLSupported(),
     () => false,
   );
-  const [sceneTimedOut, setSceneTimedOut] = useState(false);
   const [firstFrameReady, setFirstFrameReady] = useState(false);
   const [posterMissing, setPosterMissing] = useState(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (!canUseWebGL) return;
-    timeoutRef.current = setTimeout(() => {
-      setSceneTimedOut(true);
-    }, SCENE_TIMEOUT_MS);
-
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [canUseWebGL]);
 
   const handleFirstFrame = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
     setFirstFrameReady(true);
   }, []);
-
-  const showScene = canUseWebGL && !sceneTimedOut;
 
   return (
     <div
@@ -99,27 +76,24 @@ export function LoginStage({
         />
       </div>
 
-      {/* Póster estático LCP / respaldo sin WebGL */}
-      {!posterMissing ? (
+      {/* Respaldo estático solo cuando WebGL no está disponible */}
+      {!canUseWebGL && !posterMissing ? (
         <Image
           src="/models/bolsin-poster.webp"
           alt=""
           fill
-          priority
+          unoptimized
           sizes="(min-width: 1024px) 45vw, 100vw"
           onError={() => setPosterMissing(true)}
-          className={cn(
-            "object-contain p-6 select-none pointer-events-none transition-opacity duration-200",
-            firstFrameReady ? "opacity-0" : "opacity-100",
-          )}
+          className="object-contain p-6 select-none pointer-events-none"
         />
       ) : null}
 
-      {/* Escena 3D diferida */}
-      {showScene ? (
+      {/* Escena 3D siempre montada cuando hay WebGL */}
+      {canUseWebGL ? (
         <div
           className={cn(
-            "absolute inset-0 transition-opacity duration-200",
+            "absolute inset-0 transition-opacity duration-300",
             firstFrameReady ? "opacity-100" : "opacity-0",
           )}
         >
@@ -141,4 +115,4 @@ export function LoginStage({
       />
     </div>
   );
-}
+});
