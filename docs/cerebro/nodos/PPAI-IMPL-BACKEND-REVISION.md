@@ -73,7 +73,15 @@ La seguridad adicional de credenciales queda fuera del alcance académico. Argon
 
 El desarrollo continúa por etapas. A partir de la infraestructura, el dominio, la persistencia, los CRUD de catálogos y la carga inicial descritos en la sección 2, quedan pendientes:
 
-- CRUD de Empleado, creación automática de Usuario al registrar un Empleado e inicio de sesión.
+- Inicio de sesión.
 - Repositorio específico de Bolsín, `GestorSeguimientoBolsines` y endpoints del CU 36.
 - Adaptadores GPS e integración con Google Maps.
 - Notificación de ubicación por correo (CU 30/31).
+
+### [NACHO] CRUD de Empleado
+
+El CRUD de Empleado incorpora el alta atómica del Usuario asociado y la asignación de un Rol y una Comisión Médica existentes. La modificación conserva el Usuario. La eliminación borra ambos registros en una transacción, salvo que una restricción referencial impida la operación. Las respuestas excluyen la contraseña. Los cinco endpoints se verificaron con Vitest y Prisma simulado.
+
+### [NACHO] Empleados de demostración y prueba transaccional
+
+El seed incorpora cuatro empleados ficticios, uno por rol, con sus cuatro usuarios. Usa el correo de demostración del empleado para conservar los registros existentes en ejecuciones sucesivas. La idempotencia y la reversión real del DELETE ante una sesión vinculada quedan pendientes de ejecución en PostgreSQL. Docker Desktop denegó el acceso al motor Linux. El script `scripts/Test-EmpleadoSeed.ps1` reproduce ambas verificaciones y limpia los registros temporales de la prueba.

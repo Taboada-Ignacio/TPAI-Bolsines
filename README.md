@@ -153,6 +153,53 @@ Al ejecutar `docker compose up --build -d`, Compose espera a que PostgreSQL est�
 
 La carga es transaccional. Si se vuelve a ejecutar, inserta los registros faltantes y conserva los que ya existen con la misma clave única. Los CRUD permiten administrar los registros después de la carga. Si cambiás una clave única inicial o eliminás un registro inicial, el próximo arranque vuelve a insertar la clave faltante.
 
+### Empleados de demostración
+
+El seed crea cada empleado con su Usuario asociado en la misma transacción. Los correos se forman agregando `@example.com` al nombre de usuario. La contraseña ficticia es `123456` para los cuatro usuarios de desarrollo.
+
+| Empleado          | Usuario               | Rol                        | Comisión médica    |
+| ----------------- | --------------------- | -------------------------- | ------------------ |
+| Martín Fernández  | `parametrizador.demo` | Parametrizador del sistema | CABA (`CM-CABA`)   |
+| Lucía González    | `documentacion.demo`  | Encargado de Documentación | Córdoba (`CM-CBA`) |
+| Nicolás Rodríguez | `bolsines.demo`       | Encargado de Bolsines      | Córdoba (`CM-CBA`) |
+| Carolina Martínez | `gerente.demo`        | Gerente de Comisión Médica | Santa Fe (`CM-SF`) |
+
+La carga comprueba cada correo de demostración antes de insertar su Usuario. Conserva los registros que ya tienen ese correo y resuelve las asociaciones nuevas por el nombre del rol y el código de comisión. Una base vacía recibe 4 roles, 5 estados, 24 comisiones, 4 empleados y 4 usuarios.
+
+#### Verificación con PostgreSQL y la API
+
+El script arranca Compose dos veces, vuelve a ejecutar `migrate` para garantizar una segunda carga, compara los conteos y las filas, y valida `GET /api/empleados` en UTF-8. Luego crea un empleado y una sesión temporales, comprueba el `409` y la permanencia de los tres registros relacionados, elimina la sesión y comprueba el `204` y la limpieza final.
+
+```powershell
+pwsh -File scripts/Test-EmpleadoSeed.ps1
+# Con los puertos libres y un nombre de proyecto nuevo, usar un volumen independiente
+pwsh -File scripts/Test-EmpleadoSeed.ps1 -Proyecto bolsines-empleado-qa -BaseVacia
+```
+
+Ambas variantes usan el backend publicado en el puerto 3000. Si configuraste `DOCKER_DATABASE_URL`, debe apuntar al PostgreSQL del proyecto Compose que se prueba.
+
+Consultas de verificación de conteos y asociaciones
+
+```sql
+SELECT (SELECT count(*) FROM public.rol) AS roles,
+       (SELECT count(*) FROM public.estado) AS estados,
+       (SELECT count(*) FROM public.comision_medica) AS comisiones,
+       (SELECT count(*) FROM public.empleado) AS empleados,
+       (SELECT count(*) FROM public.usuario) AS usuarios;
+
+SELECT e.nombre, e.apellido, u.nombre AS usuario, r.nombre AS rol,
+       c.nombre AS comision, c.codigo
+FROM public.empleado e
+JOIN public.usuario u ON u.id = e.usuario_id
+JOIN public.rol r ON r.id = e.rol_id
+JOIN public.comision_medica c ON c.id = e.comision_medica_id
+WHERE e.email IN ('parametrizador.demo@example.com', 'documentacion.demo@example.com',
+                  'bolsines.demo@example.com', 'gerente.demo@example.com')
+ORDER BY e.email;
+```
+
+La prueba transaccional y la segunda carga quedaron pendientes de ejecución contra PostgreSQL porque Docker Desktop denegó el acceso a su motor Linux.
+
 ## Estructura
 
 | Componente     | Ubicación            | Responsabilidad                                                                                    |
@@ -265,6 +312,49 @@ Modificación con `PUT /api/estados/1`
 | `500 Internal Server Error` | Error inesperado.                                            |
 
 Los errores devuelven un objeto JSON con una propiedad `error`. PostgreSQL aplica las restricciones de unicidad y `ON DELETE RESTRICT`. Las eliminaciones no modifican los registros relacionados.
+
+## API de empleados
+
+| Método | Ruta                  | Resultado                           |
+| ------ | --------------------- | ----------------------------------- |
+| POST   | `/api/empleados`      | 201, empleado y usuario creados     |
+| GET    | `/api/empleados`      | 200, lista por ID ascendente o `[]` |
+| GET    | `/api/empleados/{id}` | 200, empleado solicitado            |
+| PUT    | `/api/empleados/{id}` | 200, empleado actualizado           |
+| DELETE | `/api/empleados/{id}` | 204, sin cuerpo                     |
+
+Ejemplo de alta con `POST`
+
+```json
+{
+  "nombre": "Ana",
+  "apellido": "Pérez",
+  "email": "ana@example.com",
+  "usuario": { "nombre": "ana", "contrasena": "prueba123" },
+  "rolId": 1,
+  "comisionMedicaId": 3
+}
+```
+
+Ejemplo de modificación con `PUT`
+
+```json
+{
+  "nombre": "Ana",
+  "apellido": "Pérez",
+  "email": "ana@example.com",
+  "rolId": 2,
+  "comisionMedicaId": 5
+}
+```
+
+Ambos métodos exigen todos los campos de su ejemplo, con textos no vacíos, un email válido e IDs enteros positivos de catálogos existentes. El alta crea el usuario asociado mediante una escritura anidada atómica y admite nombres de usuario repetidos. El PUT conserva el usuario asociado. Las respuestas incluyen los datos del empleado y un resumen de su usuario, rol y comisión médica. La contraseña queda excluida.
+
+La eliminación borra el empleado y su usuario en una transacción. Una sesión del usuario o un cambio de estado del que el empleado sea responsable impiden la operación y se conservan ambos registros.
+
+La API responde con `400` por datos inválidos, `404` por un empleado o catálogo inexistente, `409` por un conflicto de persistencia y `500` por un error inesperado. Los errores tienen la forma `{"error":"mensaje"}`.
+
+Ejecutá `npm.cmd run test:run -- tests/empleados-api.test.ts` para probar los cinco endpoints con Prisma simulado.
 
 ## Comandos npm
 

@@ -48,4 +48,42 @@ VALUES
   ('CM-CABA', 'Comisión Médica Ciudad Autónoma de Buenos Aires', 'Sede ficticia - Ciudad Autónoma de Buenos Aires, Argentina', 'cm-caba@example.com', '0000000024')
 ON CONFLICT (codigo) DO NOTHING;
 
+-- 4. Empleados y usuarios ficticios
+-- La comprobación por email y el alta deben serializarse incluso sin UNIQUE.
+LOCK TABLE public.empleado IN SHARE ROW EXCLUSIVE MODE;
+
+DO $seed$
+DECLARE
+  demo record;
+  id_usuario integer;
+  id_rol integer;
+  id_comision integer;
+BEGIN
+  FOR demo IN
+    SELECT * FROM (VALUES
+      ('Martín', 'Fernández', 'parametrizador.demo', 'Parametrizador del sistema', 'CM-CABA'),
+      ('Lucía', 'González', 'documentacion.demo', 'Encargado de Documentación', 'CM-CBA'),
+      ('Nicolás', 'Rodríguez', 'bolsines.demo', 'Encargado de Bolsines', 'CM-CBA'),
+      ('Carolina', 'Martínez', 'gerente.demo', 'Gerente de Comisión Médica', 'CM-SF')
+    ) AS datos(nombre, apellido, usuario, rol, comision)
+  LOOP
+    IF EXISTS (
+      SELECT 1 FROM public.empleado WHERE email = demo.usuario || '@example.com'
+    ) THEN
+      CONTINUE;
+    END IF;
+
+    SELECT id INTO STRICT id_rol FROM public.rol WHERE nombre = demo.rol;
+    SELECT id INTO STRICT id_comision FROM public.comision_medica WHERE codigo = demo.comision;
+
+    INSERT INTO public.usuario (nombre, contrasena)
+    VALUES (demo.usuario, '123456')
+    RETURNING id INTO id_usuario;
+
+    INSERT INTO public.empleado (nombre, apellido, email, usuario_id, rol_id, comision_medica_id)
+    VALUES (demo.nombre, demo.apellido, demo.usuario || '@example.com', id_usuario, id_rol, id_comision);
+  END LOOP;
+END;
+$seed$;
+
 COMMIT;
