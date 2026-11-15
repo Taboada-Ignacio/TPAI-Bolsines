@@ -6,12 +6,16 @@ services:
     environment:
       DATABASE_URL: &database-url ${DOCKER_DATABASE_URL:-postgresql://${POSTGRES_USER:-bolsines}:${POSTGRES_PASSWORD:-bolsines_dev}@postgres:5432/${POSTGRES_DB:-bolsines}}
       SESSION_SIGNING_KEY: ${SESSION_SIGNING_KEY:-}
-      GPS_SIMULADOR_API_KEY: ${GPS_SIMULADOR_API_KEY:-simulador-local}
-      GPS_SIMULADOR_BASE_URL: ${GPS_SIMULADOR_BASE_URL:-http://127.0.0.1:3000}
+      GPS_TRACKER_BASE_URL: http://gps-tracker:8080
+      GPS_TRACKER_XTR_API_KEY: ${GPS_TRACKER_XTR_API_KEY:-sk_xtr_9F3a7C21bE6d4A10f2c8e5b7d913}
+      GPS_TRACKER_NAVTRACK_API_KEY: ${GPS_TRACKER_NAVTRACK_API_KEY:-sk_nav_7b61d9e4c3a2485fae10c77d5b2f}
+      GPS_TRACKER_GEOPULSE_API_KEY: ${GPS_TRACKER_GEOPULSE_API_KEY:-sk_geo_f2d84a1c9e7345b8a6d1c3f0972e}
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"
       SMTP_FROM: ${SMTP_FROM:-notificaciones@bolsines.test}
     depends_on:
+      gps-tracker:
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
         restart: true
@@ -41,6 +45,21 @@ services:
         condition: service_healthy
     restart: "no"
     command: ["node", "prisma/seeds/run-init.mjs"]
+
+  gps-tracker:
+    build: ./docker/gps-tracker
+    ports:
+      - "127.0.0.1:${GPS_TRACKER_PORT:-8080}:8080"
+    environment:
+      GPS_API_KEYS_XTR4500L: ${GPS_TRACKER_XTR_API_KEY:-sk_xtr_9F3a7C21bE6d4A10f2c8e5b7d913}
+      GPS_API_KEYS_NAVTRACKQX7A: ${GPS_TRACKER_NAVTRACK_API_KEY:-sk_nav_7b61d9e4c3a2485fae10c77d5b2f}
+      GPS_API_KEYS_GEOPULSEMTR900: ${GPS_TRACKER_GEOPULSE_API_KEY:-sk_geo_f2d84a1c9e7345b8a6d1c3f0972e}
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
 
   mailpit:
     image: axllent/mailpit:v1.33.1

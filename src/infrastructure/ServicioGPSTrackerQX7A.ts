@@ -9,10 +9,10 @@ export class ServicioGPSTrackerQX7A {
     codCMDestino: string,
   ): Promise<string> {
     return this.transporte.consultar(
-      "qx-7a/retrieveTrackingData",
+      "navtrack-qx-7a/retrieveTrackingData",
       apiKey,
       nroBolsin,
-      { codCMDestino },
+      { codigoComisionMedicaDestino: codCMDestino },
     );
   }
 }

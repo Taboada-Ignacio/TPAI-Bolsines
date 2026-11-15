@@ -638,93 +638,47 @@ Se esperan `204` al cerrar, `401` al reutilizar la cookie y una fecha de fin no 
 
 El gestor que coordinará estas operaciones queda pendiente.
 
-## Simulador local de GPS Tracker
+## GPS Tracker oficial de la cátedra
 
-El backend Next.js simula los tres modelos de GPS de la ERS. Los adaptadores consumen sus formatos originales por HTTP. Los endpoints usan rutas locales y funcionan sin acceso a servicios externos ni a PostgreSQL.
-
-| Modelo           | Endpoint GET                                     | Parámetros obligatorios               | Respuesta 200                                                                         |
-| ---------------- | ------------------------------------------------ | ------------------------------------- | ------------------------------------------------------------------------------------- |
-| XTR-4500L        | `/api/gps-simulator/xtr-4500l/getBolsinLocation` | `apiKey`, `nroBolsin`, `codCMOrigen`  | Objeto JSON con `numeroBolsin`, `latitud`, `longitud` y `fechaHoraActualizacion`      |
-| NavTrack QX-7A   | `/api/gps-simulator/qx-7a/retrieveTrackingData`  | `apiKey`, `nroBolsin`, `codCMDestino` | Texto CSV de una sola fila `nroBolsin,latitud,longitud,fechaHora`                     |
-| GeoPulse MTR-900 | `/api/gps-simulator/mtr-900/fetchCargoPositions` | `apiKey`, `nroBolsin`                 | Matriz JSON `[[nroBolsin, latitud, longitud, fechaHora]]` con cuatro cadenas por fila |
-
-`nroBolsin` es un entero de 32 bits. Los códigos de comisión requeridos deben contener texto. Las respuestas se sirven con `Cache-Control: no-store`.
-
-El resto módulo tres del número de bolsín, ajustado al rango de 0 a 2, asigna siempre el mismo bolsín a RN 7, RN 9 o RN 40. En cada consulta se elige al azar uno de los segmentos de esa ruta y se interpolan la latitud y la longitud con la misma proporción. Cada consulta toma una lectura del reloj del servidor y resta un retraso aleatorio de 0 a 3.600.000 milisegundos, ambos inclusive. La fecha resultante se informa una sola vez por posición, en ISO 8601 UTC con sufijo `Z`.
-
-### Cartografía
-
-[`rutas-nacionales.geojson`](src/lib/gps-simulator/rutas-nacionales.geojson) contiene geometrías de la Dirección Nacional de Vialidad. La descarga se realizó el 15 de noviembre de 2026 desde el WFS del IGN, capa `transporte:vial_nacional`, en formato Shapefile con `srsName=EPSG:4326` y sin el parámetro `maxFeatures` del enlace del catálogo. El catálogo indica la licencia «Otra (Abierta)» y atribuye el relevamiento a la Dirección Nacional de Vialidad. [Catálogo de rutas nacionales](https://datos.transporte.gob.ar/dataset/rutas-nacionales) · [Recurso Shapefile](https://datos.transporte.gob.ar/dataset/rutas-nacionales/archivo/d58b91ee-c46a-4260-8d89-69438417d73b).
-
-El WFS informó 2.723 registros para la capa completa. Ese total coincidió con los registros del `.shp`, `.shx` y `.dbf`. Se verificó el CRC del ZIP y se conservó su SHA-256 para identificar la descarga: `cf49c79a392ddaef4279ade7fe8cb91a88e692be9973ff689620f040f39507af`.
-
-Se seleccionaron los registros cuyo campo `designacio` contiene el código `7`, `9` o `40` como valor exacto o componente separado por guiones. Por ejemplo, `7-40` se incorpora en ambas rutas. Cada parte original se conserva como línea independiente dentro de un `MultiLineString` en WGS84 (`EPSG:4326`), con vértices `[longitud, latitud]`. Los segmentos conectan únicamente vértices consecutivos del mismo tramo. Los totales cuentan los tramos compartidos dentro de cada ruta a la que pertenecen.
-
-| Ruta  | Tramos | Vértices | Segmentos |
-| ----- | -----: | -------: | --------: |
-| RN 7  |     81 |    9.672 |     9.591 |
-| RN 9  |    131 |   17.520 |    17.389 |
-| RN 40 |    281 |   44.605 |    44.324 |
-
-El archivo se guarda en el repositorio. La cartografía se lee desde disco y queda disponible sin Internet durante el arranque y las consultas.
-
-Compose pasa `GPS_SIMULADOR_API_KEY` al servicio `backend` y usa `simulador-local` por defecto. Para usar otra clave, configurala en `.env` o en el entorno. Cuando ejecutás Next.js directamente desde el anfitrión, definí esa variable antes del arranque. El Dockerfile incorpora el GeoJSON al copiar el árbol fuente en `/app`.
-
-### Consultar desde PowerShell
+Compose compila con Maven y Java 17 la [revisión fijada de la API oficial](https://github.com/LiberaeMentis/dsi-api-bolsines/tree/bd457ed8349a08dad9f3533dd93530aebf844204). El build requiere acceso a GitHub y Maven Central. El backend espera el health check de `gps-tracker` y se conecta a `http://gps-tracker:8080` por la red interna. `GPS_TRACKER_PORT` configura el puerto publicado en loopback.
 
 ```powershell
+docker compose config --quiet
 docker compose up -d --build
-$direccion = docker compose port backend 3000
-$gps = "http://$direccion/api/gps-simulator"
-$clave = [uri]::EscapeDataString("simulador-local")
-$consulta = "apiKey=$clave&nroBolsin=42"
-
-(Invoke-WebRequest "$gps/xtr-4500l/getBolsinLocation?$consulta&codCMOrigen=CM-CBA").Content
-(Invoke-WebRequest "$gps/qx-7a/retrieveTrackingData?$consulta&codCMDestino=CM-SF").Content
-(Invoke-WebRequest "$gps/mtr-900/fetchCargoPositions?$consulta").Content
-curl.exe -i "$gps/mtr-900/fetchCargoPositions?$consulta&simularFallo=1"
-
-docker compose exec backend node -e "console.log(JSON.parse(require('node:fs').readFileSync('src/lib/gps-simulator/rutas-nacionales.geojson', 'utf8')).features.length)"
+$gps = "http://$(docker compose port gps-tracker 8080)"
+Invoke-RestMethod "$gps/health"
 ```
 
-Los errores se devuelven como JSON con el campo `error`. El código `400` indica parámetros ausentes o inválidos, `401` indica una clave incorrecta y `503` indica que el simulador está indisponible. En desarrollo, `simularFallo=1` devuelve `503` con una consulta válida para poder probar el flujo A3. Compose inicia el backend con `next dev`.
+| Modelo           | Ruta GET                                    | Parámetros                                    | Respuesta                                                      |
+| ---------------- | ------------------------------------------- | --------------------------------------------- | -------------------------------------------------------------- |
+| XTR-4500L        | `/api/xtr-4500l/getBolsinLocation`          | `numeroBolsin`, `codigoComisionMedicaOrigen`  | JSON con `items`                                               |
+| NavTrack QX-7A   | `/api/navtrack-qx-7a/retrieveTrackingData`  | `numeroBolsin`, `codigoComisionMedicaDestino` | Texto CSV                                                      |
+| GeoPulse MTR-900 | `/api/geopulse-mtr-900/fetchCargoPositions` | `numeroBolsin`                                | Matriz JSON con número, coordenadas numéricas y fecha de texto |
 
-### Ejemplos de respuestas
+Las tres variables `GPS_TRACKER_*_API_KEY` de `.env.example` controlan ambas puntas: Next.js las envía en `X-API-Key` y el contenedor oficial recibe `GPS_API_KEYS_XTR4500L`, `GPS_API_KEYS_NAVTRACKQX7A` y `GPS_API_KEYS_GEOPULSEMTR900`, respectivamente. Compose usa las claves públicas de demostración por defecto. Si tu `.env` conserva valores de una configuración anterior, actualizalos con los de `.env.example` para consultar con las claves de demostración.
 
-Respuestas registradas durante la comprobación de los manejadores compilados. El reloj del servidor marcaba aproximadamente `2026-11-15T18:58:10Z`.
+Con `$gps` definido como arriba y las claves de demostración del ejemplo de integración de abajo:
 
-**XTR-4500L · bolsín 42 · RN 7**
-
-```json
-{
-  "numeroBolsin": 42,
-  "latitud": -34.06973494457621,
-  "longitud": -63.77891256268853,
-  "fechaHoraActualizacion": "2026-11-15T18:52:54.162Z"
-}
+```powershell
+curl.exe -i -H "X-API-Key: $env:GPS_TRACKER_XTR_API_KEY" "$gps/api/xtr-4500l/getBolsinLocation?numeroBolsin=101&codigoComisionMedicaOrigen=CM-CBA-01"
+curl.exe -i -H "X-API-Key: $env:GPS_TRACKER_NAVTRACK_API_KEY" "$gps/api/navtrack-qx-7a/retrieveTrackingData?numeroBolsin=101&codigoComisionMedicaDestino=CM-ROS-02"
+curl.exe -i -H "X-API-Key: $env:GPS_TRACKER_GEOPULSE_API_KEY" "$gps/api/geopulse-mtr-900/fetchCargoPositions?numeroBolsin=101"
 ```
 
-**NavTrack QX-7A · bolsín 43 · RN 9**
+| Escenario | HTTP esperado |
+| --- | --- |
+| Clave y parámetros válidos | 200 |
+| Parámetro obligatorio omitido | 400 |
+| Clave incorrecta o de otro proveedor | 401 |
+| Bolsín inexistente o comisión incompatible | 404 |
 
-```text
-43,-24.173485620256116,-65.36430665397333,2026-11-15T18:30:30.367Z
-```
+La prueba previa con una instancia temporal confirmó HTTP 200 para XTR al pasarle explícitamente su variable de entorno. En esta revisión, Compose validó la configuración y la coincidencia de las tres claves entre servicios. El motor Docker denegó acceso y el entorno también bloqueó la consulta al puerto local. Las respuestas de los tres proveedores y los errores de la tabla quedan por verificar en el stack definitivo.
 
-**GeoPulse MTR-900 · bolsín 44 · RN 40**
-
-```json
-[["44", "-37.41777711965108", "-70.22719734263802", "2026-11-15T18:28:38.384Z"]]
-```
-
-### Pruebas
-
-Ejecutá `npm.cmd run test:run -- tests/gps-simulator.test.ts` para verificar los tres formatos, las validaciones, la lectura local, los cortes entre tramos y la interpolación. Las pruebas fijan el reloj y el generador aleatorio para comprobar ambos límites de la antigüedad y los valores intermedios en las respuestas.
-
-En la verificación de esta actualización pasaron las 182 pruebas, `typecheck`, `lint` y el build de producción con Webpack. Los tres endpoints devolvieron `200` por HTTP al ejecutar el backend compilado en Windows. `docker compose config --quiet` validó la configuración. La verificación dentro del contenedor quedó pendiente por falta de acceso al motor Docker desde el entorno de prueba.
+El catálogo oficial contiene los bolsines 101 a 110. El seed local usa 36001 a 36035 y códigos propios como `CM-CBA` y `CM-SF`. La prueba usa el fixture oficial 101, origen `CM-CBA-01` y destino `CM-ROS-02`, directamente en los adaptadores. Para una futura prueba con persistencia se propone cargar el fixture y sus comisiones oficiales en una base aislada, con sesión y estado Enviado si el recorrido lo requiere. Los números inexistentes y los códigos de comisión incompatibles devuelven 404.
 
 ## Implementación del patrón Adapter para GPS Tracker
 
-`InterfazGPSTracker` es el **Client** del patrón. Recibe el modelo y los bolsines de la consulta, crea el adaptador correspondiente e invoca el **Target**, `IAdaptadorLocalizacionBolsines`. Cada **Adapter** conserva por constructor una referencia privada al **Adaptee** de su modelo. Los tres servicios usan `TransporteHTTPGPS` para consultar el simulador. La frontera recibe la matriz normalizada.
+`InterfazGPSTracker` es el **Client** del patrón. Recibe el modelo y los bolsines de la consulta, crea el adaptador correspondiente e invoca el **Target**, `IAdaptadorLocalizacionBolsines`. Cada **Adapter** conserva por constructor una referencia privada al **Adaptee** de su modelo. Los tres servicios usan `TransporteHTTPGPS` para consultar la API oficial. La frontera recibe la matriz normalizada.
 
 | Adapter             | Adaptee                      | Operación pública                                                        |
 | ------------------- | ---------------------------- | ------------------------------------------------------------------------ |
@@ -744,11 +698,11 @@ interface IAdaptadorLocalizacionBolsines {
 
 Cada concreto implementa directamente la interfaz y declara sus propios atributos. `crearAdaptador(): void` asigna el adaptador concreto a la referencia común. La frontera guarda el modelo, el lote y la matriz resultante. Usá una instancia de `InterfazGPSTracker` por consulta independiente. Los arreglos de códigos se alinean por índice con los números de bolsín y los que el modelo no utiliza se pasan vacíos. Un lote vacío devuelve `[]`. La [especificación UML corregida](docs/cerebro/nodos/PPAI-PAT-ADAPTER-GPS.md#nacho-especificación-aprobada-del-adapter-gps) detalla los atributos, las operaciones y las relaciones.
 
-| Modelo      | Datos por bolsín            | Operación y formato del proveedor              |
-| ----------- | --------------------------- | ---------------------------------------------- |
-| `XTR-4500L` | `nroBolsin`, `codCMOrigen`  | `getBolsinLocation` · JSON                     |
-| `QX-7A`     | `nroBolsin`, `codCMDestino` | `retrieveTrackingData` · CSV                   |
-| `MTR-900`   | `nroBolsin`                 | `fetchCargoPositions` · matriz JSON de cadenas |
+| Modelo      | Datos por bolsín            | Operación y formato del proveedor                                |
+| ----------- | --------------------------- | ---------------------------------------------------------------- |
+| `XTR-4500L` | `nroBolsin`, `codCMOrigen`  | `getBolsinLocation` · JSON                                       |
+| `QX-7A`     | `nroBolsin`, `codCMDestino` | `retrieveTrackingData` · CSV                                     |
+| `MTR-900`   | `nroBolsin`                 | `fetchCargoPositions` · matriz JSON con tres números y una fecha |
 
 ```typescript
 import { InterfazGPSTracker } from "@/adapters/InterfazGPSTracker";
@@ -756,29 +710,29 @@ import { InterfazGPSTracker } from "@/adapters/InterfazGPSTracker";
 const tracker = new InterfazGPSTracker();
 const localizaciones = await tracker.obtenerLocalizacionDeBolsines(
   "XTR-4500L",
-  [42],
-  ["CM-CBA"],
+  [101],
+  ["CM-CBA-01"],
   [],
 );
 ```
 
-Cada fila tiene cuatro cadenas en orden `[nroBolsin, latitud, longitud, fechaHoraActualizacion]`. Las consultas se esperan de forma asíncrona en el orden del lote. Cada adaptador valida el número devuelto, la cantidad de campos, los rangos geográficos y la fecha ISO 8601 en UTC. La fecha se conserva tal como la publicó el simulador. Un error interrumpe el lote y se propaga como `ErrorGPSTracker`, con `tipo` y, para errores HTTP, `estadoHttp`. Esto permite distinguir, por ejemplo, un `503` para el futuro flujo alternativo A3.
+Cada fila tiene cuatro cadenas en orden `[nroBolsin, latitud, longitud, fechaHoraActualizacion]`. Las consultas se esperan de forma asíncrona en el orden del lote. Cada adaptador valida el número devuelto, la cantidad de campos, los rangos geográficos y la fecha ISO 8601 en UTC. Las fechas oficiales sin zona se interpretan como hora argentina (UTC−03:00) y se convierten a UTC. Un error interrumpe el lote y se propaga como `ErrorGPSTracker`, con `tipo` y, para errores HTTP, `estadoHttp`. El transporte preserva estados como `400`, `401` y `404` y distingue errores de conexión y timeout.
 
 La futura integración del CU 36 contempla XTR-4500L con CM origen, QX-7A con CM destino y MTR-900 con el número de bolsín. `Bolsin.obtenerCodCMOrigen()` y `Bolsin.obtenerCodCMDestino()` leen los códigos de sus asociaciones. `Empleado.esTuCM(cm)` compara códigos y `Empleado.sosGCM()` delega en `Rol.esGCM()`. La CM destino del bolsín seleccionado se consulta posteriormente para el correo. El [tramo GPS de la secuencia](docs/cerebro/nodos/PPAI-CU-36.md#nacho-tramo-gps-del-cu-36-con-cm-origen) documenta los mensajes de ese recorrido.
 
-El cliente usa `fetch` del lado servidor con un timeout de cinco segundos por consulta. Toma la clave de `GPS_SIMULADOR_API_KEY` y usa `GPS_SIMULADOR_BASE_URL` como origen HTTP. Por defecto se conecta a `http://127.0.0.1:3000`, también desde el interior del servicio `backend` de Compose. Los errores omiten la URL, el cuerpo recibido y la clave. Next.js excluye las rutas del simulador del registro de solicitudes entrantes en desarrollo porque el contrato transporta la clave en la URL.
+Al construir `InterfazGPSTracker`, se copian y validan exactamente tres claves en `apisKeys`, en orden XTR-4500L, NavTrack QX-7A y GeoPulse MTR-900. Si alguna falta o está en blanco, se lanza `ErrorGPSTracker` de tipo `CONFIGURACION` sin incluir valores. `crearAdaptador()` entrega por constructor únicamente la clave del modelo solicitado.
 
-`npm.cmd run test:run -- tests/gps-adapter.test.ts` verifica los formatos, el polimorfismo, los parámetros y los errores con clientes simulados. Para probar el transporte real contra un backend en **modo desarrollo**, con el simulador habilitado y la misma clave en servidor y pruebas, ejecutá desde PowerShell:
+El transporte usa `fetch` del lado servidor, envía `X-API-Key` por modelo y aplica cinco segundos de timeout por consulta. Compose comparte entre Java y el backend las tres claves de `.env.example`. Para ejecutar Next.js desde el anfitrión configurá esas mismas claves y ajustá `GPS_TRACKER_BASE_URL` si cambiaste el puerto publicado.
+
+La suite `tests/gps-adapter.test.ts` verifica el contrato con dobles. Para probar por HTTP real los tres adaptadores con el bolsín 101, `/health`, `401` y `404`, ejecutá en PowerShell con las claves configuradas en Compose. Este ejemplo usa los valores predeterminados de desarrollo:
 
 ```powershell
-$env:GPS_ADAPTER_TEST_BASE_URL = "http://$(docker compose port backend 3000)"
-$env:GPS_SIMULADOR_API_KEY = "simulador-local" # Usá el valor configurado para tu backend.
+$env:GPS_ADAPTER_TEST_BASE_URL = "http://$(docker compose port gps-tracker 8080)"
+$env:GPS_TRACKER_XTR_API_KEY = "sk_xtr_9F3a7C21bE6d4A10f2c8e5b7d913"
+$env:GPS_TRACKER_NAVTRACK_API_KEY = "sk_nav_7b61d9e4c3a2485fae10c77d5b2f"
+$env:GPS_TRACKER_GEOPULSE_API_KEY = "sk_geo_f2d84a1c9e7345b8a6d1c3f0972e"
 npm.cmd run test:run -- tests/gps-adapter-http.test.ts
 ```
-
-Si ejecutás Next.js directamente, usá su origen local en `GPS_ADAPTER_TEST_BASE_URL`. Las pruebas consultan los tres modelos y comprueban que el `503` del simulador llegue a la frontera.
-
-La suite de Adapter comprueba las firmas, las asociaciones, los lotes, la concurrencia de los adaptadores y los errores. La comprobación dentro de Docker depende del acceso al motor local.
 
 ## CU 31 — Notificar ubicación de bolsín
 

@@ -102,3 +102,11 @@ La propiedad privada `solicitudEnCurso?: Promise<void>` comparte la solicitud HT
 ### [NACHO] Métodos de dominio y alcance GPS vigente
 
 El alcance futuro del CU 36 contempla los tres proveedores de la frontera genérica.
+
+### [NACHO] Migración al GPS Tracker oficial
+
+La frontera configura una clave por modelo en `apisKeys`, en orden XTR, QX y MTR. Cada adaptador conserva su asociación con un único servicio y las operaciones de `IAdaptadorLocalizacionBolsines`. Los servicios reutilizan `TransporteHTTPGPS`, que envía `X-API-Key` y conserva el estado HTTP de error, con tipos separados para timeout y conexión. XTR valida un elemento en `items`, QX procesa CSV y MTR valida la matriz numérica oficial antes de convertirla a cadenas. La fecha sin zona se interpreta como hora argentina (UTC−03:00). Las tres salidas mantienen `Promise<string[][]>`. La inyección TypeScript del constructor de la frontera recibe ahora tres claves; las operaciones UML y asociaciones documentadas se conservan.
+
+### [NACHO] Validación de apisKeys en la frontera GPS
+
+`InterfazGPSTracker` guarda una copia privada de tres claves en orden XTR-4500L, QX-7A y MTR-900. Por defecto las lee de las variables `GPS_TRACKER_*_API_KEY` del backend. El constructor rechaza claves ausentes o en blanco con `ErrorGPSTracker` de tipo `CONFIGURACION` sin revelar valores. `crearAdaptador()` selecciona por modelo y entrega la clave al adaptador por constructor. Se conservan las asociaciones del UML, las firmas y la salida común `string[][]`.

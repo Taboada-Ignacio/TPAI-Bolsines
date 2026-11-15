@@ -129,3 +129,7 @@ La frontera invoca al adaptador a través de `IAdaptadorLocalizacionBolsines`. E
 ### [NACHO] Métodos de dominio y alcance GPS vigente
 
 La decisión vigente contempla los tres modelos en el futuro gestor: XTR usa número y CM origen, QX usa número y CM destino, y MTR usa solo número. El tramo XTR anterior documenta uno de esos recorridos. La búsqueda del gerente para el correo sigue siendo una operación independiente.
+
+### [NACHO] Migración al GPS Tracker oficial
+
+El tramo GPS del CU 36 consulta el servicio oficial `gps-tracker` por HTTP a través de la frontera y los tres adaptadores existentes. El fixture 101 del proveedor usa `CM-CBA-01` como origen y `CM-ROS-02` como destino. El seed local usa los números 36001 a 36035 y sus propios códigos. La prueba de integración inyecta el fixture oficial en la frontera. Queda pendiente preparar datos compatibles en una base aislada para probar el futuro gestor completo.

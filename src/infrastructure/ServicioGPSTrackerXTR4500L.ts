@@ -12,7 +12,7 @@ export class ServicioGPSTrackerXTR4500L {
       "xtr-4500l/getBolsinLocation",
       apiKey,
       nroBolsin,
-      { codCMOrigen },
+      { codigoComisionMedicaOrigen: codCMOrigen },
     );
   }
 }

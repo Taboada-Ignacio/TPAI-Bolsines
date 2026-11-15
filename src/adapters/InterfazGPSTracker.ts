@@ -31,9 +31,19 @@ export class InterfazGPSTracker {
       qx: new ServicioGPSTrackerQX7A(),
       mtr: new ServicioGPSTrackerMTR900(),
     },
-    apiKey = process.env.GPS_SIMULADOR_API_KEY ?? "",
+    apisKeys: readonly [string, string, string] = [
+      process.env.GPS_TRACKER_XTR_API_KEY ?? "",
+      process.env.GPS_TRACKER_NAVTRACK_API_KEY ?? "",
+      process.env.GPS_TRACKER_GEOPULSE_API_KEY ?? "",
+    ],
   ) {
-    this.apisKeys = [apiKey, apiKey, apiKey];
+    this.apisKeys = [...apisKeys];
+    if (
+      this.apisKeys.length !== 3 ||
+      !this.apisKeys.every((clave) => clave?.trim())
+    ) {
+      throw new ErrorGPSTracker("CONFIGURACION");
+    }
   }
 
   crearAdaptador(): void {
