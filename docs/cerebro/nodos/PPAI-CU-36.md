@@ -8,7 +8,7 @@ prioridad: Alta
 complejidad: Mediano
 actor_principal: Encargado de Bolsines (EB)
 actores_secundarios: [GPS Tracker, Servidor Google Maps, Servidor de Correo]
-tags: [cu36, ppai, mapa, seguimiento, gps, adapter, rastreo]
+tags: [cu36, ppai, mapa, seguimiento, gps, adapter, rastreo, nacho]
 conectado_con: [DSI-00-CONVENCIONES, DSI-U1-REALIZACIONES-CU, DSI-U2-PATRONES-ESTRUCTURALES, PPAI-DOM-BOLSIN, PPAI-PAT-ADAPTER-GPS, PPAI-CU-30]
 depende_de: [PPAI-DOM-BOLSIN, PPAI-PAT-ADAPTER-GPS]
 ---
@@ -57,6 +57,8 @@ depende_de: [PPAI-DOM-BOLSIN, PPAI-PAT-ADAPTER-GPS]
 
 ## 4. Diagrama de Secuencia de Análisis (Mermaid)
 
+**[NACHO]** La consulta GPS del flujo principal se detalla en el tramo XTR-4500L de la sección siguiente.
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -65,7 +67,7 @@ sequenceDiagram
     participant Gestor as GestorSeguimientoBolsines
     participant Sesion as SesionActual
     participant Bolsin as Bolsin
-    participant Adapter as IGPSTrackerAdapter
+    participant Tracker as InterfazGPSTracker
     participant GoogleMaps as ServidorGoogleMaps
     participant GCM as ComisionMedica (Destino)
     participant CU30 as CU30_NotificarUbicacion
@@ -79,10 +81,8 @@ sequenceDiagram
     Gestor ->> Bolsin: buscarBolsinesEnviados(cmOrigen)
     Bolsin -->> Gestor: colBolsinesEnviados
 
-    loop Para cada bolsín enviado
-        Gestor ->> Adapter: obtenerUbicacion(nroBolsin, cmOrigen, cmDestino)
-        Adapter -->> Gestor: ubicacionNormalizada(lat, lng, fechaHora)
-    end
+    Gestor ->> Tracker: obtenerLocalizacionDeBolsines(XTR-4500L, números, orígenes, [])
+    Tracker -->> Gestor: listadoBolsines
 
     Gestor ->> GoogleMaps: renderizarMapaConMarcadores(colUbicaciones)
     GoogleMaps -->> Pantalla: mostrarMapa(mapaInteractiva)
@@ -100,3 +100,32 @@ sequenceDiagram
     Gestor -->> Pantalla: informarExito()
     Pantalla -->> EB: mostrarMensajeExito()
 ```
+
+## [NACHO] Tramo GPS del CU 36 con CM origen
+
+Este tramo detalla la consulta GPS del diagrama anterior. El gestor reúne los números y códigos de CM origen de los bolsines en estado `Enviado` cuya CM origen coincide con la del usuario logueado. La CM destino del bolsín seleccionado se consulta posteriormente para el correo.
+
+```mermaid
+sequenceDiagram
+    participant G as GestorConsultarUbicacionDeBolsin
+    participant F as InterfazGPSTracker
+    participant A as AdaptadorXTR4500L
+    participant S as ServicioGPSTrackerXTR4500L
+    G->>F: obtenerLocalizacionDeBolsines(XTR-4500L, números, orígenes, [])
+    F->>F: crearAdaptador()
+    F->>A: recibirLocalizacionBolsines()
+    A->>A: solicitarLocalizacionBolsines()
+    loop Por cada bolsín del lote
+        A->>S: getBolsinLocation(apiKey, nroBolsin, codCMOrigen)
+        S-->>A: JSON original
+    end
+    A->>A: adaptarLocalizacionBolsines()
+    A-->>F: String[][]
+    F-->>G: String[][]
+```
+
+La frontera invoca al adaptador a través de `IAdaptadorLocalizacionBolsines`. El servicio usa `TransporteHTTPGPS` para llegar al simulador. QX-7A y MTR-900 están disponibles en la integración genérica.
+
+### [NACHO] Métodos de dominio y alcance GPS vigente
+
+La decisión vigente contempla los tres modelos en el futuro gestor: XTR usa número y CM origen, QX usa número y CM destino, y MTR usa solo número. El tramo XTR anterior documenta uno de esos recorridos. La búsqueda del gerente para el correo sigue siendo una operación independiente.

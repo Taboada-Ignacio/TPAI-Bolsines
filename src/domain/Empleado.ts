@@ -78,8 +78,8 @@ export class Empleado {
     return this.comisionMedica;
   }
 
-  esTuCM(cmDestino: ComisionMedica): boolean {
-    return this.comisionMedica.getCodigo() === cmDestino.getCodigo();
+  esTuCM(cm: ComisionMedica): boolean {
+    return this.comisionMedica.getCodigo() === cm.getCodigo();
   }
 
   obtenerCM(): string {

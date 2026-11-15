@@ -305,7 +305,7 @@ Las comprobaciones de integración requieren PostgreSQL y los endpoints activos.
 | Service        | `src/services`       | Coordina los casos de uso mediante contratos de repositorios e integraciones.                      |
 | Domain         | `src/domain`         | Aloja entidades, reglas e interfaces de negocio independientes del framework y de la persistencia. |
 | Infrastructure | `src/infrastructure` | Centraliza Prisma Client y aloja las implementaciones de repositorios.                             |
-| Adapter        | `src/adapters`       | Aloja los futuros adaptadores GoF para transformar contratos de sistemas externos.                 |
+| Adapter        | `src/adapters`       | Aloja la frontera GPS y los adaptadores GoF que normalizan los contratos de los proveedores.       |
 | DTO            | `src/dtos`           | Aloja esquemas Zod y tipos para los contratos HTTP.                                                |
 
 La página mínima y el layout viven en `src/app`. `prisma/` contiene el esquema y las migraciones. `tests/` contiene las pruebas de los endpoints, los servicios de catálogos y el dominio. El alias `@/*` apunta a `src/*` tanto en Next.js como en Vitest.
@@ -625,7 +625,7 @@ El gestor que coordinará estas operaciones queda pendiente.
 
 ## Simulador local de GPS Tracker
 
-El backend Next.js simula los tres modelos de GPS de la ERS para que los futuros adaptadores del CU 36 puedan consumir sus formatos originales. Los endpoints usan rutas locales y funcionan sin acceso a servicios externos ni a PostgreSQL.
+El backend Next.js simula los tres modelos de GPS de la ERS. Los adaptadores consumen sus formatos originales por HTTP. Los endpoints usan rutas locales y funcionan sin acceso a servicios externos ni a PostgreSQL.
 
 | Modelo           | Endpoint GET                                     | Parámetros obligatorios               | Respuesta 200                                                                         |
 | ---------------- | ------------------------------------------------ | ------------------------------------- | ------------------------------------------------------------------------------------- |
@@ -706,6 +706,64 @@ Respuestas registradas durante la comprobación de los manejadores compilados. E
 Ejecutá `npm.cmd run test:run -- tests/gps-simulator.test.ts` para verificar los tres formatos, las validaciones, la lectura local, los cortes entre tramos y la interpolación. Las pruebas fijan el reloj y el generador aleatorio para comprobar ambos límites de la antigüedad y los valores intermedios en las respuestas.
 
 En la verificación de esta actualización pasaron las 182 pruebas, `typecheck`, `lint` y el build de producción con Webpack. Los tres endpoints devolvieron `200` por HTTP al ejecutar el backend compilado en Windows. `docker compose config --quiet` validó la configuración. La verificación dentro del contenedor quedó pendiente por falta de acceso al motor Docker desde el entorno de prueba.
+
+## Implementación del patrón Adapter para GPS Tracker
+
+`InterfazGPSTracker` es el **Client** del patrón. Recibe el modelo y los bolsines de la consulta, crea el adaptador correspondiente e invoca el **Target**, `IAdaptadorLocalizacionBolsines`. Cada **Adapter** conserva por constructor una referencia privada al **Adaptee** de su modelo. Los tres servicios usan `TransporteHTTPGPS` para consultar el simulador. La frontera recibe la matriz normalizada.
+
+| Adapter             | Adaptee                      | Operación pública                                                        |
+| ------------------- | ---------------------------- | ------------------------------------------------------------------------ |
+| `AdaptadorXTR4500L` | `ServicioGPSTrackerXTR4500L` | `getBolsinLocation(apiKey, nroBolsin, codCMOrigen): Promise<string>`     |
+| `AdaptadorQX7A`     | `ServicioGPSTrackerQX7A`     | `retrieveTrackingData(apiKey, nroBolsin, codCMDestino): Promise<string>` |
+| `AdaptadorMTR900`   | `ServicioGPSTrackerMTR900`   | `fetchCargoPositions(apiKey, nroBolsin): Promise<string[][]>`            |
+
+Los nombres TypeScript omiten los guiones de los identificadores UML. `Promise` permite esperar el resultado HTTP y conserva el tipo de dato del v8.
+
+```typescript
+interface IAdaptadorLocalizacionBolsines {
+  recibirLocalizacionBolsines(): Promise<string[][]>;
+  solicitarLocalizacionBolsines(): Promise<void>;
+  adaptarLocalizacionBolsines(): void;
+}
+```
+
+Cada concreto implementa directamente la interfaz y declara sus propios atributos. `crearAdaptador(): void` asigna el adaptador concreto a la referencia común. La frontera guarda el modelo, el lote y la matriz resultante. Usá una instancia de `InterfazGPSTracker` por consulta independiente. Los arreglos de códigos se alinean por índice con los números de bolsín y los que el modelo no utiliza se pasan vacíos. Un lote vacío devuelve `[]`. La [especificación UML corregida](docs/cerebro/nodos/PPAI-PAT-ADAPTER-GPS.md#nacho-especificación-aprobada-del-adapter-gps) detalla los atributos, las operaciones y las relaciones.
+
+| Modelo      | Datos por bolsín            | Operación y formato del proveedor              |
+| ----------- | --------------------------- | ---------------------------------------------- |
+| `XTR-4500L` | `nroBolsin`, `codCMOrigen`  | `getBolsinLocation` · JSON                     |
+| `QX-7A`     | `nroBolsin`, `codCMDestino` | `retrieveTrackingData` · CSV                   |
+| `MTR-900`   | `nroBolsin`                 | `fetchCargoPositions` · matriz JSON de cadenas |
+
+```typescript
+import { InterfazGPSTracker } from "@/adapters/InterfazGPSTracker";
+
+const tracker = new InterfazGPSTracker();
+const localizaciones = await tracker.obtenerLocalizacionDeBolsines(
+  "XTR-4500L",
+  [42],
+  ["CM-CBA"],
+  [],
+);
+```
+
+Cada fila tiene cuatro cadenas en orden `[nroBolsin, latitud, longitud, fechaHoraActualizacion]`. Las consultas se esperan de forma asíncrona en el orden del lote. Cada adaptador valida el número devuelto, la cantidad de campos, los rangos geográficos y la fecha ISO 8601 en UTC. La fecha se conserva tal como la publicó el simulador. Un error interrumpe el lote y se propaga como `ErrorGPSTracker`, con `tipo` y, para errores HTTP, `estadoHttp`. Esto permite distinguir, por ejemplo, un `503` para el futuro flujo alternativo A3.
+
+La futura integración del CU 36 contempla XTR-4500L con CM origen, QX-7A con CM destino y MTR-900 con el número de bolsín. `Bolsin.obtenerCodCMOrigen()` y `Bolsin.obtenerCodCMDestino()` leen los códigos de sus asociaciones. `Empleado.esTuCM(cm)` compara códigos y `Empleado.sosGCM()` delega en `Rol.esGCM()`. La CM destino del bolsín seleccionado se consulta posteriormente para el correo. El [tramo GPS de la secuencia](docs/cerebro/nodos/PPAI-CU-36.md#nacho-tramo-gps-del-cu-36-con-cm-origen) documenta los mensajes de ese recorrido.
+
+El cliente usa `fetch` del lado servidor con un timeout de cinco segundos por consulta. Toma la clave de `GPS_SIMULADOR_API_KEY` y usa `GPS_SIMULADOR_BASE_URL` como origen HTTP. Por defecto se conecta a `http://127.0.0.1:3000`, también desde el interior del servicio `backend` de Compose. Los errores omiten la URL, el cuerpo recibido y la clave. Next.js excluye las rutas del simulador del registro de solicitudes entrantes en desarrollo porque el contrato transporta la clave en la URL.
+
+`npm.cmd run test:run -- tests/gps-adapter.test.ts` verifica los formatos, el polimorfismo, los parámetros y los errores con clientes simulados. Para probar el transporte real contra un backend en **modo desarrollo**, con el simulador habilitado y la misma clave en servidor y pruebas, ejecutá desde PowerShell:
+
+```powershell
+$env:GPS_ADAPTER_TEST_BASE_URL = "http://$(docker compose port backend 3000)"
+$env:GPS_SIMULADOR_API_KEY = "simulador-local" # Usá el valor configurado para tu backend.
+npm.cmd run test:run -- tests/gps-adapter-http.test.ts
+```
+
+Si ejecutás Next.js directamente, usá su origen local en `GPS_ADAPTER_TEST_BASE_URL`. Las pruebas consultan los tres modelos y comprueban que el `503` del simulador llegue a la frontera.
+
+La suite de Adapter comprueba las firmas, las asociaciones, los lotes, la concurrencia de los adaptadores y los errores. La comprobación dentro de Docker depende del acceso al motor local.
 
 ## Comandos npm
 

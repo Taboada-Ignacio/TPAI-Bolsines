@@ -41,6 +41,12 @@ describe("Entidades del CU 36", () => {
     const crearCambio = (fechaFin: Date | null, estado = crearEstado()) =>
       new CambioEstadoBolsin(inicio, fechaFin, estado, crearEmpleado());
 
+    it("obtiene el código de cada comisión desde su asociación", () => {
+      const bolsin = crearBolsin([]);
+      expect(bolsin.obtenerCodCMOrigen()).toBe("CM-CBA");
+      expect(bolsin.obtenerCodCMDestino()).toBe("CM-SF");
+    });
+
     it("compara el código de origen incluso entre instancias distintas", () => {
       const bolsin = crearBolsin([]);
       expect(bolsin.esCMOrigenIgualCMLogueado(origen)).toBe(true);

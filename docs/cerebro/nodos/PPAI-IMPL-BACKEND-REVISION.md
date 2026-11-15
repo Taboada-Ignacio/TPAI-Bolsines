@@ -67,6 +67,109 @@ La separación en capas (`domain`, `services`, `infrastructure`, `adapters`, `dt
 
 ---
 
+### [NACHO] P3 — Selección explícita del modelo GPS implementada
+
+`InterfazGPSTracker` selecciona uno de los tres modelos por consulta a partir de una entrada tipada. Cada adaptador convierte el formato externo a una representación común para el CU 36.
+
+| Modelo | Operación externa | Formato |
+| --- | --- | --- |
+| XTR-4500L | `getBolsinLocation()` | JSON |
+| NavTrack QX-7A | `retrieveTrackingData()` | CSV |
+| GeoPulse MTR-900 | `fetchCargoPositions()` | Matriz bidimensional |
+
+La selección es explícita y se mantiene en el ámbito de la consulta. Cualquier futura asociación persistida requiere una decisión de negocio.
+
+### [NACHO] P4 — Fuera del alcance del trabajo práctico
+
+La seguridad adicional de credenciales queda fuera del alcance académico. Argon2, bcrypt, hash de contraseñas, JWT y mecanismos adicionales de autorización o endurecimiento quedan fuera de los requisitos para completar el CU 36. El alcance académico comprende el seguimiento de bolsines, el patrón Adapter, la separación de responsabilidades, GRASP, SOLID, la persistencia y la integración entre componentes.
+
+### [NACHO] P5 — Implementación del CU 36 pendiente
+
+El desarrollo continúa por etapas. A partir de la infraestructura, el dominio, la persistencia, los CRUD de catálogos y la carga inicial descritos en la sección 2, quedan pendientes:
+
+- Repositorio específico de Bolsín, `GestorSeguimientoBolsines` y endpoints del CU 36.
+- Integración con Google Maps.
+- Notificación de ubicación por correo (CU 30/31).
+
+### [NACHO] CRUD de Empleado
+
+El CRUD de Empleado incorpora el alta atómica del Usuario asociado y la asignación de un Rol y una Comisión Médica existentes. La modificación conserva el Usuario. La eliminación borra ambos registros en una transacción, salvo que una restricción referencial impida la operación. Las respuestas excluyen la contraseña. Los cinco endpoints se verificaron con Vitest y Prisma simulado.
+
+### [NACHO] Empleados de demostración y prueba transaccional
+
+El seed incorpora cuatro empleados ficticios, uno por rol, con sus cuatro usuarios. Usa el correo de demostración del empleado para conservar los registros existentes en ejecuciones sucesivas. La idempotencia y la reversión real del DELETE ante una sesión vinculada quedan pendientes de ejecución en PostgreSQL. Docker Desktop denegó el acceso al motor Linux. El script `scripts/Test-EmpleadoSeed.ps1` reproduce ambas verificaciones y limpia los registros temporales de la prueba.
+
+### [NACHO] CRUD técnico de Bolsín
+
+Se incorporaron cinco endpoints REST para preparar bolsines ficticios para las futuras pruebas del CU 36. El alta crea atómicamente el bolsín y su cambio de estado inicial a partir de un estado existente del ámbito `BOLSIN`. La consulta por ID muestra el historial. La edición conserva ese historial y la baja elimina explícitamente los cambios del bolsín dentro de la misma transacción.
+
+El ciclo de vida, el patrón State, el seguimiento GPS y los casos de uso de armado, cierre y recepción siguen pendientes. El CRUD se limita a la preparación de datos ficticios.
+
+### [NACHO] Carga inicial de bolsines ficticios
+
+`prisma/seeds/init.sql` define 35 bolsines de demostración, siete por cada estado del ámbito `BOLSIN`. Resuelve las comisiones por código, los responsables por email y los estados por nombre y ámbito. Cada inserción nueva crea un único cambio abierto dentro de la transacción del seed. Las claves existentes y sus historiales se conservan en ejecuciones sucesivas. Esta carga no implementa lógica de transiciones.
+
+### [NACHO] Inicio de sesión académico y nombre de usuario único
+
+`Usuario.nombre` identifica al usuario de forma única. La migración comprueba duplicados sin modificar nombres existentes, y el alta de Empleado mantiene su escritura atómica y devuelve `409` ante un nombre repetido. `Sesion.getUsuario()` conserva su asociación. `Empleado.esTuUsuario()` compara el nombre único.
+
+Los endpoints `login`, `me` y `logout` usan una cookie HTTP-only firmada y sesiones persistidas. El cierre conserva el historial. El almacenamiento académico de contraseñas queda sujeto a P4. La implementación específica del CU 36 continúa pendiente.
+
+### [NACHO] Método Empleado.obtenerCM()
+
+`Empleado.obtenerCM()` devuelve el nombre y la dirección de su Comisión Médica, separados por ` - `. Reutiliza `getNombre()` y `getDireccion()` de la comisión asociada, sin consultas de persistencia. El gestor del CU 36 lo invocará sobre el empleado logueado.
+
+### [NACHO] Consultas de dominio para bolsines enviados
+
+Como avance parcial de P1, `Bolsin.esCMOrigenIgualCMLogueado()` compara el código único de origen y `buscarEstadoActualBolsin()` consulta `CambioEstadoBolsin.sosActual()` para identificar un único cambio sin fecha de fin. La ausencia se representa con `null` y varios cambios vigentes generan un error. `CambioEstadoBolsin` delega `esAmbitoBolsin()` y `esEnviado()` a `Estado`, que comprueba ambos criterios por separado. El gestor del CU 36 queda pendiente.
+
+### [NACHO] Consultas de dominio para identificar al gerente de destino
+
+`Empleado.esTuCM()` compara el código de la comisión asociada con el de destino. `Empleado.sosGCM()` delega en `Rol.esGCM()`, que reconoce el nombre exacto `Gerente de Comisión Médica`. Estas consultas son independientes y preparan la selección del gerente por el futuro gestor del CU 36.
+
+### [NACHO] Simulador local de los tres GPS
+
+El backend ofrece tres endpoints en `/api/gps-simulator` con los formatos JSON, CSV y matriz de la ERS. Cada consulta selecciona un punto sobre la ruta nacional asignada al número de bolsín. El GeoJSON local incorpora los tramos oficiales de RN 7, RN 9 y RN 40 relevados por Vialidad Nacional. La fecha de última actualización se elige entre la hora del servidor y los 60 minutos anteriores. En desarrollo, `simularFallo=1` permite reproducir la falta de respuesta prevista en A3.
+
+### [NACHO] Patrón Adapter para los tres GPS
+
+`InterfazGPSTracker` crea el adaptador según el modelo recibido y usa `IAdaptadorLocalizacionBolsines`. La configuración por constructor conserva el polimorfismo y permite asociar el número de bolsín con su CM origen para XTR o con su CM destino para QX. MTR recibe únicamente los números. Los adaptadores consultan el simulador por HTTP y devuelven una matriz `string[][]` de filas con número, latitud, longitud y fecha ISO 8601 UTC. Los errores se propagan para su tratamiento posterior en el gestor del CU 36.
+
+### [NACHO] Comparación inicial con el diagrama Adapter v8
+
+| Participante UML | Contrato y estado que muestra v8 | Código antes de la refactorización |
+| --- | --- | --- |
+| `InterfazGPSTracker` (`«Boundary»`) | `apisKeys`, `listadoBolsines`, `nrosBolsines`, `codigosCMOrigen`, `codigosCMDestino` y `adaptador` privados. `crearAdaptador(): void` y `obtenerLocalizacionDeBolsines(nrosBolsines, codigosCMOrigen): String[][]` públicos. | Mantiene un adaptador común opcional, un cliente y una clave. Ambas operaciones reciben `SolicitudLocalizacionGps`, que aporta el modelo y, para QX, CM destino. La primera devuelve el adaptador. |
+| `IAdaptadorLocalizacionBolsines` (`«Interface»`) | Tres operaciones sin argumentos. `recibirLocalizacionBolsines(): String[][]`, `solicitarLocalizacionBolsines(): void` y `adaptarLocalizacionBolsines(): void`. | Las tres operaciones existen. Recibir y solicitar retornan `Promise` para esperar HTTP. |
+| `AdaptadorXTR4500L` | Atributos privados `apiKey`, `nrosBolsines`, `codigosCMOrigen`, `jsonBolsines` y `datosLocalizacionAdaptado`. Operación pública `new()` sin argumentos y recepción pública con clave, números y códigos de origen. Asociación hacia el servicio XTR. | Hereda la implementación común. El constructor recibe clave, lote de pares y una operación del cliente compartido. |
+| `AdaptadorQX7A` | Atributos privados `apiKey`, `nrosBolsines`, `codigosCMDestino`, `stringBolsines` y `datosLocalizacionAdaptado`. Recepción pública con clave, números y códigos de destino. Asociación hacia el servicio QX. | Hereda la implementación común. El constructor recibe clave, lote de pares y una operación del cliente compartido. |
+| `AdaptadorMTR900` | Atributos privados `apiKey`, `nrosBolsines`, `matricesBolsines: String[][]` y `datosLocalizacionAdaptado`. Recepción pública con clave y números. Asociación hacia el servicio MTR. | Hereda la implementación común. El constructor recibe clave, lote y una operación del cliente compartido. La base conserva una respuesta matricial por consulta. |
+| `ServicioGPSTrackerXTR4500L` | `getBolsinLocation(apiKey, nroBolsin, codCMOrigen): String` público. | Operación en `ClientesGPSTracker`. |
+| `ServicioGPSTrackerQX7A` | `retrieveTrackingData(apiKey, nroBolsin, codCMDestino): String` público. | Operación en `ClientesGPSTracker`. |
+| `ServicioGPSTrackerMTR900` | `fetchCargoPositions(apiKey, nroBolsin): String[][]` público. | Operación en `ClientesGPSTracker`. |
+
+Un método declarado sin parámetros en una interfaz TypeScript no admite una implementación que exija parámetros adicionales. Además, la firma de la frontera en v8 solo recibe origen y no especifica de dónde salen el código de destino ni el modelo. Estas decisiones afectan el contrato público y quedan pendientes de aprobación. La separación de los servicios y las referencias unidireccionales puede implementarse de forma independiente.
+
+### [NACHO] Servicios concretos y asociaciones del Adapter v8
+
+Cada adaptador tiene una referencia privada a exactamente una instancia de su servicio, inyectada por constructor. Los servicios exponen únicamente su operación de proveedor y reutilizan `TransporteHTTPGPS`. La dirección implementada es `InterfazGPSTracker → IAdaptadorLocalizacionBolsines → adaptador concreto → servicio del proveedor → transporte HTTP → simulador`. La asociación adaptador–servicio usa composición de objetos.
+
+`Int` y `String` se representan como `number` y `string`. El guion de los nombres del modelo se omite en los identificadores TypeScript. Las firmas de servicios conservan los parámetros de v8 y envuelven su retorno en `Promise` para esperar HTTP. La frontera y el Target conservan provisionalmente sus firmas de código previas. Los concretos conservan la clase base compartida del código, que no figura en v8. Queda pendiente decidir las firmas de recepción, cómo se suministran el modelo y CM destino a la frontera, y cómo representar los atributos de los lotes directamente en las clases UML, incluido `matricesBolsines`.
+
+### [NACHO] Adapter finalizado según el UML corregido
+
+La decisión aprobada resuelve los puntos provisionales anteriores. Los tres adaptadores declaran directamente sus atributos y las tres operaciones de `IAdaptadorLocalizacionBolsines`. Se eliminó la clase base. `InterfazGPSTracker` conserva el estado del lote y crea el concreto con `crearAdaptador(): void`. Cada asociación adaptador–servicio tiene navegabilidad hacia exactamente un servicio concreto. La tabla de clases y las firmas para trasladar a draw.io están en [PPAI-PAT-ADAPTER-GPS.md](PPAI-PAT-ADAPTER-GPS.md#nacho-especificación-aprobada-del-adapter-gps).
+
+La suite habitual pasó 212 pruebas. Las cuatro pruebas HTTP también pasaron contra Next.js en desarrollo mediante un canal local de Windows, con casos para XTR, QX, MTR y el `503`. Pasaron TypeScript, ESLint, la validación de Prisma y Prettier para el código, las pruebas y el README. Los tres nodos editados ya tenían diferencias de formato respecto de Prettier en `HEAD`. El build de producción pasó con `npm run build -- --webpack` tras un `EPERM` de Turbopack al crear el enlace de Prisma. `docker compose config --quiet` pasó. El entorno denegó el acceso al motor Linux de Docker, por lo que el arranque y las consultas desde el contenedor quedan por verificar.
+
+La implementación de los métodos pendientes de las entidades, la integración con el gestor, y el desarrollo y la verificación del CU 36 quedan para la etapa siguiente. El [tramo GPS previsto](PPAI-CU-36.md#nacho-tramo-gps-del-cu-36-con-cm-origen) usa XTR-4500L con CM origen y conserva el uso posterior de CM destino para el correo.
+
+### [NACHO] Métodos de dominio y alcance GPS vigente
+
+`Bolsin.obtenerCodCMOrigen(): string` y `Bolsin.obtenerCodCMDestino(): string` delegan en sus respectivas comisiones. `Empleado.esTuCM(cm: ComisionMedica): boolean` compara por código. `Empleado.sosGCM(): boolean` delega en `Rol.esGCM(): boolean`, que reconoce el nombre exacto del catálogo. Las pruebas cubren asociaciones distintas, identidad lógica y delegación. Queda pendiente integrar los tres recorridos en el gestor.
+
+---
+
 ## 4. Modo en memoria con `pg-mem` (y cómo desactivarlo para Docker)
 
 Para desarrollar y testear el frontend sin depender de Docker ni de una instancia externa de PostgreSQL, en `feature/frontend` se agregó soporte opcional de PostgreSQL en memoria (`pg-mem`):

@@ -50,3 +50,7 @@ Un **Bolsín** es una bolsa o saco de tela resistente y duradero utilizado para 
 - **Destino Único**: Un bolsín solo puede contener remitos con la misma Comisión Médica Destino.
 - **Modificación y Precintado**: Si se necesita agregar o quitar remitos de un bolsín que ya está en estado `Cerrado`, se debe **romper el precinto**, pasar el estado a `Creado`, realizar las modificaciones, colocar un **nuevo precinto** con número diferente y volver a cerrar.
 - **Trazabilidad Continua**: El sistema debe registrar en cada cambio de estado la fecha/hora y el empleado responsable (Encargado de Bolsines).
+
+### [NACHO] Métodos de dominio y alcance GPS vigente
+
+`obtenerCodCMOrigen(): string` y `obtenerCodCMDestino(): string` delegan en `getCodigo()` de la asociación correspondiente. La prueba de dominio usa códigos distintos en ambos extremos.

@@ -4,7 +4,7 @@ titulo: Patrón Adapter para Modelos de GPS Tracker (XTR-4500L, NavTrack QX-7A, 
 tipo: patron-gof
 unidad: PPAI
 categoria: Diseño
-tags: [adapter, gps, xtr4500l, navtrack, geopulse, patrones-gof, hardware-integration]
+tags: [adapter, gps, xtr4500l, navtrack, geopulse, patrones-gof, hardware-integration, nacho]
 conectado_con: [DSI-U2-PATRONES-ESTRUCTURALES, PPAI-CU-36, PPAI-DIS-ARQUITECTURA]
 depende_de: [DSI-U2-PATRONES-ESTRUCTURALES, PPAI-CU-36]
 ---
@@ -73,3 +73,32 @@ class GPSTrackerAdapterFactory:
             return GeoPulseMTR900Adapter()
         raise ValueError(f"Modelo GPS no soportado: {modelo}")
 ```
+
+## [NACHO] Especificación aprobada del Adapter GPS
+
+Esta sección documenta el contrato vigente para trasladar al diagrama editable v8. Las secciones anteriores describen el diseño de referencia del cerebro base.
+
+| Clase | Atributos privados | Constructor público |
+| --- | --- | --- |
+| `InterfazGPSTracker` (`«Boundary»`) | `apisKeys: string[]`, `listadoBolsines: string[][]`, `nrosBolsines: number[]`, `codigosCMOrigen: string[]`, `codigosCMDestino: string[]`, `modelo?: ModeloGPSTracker`, `adaptador?: IAdaptadorLocalizacionBolsines` | Sin argumentos para el uso habitual. Permite inyectar servicios concretos y la clave para pruebas. |
+| `AdaptadorXTR4500L` | `apiKey: string`, `nrosBolsines: number[]`, `codigosCMOrigen: string[]`, `jsonBolsines: string[]`, `datosLocalizacionAdaptado: string[][]`, `servicio: ServicioGPSTrackerXTR4500L` | `(apiKey, nrosBolsines, codigosCMOrigen, servicio)` |
+| `AdaptadorQX7A` | `apiKey: string`, `nrosBolsines: number[]`, `codigosCMDestino: string[]`, `stringBolsines: string[]`, `datosLocalizacionAdaptado: string[][]`, `servicio: ServicioGPSTrackerQX7A` | `(apiKey, nrosBolsines, codigosCMDestino, servicio)` |
+| `AdaptadorMTR900` | `apiKey: string`, `nrosBolsines: number[]`, `matricesBolsines: string[][]`, `datosLocalizacionAdaptado: string[][]`, `servicio: ServicioGPSTrackerMTR900` | `(apiKey, nrosBolsines, servicio)` |
+
+La frontera declara `crearAdaptador(): void` y `obtenerLocalizacionDeBolsines(modelo: ModeloGPSTracker, nrosBolsines: number[], codigosCMOrigen: string[], codigosCMDestino: string[]): Promise<string[][]>`. `ModeloGPSTracker` admite `XTR-4500L`, `QX-7A` y `MTR-900`. `apisKeys` sigue ese orden y usa la clave configurada del simulador en las tres posiciones. El modelo determina qué arreglo de CM debe tener un código por bolsín. Cada arreglo ajeno al modelo debe quedar vacío. Usar una frontera por consulta independiente.
+
+`IAdaptadorLocalizacionBolsines` (`«Interface»`) y los tres concretos declaran directamente `recibirLocalizacionBolsines(): Promise<string[][]>`, `solicitarLocalizacionBolsines(): Promise<void>` y `adaptarLocalizacionBolsines(): void`. Representar las tres realizaciones mediante línea discontinua y triángulo hueco hacia la interfaz. Retirar la superclase de la implementación. La frontera conserva `0..1` adaptador mediante la interfaz. Cada concreto navega a exactamente `1` instancia de su servicio inyectado.
+
+| Servicio concreto | Operación pública |
+| --- | --- |
+| `ServicioGPSTrackerXTR4500L` | `getBolsinLocation(apiKey: string, nroBolsin: number, codCMOrigen: string): Promise<string>` |
+| `ServicioGPSTrackerQX7A` | `retrieveTrackingData(apiKey: string, nroBolsin: number, codCMDestino: string): Promise<string>` |
+| `ServicioGPSTrackerMTR900` | `fetchCargoPositions(apiKey: string, nroBolsin: number): Promise<string[][]>` |
+
+Cada servicio mantiene una dependencia de infraestructura con `TransporteHTTPGPS`. La frontera crea el concreto y llama a `recibirLocalizacionBolsines()`. El adaptador llama a `solicitarLocalizacionBolsines()`, conserva las respuestas crudas en orden y llama a `adaptarLocalizacionBolsines()`. MTR exige una fila por consulta individual y las acumula en `matricesBolsines`. La salida tiene cuatro cadenas por fila y conserva la fecha ISO 8601 UTC. Un fallo se propaga como `ErrorGPSTracker`, incluido el estado HTTP cuando corresponde.
+
+La propiedad privada `solicitudEnCurso?: Promise<void>` comparte la solicitud HTTP entre llamadas simultáneas sobre el mismo adaptador. El atributo técnico `servicios` permite inyectar dependencias concretas en la frontera. En la vista de implementación, UML `Int` corresponde a `number`, `String` a `string` y las operaciones que esperan HTTP devuelven `Promise`. La futura integración del CU 36 contempla los tres modelos.
+
+### [NACHO] Métodos de dominio y alcance GPS vigente
+
+El alcance futuro del CU 36 contempla los tres proveedores de la frontera genérica.
