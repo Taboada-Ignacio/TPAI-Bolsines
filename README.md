@@ -2,11 +2,11 @@
 
 Implementación del caso de uso 36 «Consultar seguimiento de bolsines» del Trabajo Práctico Integrador de Diseño de Sistemas de Información, 3.er año de Ingeniería en Sistemas de Información, UTN FRC.
 
-La aplicación ofrece una página de inicio mínima y el endpoint técnico `GET /api/health`. El modelo inicial del dominio del CU 36 está definido en TypeScript.
+La aplicación ofrece una página de inicio mínima, el endpoint técnico `GET /api/health` y la API de catálogos para roles, comisiones médicas y estados. El modelo inicial del dominio del CU 36 está definido en TypeScript.
 
 ## Estado de implementación
 
-El trabajo de backend está en `feature/backend`. El alcance actual incluye la estructura en capas, el endpoint de salud, las entidades del dominio y la migración inicial del modelo de persistencia. El inicio de sesión, las reglas de negocio y la integración externa del CU 36 quedan para etapas posteriores.
+El trabajo de backend está en `feature/backend`. El alcance actual incluye la estructura en capas, el endpoint de salud, las entidades del dominio, la migración inicial del modelo de persistencia y los tres CRUD de catálogos. El inicio de sesión, las reglas de negocio y la integración externa del CU 36 quedan para etapas posteriores.
 
 ### Entidades del CU 36
 
@@ -148,11 +148,111 @@ ORDER BY tablename, indexname;
 | Controller     | `src/app/api`        | Route Handlers de Next.js. Reciben solicitudes y construyen respuestas HTTP.                       |
 | Service        | `src/services`       | Coordina los casos de uso mediante contratos de repositorios e integraciones.                      |
 | Domain         | `src/domain`         | Aloja entidades, reglas e interfaces de negocio independientes del framework y de la persistencia. |
-| Infrastructure | `src/infrastructure` | Centraliza Prisma Client y aloja las futuras implementaciones de repositorios.                     |
+| Infrastructure | `src/infrastructure` | Centraliza Prisma Client y aloja las implementaciones de repositorios.                             |
 | Adapter        | `src/adapters`       | Aloja los futuros adaptadores GoF para transformar contratos de sistemas externos.                 |
 | DTO            | `src/dtos`           | Aloja esquemas Zod y tipos para los contratos HTTP.                                                |
 
-La página mínima y el layout viven en `src/app`. `prisma/` contiene el esquema y las migraciones. `tests/` contiene las pruebas del endpoint y del dominio. El alias `@/*` apunta a `src/*` tanto en Next.js como en Vitest.
+La página mínima y el layout viven en `src/app`. `prisma/` contiene el esquema y las migraciones. `tests/` contiene las pruebas de los endpoints, los servicios de catálogos y el dominio. El alias `@/*` apunta a `src/*` tanto en Next.js como en Vitest.
+
+## API de catálogos
+
+| Recurso         | Crear                          | Listar                        | Consultar                          | Modificar                          | Eliminar                              |
+| --------------- | ------------------------------ | ----------------------------- | ---------------------------------- | ---------------------------------- | ------------------------------------- |
+| Rol             | `POST /api/roles`              | `GET /api/roles`              | `GET /api/roles/{id}`              | `PUT /api/roles/{id}`              | `DELETE /api/roles/{id}`              |
+| Comisión Médica | `POST /api/comisiones-medicas` | `GET /api/comisiones-medicas` | `GET /api/comisiones-medicas/{id}` | `PUT /api/comisiones-medicas/{id}` | `DELETE /api/comisiones-medicas/{id}` |
+| Estado          | `POST /api/estados`            | `GET /api/estados`            | `GET /api/estados/{id}`            | `PUT /api/estados/{id}`            | `DELETE /api/estados/{id}`            |
+
+Enviá los cuerpos como JSON con `Content-Type: application/json`. Todos los campos de cada ejemplo son obligatorios en `POST` y `PUT`. Las cadenas se recortan y deben contener texto. `PUT` reemplaza todos los campos editables y conserva el ID de la URL. El parámetro `{id}` admite enteros entre 1 y 2147483647.
+
+### Rol
+
+El campo `nombre` es único. El rol de un empleado no se puede eliminar mientras exista la asociación.
+
+Creación con `POST /api/roles`
+
+```json
+{
+  "nombre": "Administrador",
+  "descripcion": "Rol con permisos administrativos"
+}
+```
+
+Modificación con `PUT /api/roles/1`
+
+```json
+{
+  "nombre": "Administrador general",
+  "descripcion": "Rol con permisos administrativos sobre todos los catálogos"
+}
+```
+
+### Comisión Médica
+
+El campo `codigo` es único y `email` debe tener formato de correo electrónico. La eliminación se rechaza si la comisión está asociada a empleados o figura como origen o destino de un bolsín.
+
+Creación con `POST /api/comisiones-medicas`
+
+```json
+{
+  "codigo": "CM001",
+  "nombre": "Comisión Médica Córdoba",
+  "direccion": "Calle 123",
+  "email": "cordoba@example.com",
+  "telefono": "3511234567"
+}
+```
+
+Modificación con `PUT /api/comisiones-medicas/1`
+
+```json
+{
+  "codigo": "CM001",
+  "nombre": "Comisión Médica Córdoba",
+  "direccion": "Avenida 456",
+  "email": "cordoba@example.com",
+  "telefono": "3517654321"
+}
+```
+
+### Estado
+
+La combinación `nombre` y `ambito` es única. Un mismo nombre puede usarse en ámbitos distintos y el ámbito acepta texto libre. La eliminación se rechaza si el estado figura en algún cambio de estado de un bolsín.
+
+Creación con `POST /api/estados`
+
+```json
+{
+  "nombre": "En tránsito",
+  "descripcion": "El bolsín se encuentra en traslado",
+  "ambito": "BOLSIN"
+}
+```
+
+Modificación con `PUT /api/estados/1`
+
+```json
+{
+  "nombre": "En tránsito",
+  "descripcion": "El bolsín salió de origen y todavía no llegó al destino",
+  "ambito": "BOLSIN"
+}
+```
+
+### Respuestas
+
+`POST`, `PUT` y `GET` por ID devuelven un objeto con el ID persistido y los campos del recurso. Por ejemplo, una creación de rol puede devolver `{"id":1,"nombre":"Administrador","descripcion":"Rol con permisos administrativos"}`. Los listados devuelven un arreglo de estos objetos, ordenado por ID ascendente. Una colección vacía devuelve `[]`.
+
+| Código                      | Respuesta                                                    |
+| --------------------------- | ------------------------------------------------------------ |
+| `200 OK`                    | Listado, consulta por ID o modificación exitosa.             |
+| `201 Created`               | Registro creado con el ID generado por PostgreSQL.           |
+| `204 No Content`            | Registro eliminado. La respuesta no contiene cuerpo.         |
+| `400 Bad Request`           | Campos inválidos, ID inválido o JSON malformado.             |
+| `404 Not Found`             | El ID solicitado no existe.                                  |
+| `409 Conflict`              | Clave única duplicada o eliminación impedida por relaciones. |
+| `500 Internal Server Error` | Error inesperado.                                            |
+
+Los errores devuelven un objeto JSON con una propiedad `error`. PostgreSQL aplica las restricciones de unicidad y `ON DELETE RESTRICT`. Las eliminaciones no modifican los registros relacionados.
 
 ## Comandos npm
 
