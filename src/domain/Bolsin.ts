@@ -65,6 +65,10 @@ export class Bolsin {
     return this.cmOrigen;
   }
 
+  obtenerCodCMOrigen(): string {
+    return this.getCmOrigen().getCodigo();
+  }
+
   esCMOrigenIgualCMLogueado(cmLogueado: ComisionMedica): boolean {
     return this.cmOrigen.getCodigo() === cmLogueado.getCodigo();
   }
@@ -75,6 +79,10 @@ export class Bolsin {
 
   getCmDestino(): ComisionMedica {
     return this.cmDestino;
+  }
+
+  obtenerCodCMDestino(): string {
+    return this.getCmDestino().getCodigo();
   }
 
   setCmDestino(cmDestino: ComisionMedica): void {

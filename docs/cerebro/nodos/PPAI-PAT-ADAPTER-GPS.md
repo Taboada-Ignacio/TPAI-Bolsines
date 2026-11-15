@@ -97,4 +97,8 @@ La frontera declara `crearAdaptador(): void` y `obtenerLocalizacionDeBolsines(mo
 
 Cada servicio mantiene una dependencia de infraestructura con `TransporteHTTPGPS`. La frontera crea el concreto y llama a `recibirLocalizacionBolsines()`. El adaptador llama a `solicitarLocalizacionBolsines()`, conserva las respuestas crudas en orden y llama a `adaptarLocalizacionBolsines()`. MTR exige una fila por consulta individual y las acumula en `matricesBolsines`. La salida tiene cuatro cadenas por fila y conserva la fecha ISO 8601 UTC. Un fallo se propaga como `ErrorGPSTracker`, incluido el estado HTTP cuando corresponde.
 
-La propiedad privada `solicitudEnCurso?: Promise<void>` comparte la solicitud HTTP entre llamadas simultáneas sobre el mismo adaptador. El atributo técnico `servicios` permite inyectar dependencias concretas en la frontera. En la vista de implementación, UML `Int` corresponde a `number`, `String` a `string` y las operaciones que esperan HTTP devuelven `Promise`. El futuro CU 36 consumirá únicamente XTR-4500L con CM origen.
+La propiedad privada `solicitudEnCurso?: Promise<void>` comparte la solicitud HTTP entre llamadas simultáneas sobre el mismo adaptador. El atributo técnico `servicios` permite inyectar dependencias concretas en la frontera. En la vista de implementación, UML `Int` corresponde a `number`, `String` a `string` y las operaciones que esperan HTTP devuelven `Promise`. La futura integración del CU 36 contempla los tres modelos.
+
+### [NACHO] Métodos de dominio y alcance GPS vigente
+
+El alcance futuro del CU 36 contempla los tres proveedores de la frontera genérica.

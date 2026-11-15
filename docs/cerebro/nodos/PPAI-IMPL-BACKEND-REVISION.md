@@ -149,3 +149,7 @@ La decisión aprobada resuelve los puntos provisionales anteriores. Los tres ada
 La suite habitual pasó 212 pruebas. Las cuatro pruebas HTTP también pasaron contra Next.js en desarrollo mediante un canal local de Windows, con casos para XTR, QX, MTR y el `503`. Pasaron TypeScript, ESLint, la validación de Prisma y Prettier para el código, las pruebas y el README. Los tres nodos editados ya tenían diferencias de formato respecto de Prettier en `HEAD`. El build de producción pasó con `npm run build -- --webpack` tras un `EPERM` de Turbopack al crear el enlace de Prisma. `docker compose config --quiet` pasó. El entorno denegó el acceso al motor Linux de Docker, por lo que el arranque y las consultas desde el contenedor quedan por verificar.
 
 La implementación de los métodos pendientes de las entidades, la integración con el gestor, y el desarrollo y la verificación del CU 36 quedan para la etapa siguiente. El [tramo GPS previsto](PPAI-CU-36.md#nacho-tramo-gps-del-cu-36-con-cm-origen) usa XTR-4500L con CM origen y conserva el uso posterior de CM destino para el correo.
+
+### [NACHO] Métodos de dominio y alcance GPS vigente
+
+`Bolsin.obtenerCodCMOrigen(): string` y `Bolsin.obtenerCodCMDestino(): string` delegan en sus respectivas comisiones. `Empleado.esTuCM(cm: ComisionMedica): boolean` compara por código. `Empleado.sosGCM(): boolean` delega en `Rol.esGCM(): boolean`, que reconoce el nombre exacto del catálogo. Las pruebas cubren asociaciones distintas, identidad lógica y delegación. Queda pendiente integrar los tres recorridos en el gestor.

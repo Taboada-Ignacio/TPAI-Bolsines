@@ -125,3 +125,7 @@ sequenceDiagram
 ```
 
 La frontera invoca al adaptador a través de `IAdaptadorLocalizacionBolsines`. El servicio usa `TransporteHTTPGPS` para llegar al simulador. QX-7A y MTR-900 están disponibles en la integración genérica.
+
+### [NACHO] Métodos de dominio y alcance GPS vigente
+
+La decisión vigente contempla los tres modelos en el futuro gestor: XTR usa número y CM origen, QX usa número y CM destino, y MTR usa solo número. El tramo XTR anterior documenta uno de esos recorridos. La búsqueda del gerente para el correo sigue siendo una operación independiente.
