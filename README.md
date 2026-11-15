@@ -141,6 +141,18 @@ WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'
 ORDER BY tablename, indexname;
 ```
 
+## Datos iniciales de la base de datos
+
+Al ejecutar `docker compose up --build -d`, Compose espera a que PostgreSQL esté saludable. El servicio `migrate` aplica las migraciones de Prisma, valida el historial y compara el esquema. Después, `prisma/seeds/run-init.mjs` usa el cliente `pg` y la conexión `DATABASE_URL` para ejecutar `prisma/seeds/init.sql`. Next.js inicia cuando `migrate` termina con código 0. Si la carga falla, revisá `docker compose logs migrate`.
+
+| Catálogo           | Cantidad | Datos iniciales                                                                                                                    |
+| ------------------ | -------: | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Roles              |        4 | Parametrizador del sistema, Encargado de Documentación, Encargado de Bolsines y Gerente de Comisión Médica.                        |
+| Estados            |        5 | `Creado`, `Cerrado`, `Enviado`, `RecibidoEnCMDestino` y `DeBaja`, todos con ámbito `BOLSIN`.                                       |
+| Comisiones médicas |       24 | Una sede ficticia por provincia y una para la Ciudad Autónoma de Buenos Aires, con correos de `example.com` y teléfonos de prueba. |
+
+La carga es transaccional. Si se vuelve a ejecutar, inserta los registros faltantes y conserva los que ya existen con la misma clave única. Los CRUD permiten administrar los registros después de la carga. Si cambiás una clave única inicial o eliminás un registro inicial, el próximo arranque vuelve a insertar la clave faltante.
+
 ## Estructura
 
 | Componente     | Ubicación            | Responsabilidad                                                                                    |

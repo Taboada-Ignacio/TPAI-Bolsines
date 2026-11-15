@@ -40,6 +40,7 @@ services:
         npx --no-install prisma migrate deploy
         npx --no-install prisma migrate status
         npx --no-install prisma migrate diff --from-config-datasource --to-schema=prisma/schema.prisma --exit-code
+        node prisma/seeds/run-init.mjs
 
   postgres:
     image: postgres:17.12-bookworm
