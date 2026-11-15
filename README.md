@@ -6,7 +6,7 @@ La aplicación ofrece una página de inicio mínima, el endpoint técnico `GET /
 
 ## Estado de implementación
 
-El trabajo de backend está en `feature/backend`. El alcance actual incluye la estructura en capas, el endpoint de salud, las entidades del dominio, la migración inicial del modelo de persistencia y los tres CRUD de catálogos. El inicio de sesión, las reglas de negocio y la integración externa del CU 36 quedan para etapas posteriores.
+El trabajo de backend está en `feature/backend`. El alcance actual incluye la infraestructura, el dominio, los CRUD técnicos y el inicio de sesión académico. Las reglas del CU 36 y su integración externa quedan para etapas posteriores.
 
 ### Entidades del CU 36
 
@@ -84,7 +84,7 @@ Todas las tablas tienen una clave primaria `id` de tipo `INTEGER` autoincrementa
 
 | Modelo Prisma        | Tabla                  | Columnas además de `id`                                                              | Claves foráneas                                                                               | Unicidad adicional              |
 | -------------------- | ---------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- | ------------------------------- |
-| `Usuario`            | `usuario`              | `nombre`, `contrasena`                                                               | —                                                                                             | —                               |
+| `Usuario`            | `usuario`              | `nombre`, `contrasena`                                                               | —                                                                                             | `nombre`                        |
 | `Sesion`             | `sesion`               | `fecha_hora_inicio`, `fecha_hora_fin`, `usuario_id`                                  | `usuario_id` → `usuario.id`                                                                   | —                               |
 | `Empleado`           | `empleado`             | `nombre`, `apellido`, `email`, `usuario_id`, `rol_id`, `comision_medica_id`          | `usuario_id` → `usuario.id`, `rol_id` → `rol.id`, `comision_medica_id` → `comision_medica.id` | `usuario_id`                    |
 | `Rol`                | `rol`                  | `nombre`, `descripcion`                                                              | —                                                                                             | `nombre`                        |
@@ -97,7 +97,7 @@ Los textos usan `TEXT`, los identificadores y números de bolsín y precinto usa
 
 Cada sesión pertenece a un usuario. Cada empleado tiene un usuario, un rol y una comisión. Un usuario puede tener cero o muchas sesiones y, como máximo, un empleado asociado. Un rol y una comisión pueden corresponder a muchos empleados. Cada bolsín tiene una comisión de origen y una de destino, con asociaciones independientes. Cada cambio corresponde a un bolsín, un estado y un empleado responsable. Un estado o un responsable pueden aparecer en muchos cambios.
 
-El nombre de usuario admite duplicados. Un mismo número de bolsín puede repetirse entre comisiones de origen distintas, y un nombre de estado puede repetirse entre ámbitos distintos. Todas las claves foráneas tienen `ON DELETE RESTRICT` y un índice propio o uno con la clave foránea como primera columna. La multiplicidad UML `1..*` del historial queda pendiente de una regla de negocio. La base permite insertar un bolsín sin historial y registrar varios cambios con fecha de fin nula.
+El nombre de usuario es único. Un mismo número de bolsín puede repetirse entre comisiones de origen distintas, y un nombre de estado puede repetirse entre ámbitos distintos. Todas las claves foráneas tienen `ON DELETE RESTRICT` y un índice propio o uno con la clave foránea como primera columna. La multiplicidad UML `1..*` del historial queda pendiente de una regla de negocio. La base permite insertar un bolsín sin historial y registrar varios cambios con fecha de fin nula.
 
 ### Verificar y crear migraciones
 
@@ -445,7 +445,7 @@ Ejemplo de modificación con `PUT`
 }
 ```
 
-Ambos métodos exigen todos los campos de su ejemplo, con textos no vacíos, un email válido e IDs enteros positivos de catálogos existentes. El alta crea el usuario asociado mediante una escritura anidada atómica y admite nombres de usuario repetidos. El PUT conserva el usuario asociado. Las respuestas incluyen los datos del empleado y un resumen de su usuario, rol y comisión médica. La contraseña queda excluida.
+Ambos métodos exigen todos los campos de su ejemplo, con textos no vacíos, un email válido e IDs enteros positivos de catálogos existentes. El alta crea el usuario asociado mediante una escritura anidada atómica y devuelve `409` si el nombre de usuario ya está en uso. El PUT conserva el usuario asociado. Las respuestas incluyen los datos del empleado y un resumen de su usuario, rol y comisión médica. La contraseña queda excluida.
 
 La eliminación borra el empleado y su usuario en una transacción. Una sesión del usuario o un cambio de estado del que el empleado sea responsable impiden la operación y se conservan ambos registros.
 
@@ -540,6 +540,76 @@ try {
 ```
 
 Se espera un único cambio en ambas consultas por ID, `204` al eliminar y `0|0` en PostgreSQL.
+
+## Inicio de sesión académico
+
+| Método | Ruta               | Resultado                                                                                |
+| ------ | ------------------ | ---------------------------------------------------------------------------------------- |
+| POST   | `/api/auth/login`  | `200`, perfil y cookie. `400` para entrada inválida o `401` para credenciales inválidas. |
+| GET    | `/api/auth/me`     | `200`, perfil de la sesión abierta. `401` si la sesión es inválida.                      |
+| POST   | `/api/auth/logout` | `204`, sesión cerrada y cookie invalidada. `401` si la sesión es inválida.               |
+
+Solicitud de inicio de sesión con un usuario ficticio del seed
+
+```json
+{ "nombre": "bolsines.demo", "contrasena": "123456" }
+```
+
+Respuesta ilustrativa de `login` y `me`
+
+```json
+{
+  "usuario": { "id": 3, "nombre": "bolsines.demo" },
+  "empleado": { "id": 3, "nombre": "Nicolás", "apellido": "Rodríguez" },
+  "rol": { "id": 3, "nombre": "Encargado de Bolsines" },
+  "comisionMedica": {
+    "id": 5,
+    "codigo": "CM-CBA",
+    "nombre": "Comisión Médica Córdoba"
+  },
+  "sesion": { "id": 1, "fechaHoraInicio": "2026-11-15T12:00:00.000Z" }
+}
+```
+
+Cada alta de sesión registra la hora del servidor y admite varias sesiones por usuario. `Sesion.getUsuario()` devuelve el usuario asociado. `Empleado.esTuUsuario()` verifica la identidad mediante el nombre único. El cierre registra la fecha de fin y conserva el historial.
+
+La cookie `bolsines_sesion` es `HttpOnly`, `SameSite=Lax`, tiene alcance `/api/auth` y usa `Secure` bajo HTTPS. Contiene el identificador de sesión con firma HMAC-SHA256. Generá una clave local con `[Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))` en PowerShell 7 y guardala como `SESSION_SIGNING_KEY` en `.env`. Compose la suministra al backend.
+
+Las contraseñas de demostración se almacenan en texto plano según el modelo académico. Este manejo de credenciales no es adecuado para producción.
+
+### Verificar duplicados y probar con PowerShell 7
+
+Si la base ya existe, iniciá solo PostgreSQL y verificá duplicados antes de desplegar. La propia migración repite la comprobación bajo un bloqueo y aborta si detecta duplicados. Si la consulta devuelve filas, resolvelas manualmente antes de aplicar la migración.
+
+```powershell
+docker compose up -d --wait postgres
+"SELECT nombre, count(*) FROM public.usuario GROUP BY nombre HAVING count(*) > 1;" |
+    docker compose exec -T postgres sh -c 'exec psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+```
+
+En una base nueva se puede iniciar Compose directamente. Después de configurar la clave:
+
+```powershell
+docker compose up --build -d
+docker compose ps -a
+docker compose logs migrate
+$api = 'http://localhost:3000/api/auth'
+$body = @{ nombre = 'bolsines.demo'; contrasena = '123456' } | ConvertTo-Json
+$login = Invoke-WebRequest "$api/login" -Method Post -ContentType 'application/json' -Body $body -SessionVariable navegador
+$perfil = $login.Content | ConvertFrom-Json
+$cookie = ($login.Headers['Set-Cookie'][0] -split ';')[0]
+try {
+    Invoke-RestMethod "$api/me" -WebSession $navegador
+} finally {
+    (Invoke-WebRequest "$api/logout" -Method Post -WebSession $navegador).StatusCode
+}
+(Invoke-WebRequest "$api/me" -Headers @{ Cookie = $cookie } -SkipHttpErrorCheck).StatusCode
+$id = [int]$perfil.sesion.id
+"SELECT id, usuario_id, fecha_hora_inicio, fecha_hora_fin FROM public.sesion WHERE id = $id;" |
+    docker compose exec -T postgres sh -c 'exec psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+```
+
+Se esperan `204` al cerrar, `401` al reutilizar la cookie y una fecha de fin no nula en PostgreSQL.
 
 ## Comandos npm
 

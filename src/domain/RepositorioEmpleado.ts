@@ -19,6 +19,7 @@ export interface RegistroEmpleado {
 }
 
 export interface RepositorioEmpleado {
+  existeNombreUsuario(nombre: string): Promise<boolean>;
   crear(
     empleado: Empleado,
     asociaciones: Pick<DatosEmpleado, "rolId" | "comisionMedicaId">,
@@ -28,3 +29,5 @@ export interface RepositorioEmpleado {
   actualizar(id: number, datos: DatosEmpleado): Promise<RegistroEmpleado>;
   eliminar(id: number): Promise<void>;
 }
+
+export const mensajeUsuarioDuplicado = "Ya existe un usuario con ese nombre.";

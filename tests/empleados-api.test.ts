@@ -11,7 +11,7 @@ const db = vi.hoisted(() => ({
     update: vi.fn(),
     delete: vi.fn(),
   },
-  usuario: { delete: vi.fn() },
+  usuario: { delete: vi.fn(), findUnique: vi.fn() },
   rol: { findUnique: vi.fn() },
   comisionMedica: { findUnique: vi.fn() },
   $transaction: vi.fn(),
@@ -63,6 +63,7 @@ const errorPrisma = (code: string) =>
 
 beforeEach(() => {
   vi.resetAllMocks();
+  db.usuario.findUnique.mockResolvedValue(null);
   db.rol.findUnique.mockResolvedValue(rol);
   db.comisionMedica.findUnique.mockResolvedValue(comision);
   db.empleado.create.mockResolvedValue(registro);
@@ -73,7 +74,7 @@ beforeEach(() => {
 });
 
 describe("API de empleados", () => {
-  it("crea empleado y usuario con una escritura anidada y admite nombres de usuario repetidos", async () => {
+  it("crea empleado y usuario con una escritura anidada y rechaza un nombre repetido", async () => {
     const primera = await coleccion.POST(solicitud("POST", alta));
     expect(primera.status).toBe(201);
     expect(await primera.json()).toEqual(registro);
@@ -89,13 +90,15 @@ describe("API de empleados", () => {
         }),
       }),
     );
-    db.empleado.create.mockResolvedValue({
-      ...registro,
-      id: id + 1,
-      usuario: { ...registro.usuario, id: registro.usuario.id + 1 },
-    });
-    expect((await coleccion.POST(solicitud("POST", alta))).status).toBe(201);
-    expect(db.empleado.create).toHaveBeenCalledTimes(2);
+    db.usuario.findUnique.mockResolvedValue({ id: registro.usuario.id });
+    expect((await coleccion.POST(solicitud("POST", alta))).status).toBe(409);
+    expect(db.empleado.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("traduce una violación UNIQUE concurrente sin crear el empleado por separado", async () => {
+    db.empleado.create.mockRejectedValue(errorPrisma("P2002"));
+    expect((await coleccion.POST(solicitud("POST", alta))).status).toBe(409);
+    expect(db.empleado.create).toHaveBeenCalledTimes(1);
   });
 
   it.each([

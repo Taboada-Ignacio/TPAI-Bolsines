@@ -2,9 +2,10 @@ import { Empleado } from "@/domain/Empleado";
 import { Usuario } from "@/domain/Usuario";
 import type { Rol } from "@/domain/Rol";
 import type { ComisionMedica } from "@/domain/ComisionMedica";
-import type {
-  DatosEmpleado,
-  RepositorioEmpleado,
+import {
+  mensajeUsuarioDuplicado,
+  type DatosEmpleado,
+  type RepositorioEmpleado,
 } from "@/domain/RepositorioEmpleado";
 import {
   catalogoNoEncontrado,
@@ -43,6 +44,9 @@ export class EmpleadoService {
   async crear(
     datos: DatosEmpleado & { usuario: { nombre: string; contrasena: string } },
   ) {
+    if (await this.empleados.existeNombreUsuario(datos.usuario.nombre)) {
+      throw new ErrorCatalogo("DUPLICADO", mensajeUsuarioDuplicado);
+    }
     const { rol, comision } = await this.buscarAsociaciones(datos);
     const usuario = new Usuario(datos.usuario.nombre, datos.usuario.contrasena);
     const empleado = new Empleado(

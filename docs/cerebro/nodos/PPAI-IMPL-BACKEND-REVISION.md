@@ -73,7 +73,6 @@ La seguridad adicional de credenciales queda fuera del alcance académico. Argon
 
 El desarrollo continúa por etapas. A partir de la infraestructura, el dominio, la persistencia, los CRUD de catálogos y la carga inicial descritos en la sección 2, quedan pendientes:
 
-- Inicio de sesión.
 - Repositorio específico de Bolsín, `GestorSeguimientoBolsines` y endpoints del CU 36.
 - Adaptadores GPS e integración con Google Maps.
 - Notificación de ubicación por correo (CU 30/31).
@@ -95,3 +94,9 @@ El ciclo de vida, el patrón State, el seguimiento GPS y los casos de uso de arm
 ### [NACHO] Carga inicial de bolsines ficticios
 
 `prisma/seeds/init.sql` define 35 bolsines de demostración, siete por cada estado del ámbito `BOLSIN`. Resuelve las comisiones por código, los responsables por email y los estados por nombre y ámbito. Cada inserción nueva crea un único cambio abierto dentro de la transacción del seed. Las claves existentes y sus historiales se conservan en ejecuciones sucesivas. Esta carga no implementa lógica de transiciones.
+
+### [NACHO] Inicio de sesión académico y nombre de usuario único
+
+`Usuario.nombre` identifica al usuario de forma única. La migración comprueba duplicados sin modificar nombres existentes, y el alta de Empleado mantiene su escritura atómica y devuelve `409` ante un nombre repetido. `Sesion.getUsuario()` conserva su asociación. `Empleado.esTuUsuario()` compara el nombre único.
+
+Los endpoints `login`, `me` y `logout` usan una cookie HTTP-only firmada y sesiones persistidas. El cierre conserva el historial. El almacenamiento académico de contraseñas queda sujeto a P4. La implementación específica del CU 36 continúa pendiente.

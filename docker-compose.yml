@@ -3,8 +3,9 @@ services:
     build: &app-build .
     ports:
       - "127.0.0.1:3000:3000"
-    environment: &app-environment
-      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://${POSTGRES_USER:-bolsines}:${POSTGRES_PASSWORD:-bolsines_dev}@postgres:5432/${POSTGRES_DB:-bolsines}}
+    environment:
+      DATABASE_URL: &database-url ${DOCKER_DATABASE_URL:-postgresql://${POSTGRES_USER:-bolsines}:${POSTGRES_PASSWORD:-bolsines_dev}@postgres:5432/${POSTGRES_DB:-bolsines}}
+      SESSION_SIGNING_KEY: ${SESSION_SIGNING_KEY:-}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -28,7 +29,8 @@ services:
 
   migrate:
     build: *app-build
-    environment: *app-environment
+    environment:
+      DATABASE_URL: *database-url
     depends_on:
       postgres:
         condition: service_healthy

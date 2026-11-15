@@ -54,6 +54,10 @@ export class Empleado {
     return this.usuario;
   }
 
+  esTuUsuario(usuario: Usuario): boolean {
+    return this.usuario.getNombre() === usuario.getNombre();
+  }
+
   setUsuario(usuario: Usuario): void {
     this.usuario = usuario;
   }

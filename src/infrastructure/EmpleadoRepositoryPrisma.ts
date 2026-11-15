@@ -1,7 +1,8 @@
 import type { Empleado } from "@/domain/Empleado";
-import type {
-  DatosEmpleado,
-  RepositorioEmpleado,
+import {
+  mensajeUsuarioDuplicado,
+  type DatosEmpleado,
+  type RepositorioEmpleado,
 } from "@/domain/RepositorioEmpleado";
 import type { Prisma } from "../../prisma/generated/client";
 import { escrituraCatalogo } from "./escrituraCatalogo";
@@ -30,6 +31,15 @@ function asociar({
 }
 
 export class EmpleadoRepositoryPrisma implements RepositorioEmpleado {
+  async existeNombreUsuario(nombre: string) {
+    return (
+      (await getPrisma().usuario.findUnique({
+        where: { nombre },
+        select: { id: true },
+      })) !== null
+    );
+  }
+
   crear(
     empleado: Empleado,
     asociaciones: Pick<DatosEmpleado, "rolId" | "comisionMedicaId">,
@@ -52,7 +62,7 @@ export class EmpleadoRepositoryPrisma implements RepositorioEmpleado {
           },
           select,
         }),
-      conflicto,
+      mensajeUsuarioDuplicado,
     );
   }
 
