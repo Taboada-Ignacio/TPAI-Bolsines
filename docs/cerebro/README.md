@@ -3,11 +3,11 @@
 Repositorio de conocimiento estructurado de **Diseño de Sistemas de Información (UTN - FRC)** y del **Proyecto Práctico de Aplicación Integrador (PPAI) - Sistema de Bolsines (CU 36 + CU 30/31)**.
 
 ## Métricas del Grafo de Conocimiento
-- **Nodos Indexados:** 30
-- **Aristas Válidas:** 163
+- **Nodos Indexados:** 31
+- **Aristas Válidas:** 169
 - **Componentes Conexos:** 1
-- **Densidad del Grafo:** 0.1874
-- **Nodos Centrales (Hubs):** `DSI-00-CONVENCIONES` (34), `PPAI-CU-36` (27), `PPAI-DOM-BOLSIN` (20), `PPAI-DIS-ARQUITECTURA` (17), `DSI-U2-PRINCIPIOS-SOLID` (16)
+- **Densidad del Grafo:** 0.1817
+- **Nodos Centrales (Hubs):** `DSI-00-CONVENCIONES` (34), `PPAI-CU-36` (28), `PPAI-DOM-BOLSIN` (20), `PPAI-DIS-ARQUITECTURA` (17), `DSI-U2-PRINCIPIOS-SOLID` (16)
 - **Enlaces Rotos:** 0
 
 ## Repositorios de Fuentes Extraídas
@@ -36,6 +36,7 @@ flowchart LR
     node_PPAI_PAT_ADAPTER_GPS["PPAI-PAT-ADAPTER-GPS<br/>Patrón Adapter para Modelos de GPS Tracker (XTR-4500L, NavTrack QX-7A, GeoPulse MTR-900)<br/><i>[patron-gof]</i>"]:::patron
     node_PPAI_PAT_STATE_BOLSIN["PPAI-PAT-STATE-BOLSIN<br/>Aplicación del Patrón State y Trazabilidad CambioEstadoBolsin en el PPAI<br/><i>[patron-gof]</i>"]:::patron
     node_PPAI_UX_EMPATIA["PPAI-UX-EMPATIA<br/>UX PPAI - Mapa de Empatía del Encargado de Bolsines y Diseño de Mapa CU 36<br/><i>[convencion]</i>"]:::conv
+    node_PPAI_UX_MANUAL_MARCA["PPAI-UX-MANUAL-MARCA<br/>Manual de Marca, Tokens Visuales y Estrategia de Motion (CU 36)<br/><i>[convencion]</i>"]:::conv
     node_PPAI_CU_30 -->|"depende de"| node_PPAI_CU_36
     ext_DSI_00_CONVENCIONES["DSI-00-CONVENCIONES"]:::external
     node_PPAI_CU_30 -.->|"conecta con"| ext_DSI_00_CONVENCIONES
@@ -118,6 +119,12 @@ flowchart LR
     node_PPAI_UX_EMPATIA -.->|"conecta con"| ext_DSI_00_UX_INTERFACES
     node_PPAI_UX_EMPATIA -.->|"conecta con"| node_PPAI_CU_36
     node_PPAI_UX_EMPATIA -.->|"conecta con"| node_PPAI_DOM_ORGANIZACION
+    node_PPAI_UX_MANUAL_MARCA -->|"depende de"| node_PPAI_UX_EMPATIA
+    node_PPAI_UX_MANUAL_MARCA -.->|"depende de"| ext_DSI_00_UX_INTERFACES
+    node_PPAI_UX_MANUAL_MARCA -.->|"conecta con"| node_PPAI_UX_EMPATIA
+    node_PPAI_UX_MANUAL_MARCA -.->|"conecta con"| ext_DSI_00_UX_INTERFACES
+    node_PPAI_UX_MANUAL_MARCA -.->|"conecta con"| node_PPAI_CU_36
+    node_PPAI_UX_MANUAL_MARCA -.->|"conecta con"| node_PPAI_CU_30
 ```
 
 ## Grafo Teórico por Unidades
@@ -304,6 +311,7 @@ flowchart TD
     node_PPAI_PAT_ADAPTER_GPS["PPAI-PAT-ADAPTER-GPS<br/>Patrón Adapter para Modelos de GPS Tracker (XTR-4500L, NavTrack QX-7A, GeoPulse MTR-900)<br/><i>[patron-gof]</i>"]:::patron
     node_PPAI_PAT_STATE_BOLSIN["PPAI-PAT-STATE-BOLSIN<br/>Aplicación del Patrón State y Trazabilidad CambioEstadoBolsin en el PPAI<br/><i>[patron-gof]</i>"]:::patron
     node_PPAI_UX_EMPATIA["PPAI-UX-EMPATIA<br/>UX PPAI - Mapa de Empatía del Encargado de Bolsines y Diseño de Mapa CU 36<br/><i>[convencion]</i>"]:::conv
+    node_PPAI_UX_MANUAL_MARCA["PPAI-UX-MANUAL-MARCA<br/>Manual de Marca, Tokens Visuales y Estrategia de Motion (CU 36)<br/><i>[convencion]</i>"]:::conv
     node_DSI_00_CONVENCIONES -.->|"conecta con"| node_DSI_U1_REALIZACIONES_CU
     node_DSI_00_CONVENCIONES -.->|"conecta con"| node_DSI_U1_MAQUINA_ESTADOS
     node_DSI_00_CONVENCIONES -.->|"conecta con"| node_DSI_U2_COMPONENTES
@@ -467,6 +475,12 @@ flowchart TD
     node_PPAI_UX_EMPATIA -.->|"conecta con"| node_DSI_00_UX_INTERFACES
     node_PPAI_UX_EMPATIA -.->|"conecta con"| node_PPAI_CU_36
     node_PPAI_UX_EMPATIA -.->|"conecta con"| node_PPAI_DOM_ORGANIZACION
+    node_PPAI_UX_MANUAL_MARCA -->|"depende de"| node_PPAI_UX_EMPATIA
+    node_PPAI_UX_MANUAL_MARCA -->|"depende de"| node_DSI_00_UX_INTERFACES
+    node_PPAI_UX_MANUAL_MARCA -.->|"conecta con"| node_PPAI_UX_EMPATIA
+    node_PPAI_UX_MANUAL_MARCA -.->|"conecta con"| node_DSI_00_UX_INTERFACES
+    node_PPAI_UX_MANUAL_MARCA -.->|"conecta con"| node_PPAI_CU_36
+    node_PPAI_UX_MANUAL_MARCA -.->|"conecta con"| node_PPAI_CU_30
 ```
 
 ## Índice Completo de Nodos del Cerebro
@@ -502,3 +516,4 @@ flowchart TD
 | [PPAI-PAT-ADAPTER-GPS](nodos/PPAI-PAT-ADAPTER-GPS.md) | Patrón Adapter para Modelos de GPS Tracker (XTR-4500L, NavTrack QX-7A, GeoPulse MTR-900) | `patron-gof` | PPAI | DSI-U2-PATRONES-ESTRUCTURALES, PPAI-CU-36, PPAI-DIS-ARQUITECTURA |
 | [PPAI-PAT-STATE-BOLSIN](nodos/PPAI-PAT-STATE-BOLSIN.md) | Aplicación del Patrón State y Trazabilidad CambioEstadoBolsin en el PPAI | `patron-gof` | PPAI | DSI-U2-PATRONES-COMPORTAMENTALES, PPAI-DOM-BOLSIN, PPAI-DOM-PRECINTO, PPAI-CU-36 |
 | [PPAI-UX-EMPATIA](nodos/PPAI-UX-EMPATIA.md) | UX PPAI - Mapa de Empatía del Encargado de Bolsines y Diseño de Mapa CU 36 | `convencion` | PPAI | DSI-00-UX-INTERFACES, PPAI-CU-36, PPAI-DOM-ORGANIZACION |
+| [PPAI-UX-MANUAL-MARCA](nodos/PPAI-UX-MANUAL-MARCA.md) | Manual de Marca, Tokens Visuales y Estrategia de Motion (CU 36) | `convencion` | PPAI | PPAI-UX-EMPATIA, DSI-00-UX-INTERFACES, PPAI-CU-36, PPAI-CU-30 |
