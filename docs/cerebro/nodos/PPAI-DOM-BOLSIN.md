@@ -4,7 +4,7 @@ titulo: Dominio PPAI - Entidad Bolsín y su Ciclo de Vida
 tipo: dominio
 unidad: PPAI
 categoria: Dominio
-tags: [ppai, bolsin, ciclo-de-vida, precinto, estados, seguimiento]
+tags: [ppai, bolsin, ciclo-de-vida, precinto, estados, seguimiento, nacho]
 archivos_back:
   - TPAI-Bolsines/src/domain/Bolsin.ts
   - TPAI-Bolsines/src/domain/CambioEstadoBolsin.ts
@@ -25,7 +25,7 @@ Un **Bolsín** es una bolsa o saco de tela resistente y duradero utilizado para 
 - `numero`: Entero secuencial y único asignado automáticamente por el sistema al crearse.
 - `fechaCreacion`: Fecha y hora de armado del bolsín en la CM de origen.
 - `peso`: Peso expresado en gramos (ingresado por el Encargado de Bolsines al momento del armado).
-- `numeroPrecinto`: Identificador alfanumérico del precinto de seguridad con el que se cierra el bolsín.
+- `numeroPrecinto`: **[NACHO]** Identificador numérico entero del precinto de seguridad. En el CU 36 es obligatorio y no admite nulos, de acuerdo con `numeroPrecinto: Int` en el diagrama de clases de análisis. Los bolsines que se consultan ya fueron despachados y tienen un precinto asignado.
 - `comisionMedicaOrigen`: Referencia a la CM que arma y despacha el bolsín.
 - `comisionMedicaDestino`: Referencia a la CM destinataria (un bolsín viaja a una **única** CM destino).
 - `estadoActual`: Referencia al estado vigente dentro de su máquina de estados.
