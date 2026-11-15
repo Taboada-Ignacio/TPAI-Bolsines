@@ -1,0 +1,125 @@
+# Fuentes Extraídas de NotebookLM (Cuaderno DSI)
+
+- **Total fuentes detectadas en panel:** 112
+- **Total fuentes con contenido limpio extraído:** 66
+
+## Fuentes con contenido extraído
+- [01 Modelado Comp con Diag Maquina de Estados.pdf](01 Modelado Comp con Diag Maquina de Estados.pdf.md) (91169 chars)
+- [02 Modelado Comp con Diag Maquina de Estados parte 2.pdf](02 Modelado Comp con Diag Maquina de Estados parte 2.pdf.md) (45266 chars)
+- [03 Realizaciones de CU - Diagrama de Secuencia.pdf](03 Realizaciones de CU - Diagrama de Secuencia.pdf.md) (37200 chars)
+- [04 GRASP con secuencia.pdf](04 GRASP con secuencia.pdf.md) (20571 chars)
+- [05 GRASP con com.pdf](05 GRASP con com.pdf.md) (21167 chars)
+- [06 Tips para el Modelado de Realizaciones de Caso - Secuencias.pdf](06 Tips para el Modelado de Realizaciones de Caso - Secuencias.pdf.md) (50037 chars)
+- [07 Principios de Diseño OO.pdf](07 Principios de Diseño OO.pdf.md) (106647 chars)
+- [08 DSI Intro Diseño.pdf](08 DSI Intro Diseño.pdf.md) (27119 chars)
+- [09 Diseño Arquitectonico parte 1.pdf](09 Diseño Arquitectonico parte 1.pdf.md) (52281 chars)
+- [10 Diseño Arquitectónico- Estilos.pdf](10 Diseño Arquitectónico- Estilos.pdf.md) (105015 chars)
+- [1000148393.jpg](1000148393.jpg.md) (670 chars)
+- [11 Arquitectura de Microservicios.pdf](11 Arquitectura de Microservicios.pdf.md) (75469 chars)
+- [12 Patrones de Diseño.pdf](12 Patrones de Diseño.pdf.md) (128580 chars)
+- [14 Diseño de Persistencia.pdf](14 Diseño de Persistencia.pdf.md) (25253 chars)
+- [15 Diseño de Componentes.pdf](15 Diseño de Componentes.pdf.md) (24445 chars)
+- [2026 - Guia de Ejercicios para Mod Requerimientos CS.pdf](2026 - Guia de Ejercicios para Mod Requerimientos CS.pdf.md) (133223 chars)
+- [2026 09 DSI P2 -Venta Cambalache Solidario Descripción del caso.pdf](2026 09 DSI P2 -Venta Cambalache Solidario Descripción del caso.pdf.md) (8477 chars)
+- [2026 Caso de Estudio Pizzería.pdf](2026 Caso de Estudio Pizzería.pdf.md) (13725 chars)
+- [2026 DSI Guía de EPC sobre Diseño de Interfaces de Usuario.pdf](2026 DSI Guía de EPC sobre Diseño de Interfaces de Usuario.pdf.md) (47625 chars)
+- [2026 Guía de Ejercicios de Cambio de Requerimientos.pdf](2026 Guía de Ejercicios de Cambio de Requerimientos.pdf.md) (50325 chars)
+- [2026 Guía de Ejercicios sobre Máquina de Estados.pdf](2026 Guía de Ejercicios sobre Máquina de Estados.pdf.md) (90549 chars)
+- [Aplicación del estándar IEEE 830 Parte 1](Aplicación del estándar IEEE 830 Parte 1.md) (8129 chars)
+- [AppReclamos_Arquitectura_Microservicios V 1-10.pdf](AppReclamos_Arquitectura_Microservicios V 1-10.pdf.md) (41434 chars)
+- [AppReclamos_Arquitectura_Monolítica V1.19.pdf](AppReclamos_Arquitectura_Monolítica V1.19.pdf.md) (50174 chars)
+- [Arquitectura de Integración Visual para Modelado de Software UML 2.0 y Especificación de Requisitos bajo el Protocolo de Contexto de Modelo de Lucidchart: Directrices Metodológicas de Cátedra](Arquitectura de Integración Visual para Modelado de Software UML 2.0 y Especificación de Requisitos.md) (42044 chars)
+- [Audiolibros Arquitectura Microservicios V1-4.pdf](Audiolibros Arquitectura Microservicios V1-4.pdf.md) (39245 chars)
+- [Audiolibros Arquitectura Monolítica V1-2.pdf](Audiolibros Arquitectura Monolítica V1-2.pdf.md) (35221 chars)
+- [Auditoría de Modelo de Dominio Trattoria](Auditoría de Modelo de Dominio Trattoria.md) (4596 chars)
+- [Caso SW para Solicitud de Requerimientos con solución.pdf](Caso SW para Solicitud de Requerimientos con solución.pdf.md) (11510 chars)
+- [Comunicación y API Gateway en Microservicios](Comunicación y API Gateway en Microservicios.md) (15878 chars)
+- [Crustáceo Cascarudo - Microservicios V 1-2.pdf](Crustáceo Cascarudo - Microservicios V 1-2.pdf.md) (41285 chars)
+- [DSI 2026 Ejercicio tipo Parcial 3 FIA Formula 1.pdf](DSI 2026 Ejercicio tipo Parcial 3 FIA Formula 1.pdf.md) (21575 chars)
+- [DSI 2026 Parcial 1 - CreditIn - Caso de estudio.pdf](DSI 2026 Parcial 1 - CreditIn - Caso de estudio.pdf.md) (7408 chars)
+- [DSI CONVENCIONES DE MODELADO V1-5.pdf](DSI CONVENCIONES DE MODELADO V1-5.pdf.md) (40420 chars)
+- [EPC Estrella de la Muerte - Patrones de Diseño.pdf](EPC Estrella de la Muerte - Patrones de Diseño.pdf.md) (25813 chars)
+- [EPC Gestion de eventos- Análisis-PD-V1.0.pdf](EPC Gestion de eventos- Análisis-PD-V1.0.pdf.md) (53151 chars)
+- [EPC_GestiónEventos_Arquitectura Monolítica v 2-9.pdf](EPC_GestiónEventos_Arquitectura Monolítica v 2-9.pdf.md) (56454 chars)
+- [EPC_LineasAreas.V1-35.pdf](EPC_LineasAreas.V1-35.pdf.md) (49472 chars)
+- [Explicación de Arquitectura de Software](Explicación de Arquitectura de Software.md) (2569 chars)
+- [FanaticosDelFutbol_Arquitectura Monolítica V 1-12.pdf](FanaticosDelFutbol_Arquitectura Monolítica V 1-12.pdf.md) (37982 chars)
+- [FanáticosDelFútbol_Arquitectura de Microservicios V1-9.pdf](FanáticosDelFútbol_Arquitectura de Microservicios V1-9.pdf.md) (30386 chars)
+- [MODP TRATTORIA - Página 1.pdf](MODP TRATTORIA - Página 1.pdf.md) (2987 chars)
+- [PPA Consultorio de Salud Mental - Microservicios V1.pdf](PPA Consultorio de Salud Mental - Microservicios V1.pdf.md) (43118 chars)
+- [PPA Consultorio de Salud Mental - Monolítico - V1.4 (1).pdf](PPA Consultorio de Salud Mental - Monolítico - V1.4 _1_.pdf.md) (107585 chars)
+- [PPA Consultorio de Salud Mental - Monolítico - V1.4.pdf](PPA Consultorio de Salud Mental - Monolítico - V1.4.pdf.md) (107730 chars)
+- [PPA Crustaceo Cascarudo V1-12.pdf](PPA Crustaceo Cascarudo V1-12.pdf.md) (86382 chars)
+- [PPA_Administración de Campos - Microservicios V1-1.pdf](PPA_Administración de Campos - Microservicios V1-1.pdf.md) (36580 chars)
+- [PPA_Administración de Campos V1-15.pdf](PPA_Administración de Campos V1-15.pdf.md) (136035 chars)
+- [PPA_Festival de Folklore_Completo V1-37.pdf](PPA_Festival de Folklore_Completo V1-37.pdf.md) (73012 chars)
+- [PPA_Frigorífico V1-34.pdf](PPA_Frigorífico V1-34.pdf.md) (185788 chars)
+- [PPA_Peaje V1-27.pdf](PPA_Peaje V1-27.pdf.md) (114199 chars)
+- [PPA_PublicidadMultipunto V1-19.pdf](PPA_PublicidadMultipunto V1-19.pdf.md) (75006 chars)
+- [Plan de Pago y Cuotas de Préstamo](Plan de Pago y Cuotas de Préstamo.md) (54982 chars)
+- [RNF ISO 25000 con ejemplos.pdf](RNF ISO 25000 con ejemplos.pdf.md) (23396 chars)
+- [Revisión del examen teórico](Revisión del examen teórico.md) (9094 chars)
+- [Screenshot 2026-06-01 213746.png](Screenshot 2026-06-01 213746.png.md) (544 chars)
+- [Screenshot 2026-11-03 185945.png](Screenshot 2026-11-03 185945.png.md) (780 chars)
+- [Sumérgete en los patrones de diseño.pdf](Sumérgete en los patrones de diseño.pdf.md) (366393 chars)
+- [Texto pegado](Texto pegado.md) (19834 chars)
+- [Tips para Diagramas de Secuencia y Estática](Tips para Diagramas de Secuencia y Estática.md) (10625 chars)
+- [WhatsApp Image 2026-09-24 at 8.44.55 PM.jpeg](WhatsApp Image 2026-09-24 at 8.44.55 PM.jpeg.md) (753 chars)
+- [WhatsApp Image 2026-09-24 at 8.44.56 PM.jpeg](WhatsApp Image 2026-09-24 at 8.44.56 PM.jpeg.md) (703 chars)
+- [WhatsApp Image 2026-09-24 at 8.44.57 PM.jpeg](WhatsApp Image 2026-09-24 at 8.44.57 PM.jpeg.md) (643 chars)
+- [WhatsApp Image 2026-09-24 at 8.44.58 PM.jpeg](WhatsApp Image 2026-09-24 at 8.44.58 PM.jpeg.md) (563 chars)
+- [WhatsApp Image 2026-09-24 at 8.44.59 PM.jpeg](WhatsApp Image 2026-09-24 at 8.44.59 PM.jpeg.md) (993 chars)
+- [dominiodeproblema.pdf](dominiodeproblema.pdf.md) (12095 chars)
+
+## Chat y Studio
+- [Historial de Chat de NotebookLM](_chat_notebooklm_dsi.md)
+- [Elementos del Panel Studio](_studio_notebooklm_dsi.md)
+
+## Fuentes listadas aún sin snapshot individual (47)
+- todas las fuentes
+- todas las fuentes de los chats de Gemini
+- ¿Qué es la Ingeniería Rápida? - Databricks
+- ¿Qué son los requisitos no funcionales? Tipos, ejemplos y enfoques - Visure Solutions
+- Casos de uso y diagramas de casos de uso | 1/26 | UPV
+- Class diagrams | Mermaid
+- Copy/paste Mermaid syntax for editable diagrams - Lucid Community
+- Designing State Diagrams with Mermaid - Grasp
+- Diagram as code with Mermaid in Lucidchart - Lucid Help Center
+- Diagramas de casos de uso | Ingenieria en Software
+- Diseño de Software guiado por Casos de Uso. Aplicación práctica basada en un proceso de enseñanza-aprendizaje propuesto - 43 jaiio
+- El enfoque de casos de uso: una guía completa para capturar los requisitos funcionales en la ingeniería de software - Cybermedian
+- Formato de documentacion ieee 830 | DOCX - Slideshare
+- How to effectively use prompts, resources, and tools in MCP - Composio
+- How To Insert PlantUML In Lucidchart (Easy Step-By-Step Guide)
+- Informe de Deep Research: Arquitectura de Integración Visual para Modelado de Software UML 2.0 y Especificación de Requisitos bajo el Protocolo de Contexto de Modelo de Lucidchart: Directrices Metodológicas de Cátedra
+- Ingeniería Agéntica: La guía completa para el desarrollo… - NxCode
+- Integrate Lucid with AI tools using the Lucid MCP server
+- Introducing the Lucid Model Context Protocol (MCP) server | Community
+- keyuchen21/agentic-engineering-handbook: The definitive OpenAI, Claude, MCP, Harness, Evals, and Production Agent Systems learning roadmap. - GitHub
+- KISS Sorcar: A Stupidly-Simple General-Purpose and Software Engineering AI Assistant
+- Lucid MCP for Github and VS Code Copilot
+- Lucid MCP Server - Connectors - Microsoft Learn
+- Lucid MCP Server - GitHub
+- Lucid MCP server: Connect the visual power of Lucid with your AI tools
+- Lucid Standard Import (a.k.a. JSON Import) API FAQ | Community
+- MCP Prompts and Resources: The Primitives You're Not Using - DEV Community
+- Mermaid Class Diagram Syntax: 8 Relationships, Examples - MacMD Viewer
+- Mermaid State Diagram Guide: Model System Behavior with Code - Mermaid2Img Blog
+- Mermaid vs PlantUML Class Diagrams for Formal UML Models - OnUML
+- Mermaid.js Tutorial: Flowcharts, Sequence Diagrams & Syntax Guide (2026) - Starmorph
+- mermaidjs.github.io/classDiagram.md at master · mermaidjs/mermaidjs.github.io · GitHub
+- New JSON Standard Import API - Lucid Community
+- NORMA IEEE830 - Especificacion de Requerimientos de Software
+- Overview - Lucid Developer Documentation
+- Plantilla de casos de uso - La Oficina de Proyectos de Informática - PMOInformatica
+- Plantilla de Descripción de Caso de Uso - Google Docs
+- Plantilla formato ieee830 | DOC - Slideshare
+- Plantillas de Diagrama de Caso de Uso para Análisis de Sistemas Efectivo | Miro
+- Qué es un caso de uso y cómo redactarlo - Wrike
+- smartzan63/lucid-mcp-server - GitHub
+- State Diagram - Mermaid Flow
+- State Diagram - Mermaid Studio
+- State Machine DNA
+- Tesleum/Claude-Agent - Ollama
+- Una guía completa sobre el modelado de casos de uso - Visual Paradigm Guides Spanish
+- Workarounds for creating editable diagrams with AI - Lucid Community
