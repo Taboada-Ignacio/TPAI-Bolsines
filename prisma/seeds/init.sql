@@ -133,6 +133,26 @@ BEGIN
         'gerente.demo@example.com'
       ])[(serie - 1) % 4 + 1] AS responsable
     FROM generate_series(1, 35) AS numeros(serie)
+    UNION ALL
+    -- Fixtures del GPS oficial (bd457ed8349a08dad9f3533dd93530aebf844204).
+    -- Las CM locales son correspondencias geográficas. Para XTR y QX se
+    -- deben enviar los códigos oficiales indicados en cada fila.
+    -- Bolsin no persiste el modelo GPS. Los modelos comentados son para pruebas.
+    SELECT numero, 940000 + numero, 600,
+      TIMESTAMPTZ '2026-03-07 09:00:00-03',
+      origen, destino, 'Enviado', 'bolsines.demo@example.com'
+    FROM (VALUES
+      (101, 'CM-CBA', 'CM-SF'),  -- CM-CBA-01 -> CM-ROS-02 / XTR-4500L
+      (102, 'CM-SF',  'CM-MZA'), -- CM-ROS-02 -> CM-MDZ-03 / NavTrack QX-7A
+      (103, 'CM-MZA', 'CM-BA'),  -- CM-MDZ-03 -> CM-BA-01 / GeoPulse MTR-900
+      (104, 'CM-BA',  'CM-CBA'), -- CM-BA-01 -> CM-CBA-01 / XTR-4500L
+      (105, 'CM-TUC', 'CM-SAL'), -- CM-TUC-01 -> CM-SLA-01 / NavTrack QX-7A
+      (106, 'CM-SAL', 'CM-JUJ'), -- CM-SLA-01 -> CM-JUJ-01 / GeoPulse MTR-900
+      (107, 'CM-NEU', 'CM-BA'),  -- CM-NQN-01 -> CM-MDQ-01 / XTR-4500L
+      (108, 'CM-BA',  'CM-BA'),  -- CM-MDQ-01 -> CM-BA-01 / NavTrack QX-7A
+      (109, 'CM-BA',  'CM-CBA'), -- CM-LPL-01 -> CM-CBA-01 / GeoPulse MTR-900
+      (110, 'CM-CBA', 'CM-SF')   -- CM-CBA-02 -> CM-ROS-02 / XTR-4500L
+    ) AS gps(numero, origen, destino)
   LOOP
     SELECT id INTO STRICT id_origen FROM public.comision_medica WHERE codigo = demo.origen;
 
