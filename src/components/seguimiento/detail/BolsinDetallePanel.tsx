@@ -77,7 +77,7 @@ export function BolsinDetallePanel({
     <div className={cn("flex h-full min-h-0 flex-col", className)}>
       {/* Encabezado con N.º de bolsín, ruta SplitFlap y controles de navegación */}
       <div className="flex flex-col gap-3 border-b border-hair px-4 py-3.5">
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex flex-col gap-1.5">
             <MicroLabel>Bolsín en seguimiento</MicroLabel>
             <SplitFlap
@@ -170,7 +170,7 @@ export function BolsinDetallePanel({
         ) : null}
 
         {/* Grilla de datos clave */}
-        <dl className="grid grid-cols-2 gap-2">
+        <dl className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,132px),1fr))] gap-2">
           <div className="rounded-xl border border-hair bg-surface px-3 py-2.5">
             <dt>
               <MicroLabel>N.º de precinto</MicroLabel>
@@ -182,7 +182,7 @@ export function BolsinDetallePanel({
 
           <div className="rounded-xl border border-hair bg-surface px-3 py-2.5">
             <dt>
-              <MicroLabel>Estado de señal</MicroLabel>
+              <MicroLabel>Cobertura</MicroLabel>
             </dt>
             <dd className="mt-1">
               <span
@@ -197,12 +197,12 @@ export function BolsinDetallePanel({
                   aria-hidden="true"
                   className="size-1.5 rounded-full bg-current"
                 />
-                {sinCobertura ? "Sin cobertura" : "En vivo"}
+                {sinCobertura ? "Sin cobertura" : "Última actualización"}
               </span>
             </dd>
           </div>
 
-          <div className="col-span-2 rounded-xl border border-hair bg-surface px-3 py-2.5">
+          <div className="col-span-full rounded-xl border border-hair bg-surface px-3 py-2.5">
             <dt>
               <MicroLabel>Recorrido</MicroLabel>
             </dt>
@@ -237,7 +237,7 @@ export function BolsinDetallePanel({
           </div>
 
           {bolsin.pesoKg !== undefined ? (
-            <div className="col-span-2 rounded-xl border border-hair bg-surface px-3 py-2.5">
+            <div className="col-span-full rounded-xl border border-hair bg-surface px-3 py-2.5">
               <dt>
                 <MicroLabel>Peso declarado</MicroLabel>
               </dt>

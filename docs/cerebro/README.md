@@ -3,11 +3,11 @@
 Repositorio de conocimiento estructurado de **Diseño de Sistemas de Información (UTN - FRC)** y del **Proyecto Práctico de Aplicación Integrador (PPAI) - Sistema de Bolsines (CU 36 + CU 30/31)**.
 
 ## Métricas del Grafo de Conocimiento
-- **Nodos Indexados:** 35
-- **Aristas Válidas:** 178
+- **Nodos Indexados:** 37
+- **Aristas Válidas:** 184
 - **Componentes Conexos:** 1
-- **Densidad del Grafo:** 0.1496
-- **Nodos Centrales (Hubs):** `DSI-00-CONVENCIONES` (34), `PPAI-CU-36` (28), `PPAI-DOM-BOLSIN` (20), `PPAI-DIS-ARQUITECTURA` (17), `DSI-U2-PRINCIPIOS-SOLID` (16)
+- **Densidad del Grafo:** 0.1381
+- **Nodos Centrales (Hubs):** `DSI-00-CONVENCIONES` (34), `PPAI-CU-36` (29), `PPAI-DOM-BOLSIN` (21), `PPAI-DIS-ARQUITECTURA` (17), `DSI-U2-PRINCIPIOS-SOLID` (16)
 - **Enlaces Rotos:** 0
 
 ## Repositorios de Fuentes Extraídas
@@ -33,7 +33,9 @@ flowchart LR
     node_PPAI_DOM_PRECINTO["PPAI-DOM-PRECINTO<br/>Dominio PPAI - Gestión de Precintos, Cierre, Reapertura y Trazabilidad<br/><i>[dominio]</i>"]:::dominio
     node_PPAI_DOM_REMITO["PPAI-DOM-REMITO<br/>Dominio PPAI - Entidad Remito y Reglas de Agrupación por Destino<br/><i>[dominio]</i>"]:::dominio
     node_PPAI_IMPL_BACKEND_REVISION["PPAI-IMPL-BACKEND-REVISION<br/>Revisión Técnica Backend (feature/backend) y Ajustes Pendientes<br/><i>[arquitectura]</i>"]:::arq
+    node_PPAI_IMPL_BOLSINES_CICLO_VIDA["PPAI-IMPL-BOLSINES-CICLO-VIDA<br/>Ciclo de vida en /bolsines — Remito, Documentación, Precintado y Reapertura<br/><i>[implementacion]</i>"]:::teoria
     node_PPAI_IMPL_FRONTEND_HANDOFF["PPAI-IMPL-FRONTEND-HANDOFF<br/>Traspaso Frontend - Estado, orden de implementación y reglas para el agente que codifica<br/><i>[referencia]</i>"]:::conv
+    node_PPAI_IMPL_SEGUIMIENTO_CONTRATO_BACK["PPAI-IMPL-SEGUIMIENTO-CONTRATO-BACK<br/>Contrato Backend y API GPS para Seguimiento Individual (1 Bolsín = 1 Ruta = 1 Remito)<br/><i>[implementacion]</i>"]:::teoria
     node_PPAI_PAT_ADAPTER_GPS["PPAI-PAT-ADAPTER-GPS<br/>Patrón Adapter para Modelos de GPS Tracker (XTR-4500L, NavTrack QX-7A, GeoPulse MTR-900)<br/><i>[patron-gof]</i>"]:::patron
     node_PPAI_PAT_STATE_BOLSIN["PPAI-PAT-STATE-BOLSIN<br/>Aplicación del Patrón State y Trazabilidad CambioEstadoBolsin en el PPAI<br/><i>[patron-gof]</i>"]:::patron
     node_PPAI_UX_APP_SHELL["PPAI-UX-APP-SHELL<br/>UX PPAI - Núcleo de la App en Islas (navegación, cabecera, temas claro/oscuro y motion Rumbo)<br/><i>[convencion]</i>"]:::conv
@@ -105,8 +107,14 @@ flowchart LR
     node_PPAI_IMPL_BACKEND_REVISION -.->|"conecta con"| node_PPAI_DOM_BOLSIN
     node_PPAI_IMPL_BACKEND_REVISION -.->|"conecta con"| node_PPAI_PAT_ADAPTER_GPS
     node_PPAI_IMPL_BACKEND_REVISION -.->|"conecta con"| ext_DSI_U3_ARQ_MONOLITICA
+    node_PPAI_IMPL_BOLSINES_CICLO_VIDA -->|"depende de"| node_PPAI_DOM_BOLSIN
+    node_PPAI_IMPL_BOLSINES_CICLO_VIDA -->|"depende de"| node_PPAI_DOM_REMITO
+    node_PPAI_IMPL_BOLSINES_CICLO_VIDA -->|"depende de"| node_PPAI_DOM_PRECINTO
     node_PPAI_IMPL_FRONTEND_HANDOFF -->|"depende de"| node_PPAI_UX_APP_SHELL
     node_PPAI_IMPL_FRONTEND_HANDOFF -->|"depende de"| node_PPAI_UX_LOGIN
+    node_PPAI_IMPL_SEGUIMIENTO_CONTRATO_BACK -->|"depende de"| node_PPAI_CU_36
+    node_PPAI_IMPL_SEGUIMIENTO_CONTRATO_BACK -->|"depende de"| node_PPAI_CU_30
+    node_PPAI_IMPL_SEGUIMIENTO_CONTRATO_BACK -->|"depende de"| node_PPAI_PAT_ADAPTER_GPS
     node_PPAI_PAT_ADAPTER_GPS -.->|"depende de"| ext_DSI_U2_PATRONES_ESTRUCTURALES
     node_PPAI_PAT_ADAPTER_GPS -->|"depende de"| node_PPAI_CU_36
     node_PPAI_PAT_ADAPTER_GPS -.->|"conecta con"| ext_DSI_U2_PATRONES_ESTRUCTURALES
@@ -321,7 +329,9 @@ flowchart TD
     node_PPAI_DOM_PRECINTO["PPAI-DOM-PRECINTO<br/>Dominio PPAI - Gestión de Precintos, Cierre, Reapertura y Trazabilidad<br/><i>[dominio]</i>"]:::dominio
     node_PPAI_DOM_REMITO["PPAI-DOM-REMITO<br/>Dominio PPAI - Entidad Remito y Reglas de Agrupación por Destino<br/><i>[dominio]</i>"]:::dominio
     node_PPAI_IMPL_BACKEND_REVISION["PPAI-IMPL-BACKEND-REVISION<br/>Revisión Técnica Backend (feature/backend) y Ajustes Pendientes<br/><i>[arquitectura]</i>"]:::arq
+    node_PPAI_IMPL_BOLSINES_CICLO_VIDA["PPAI-IMPL-BOLSINES-CICLO-VIDA<br/>Ciclo de vida en /bolsines — Remito, Documentación, Precintado y Reapertura<br/><i>[implementacion]</i>"]:::teoria
     node_PPAI_IMPL_FRONTEND_HANDOFF["PPAI-IMPL-FRONTEND-HANDOFF<br/>Traspaso Frontend - Estado, orden de implementación y reglas para el agente que codifica<br/><i>[referencia]</i>"]:::conv
+    node_PPAI_IMPL_SEGUIMIENTO_CONTRATO_BACK["PPAI-IMPL-SEGUIMIENTO-CONTRATO-BACK<br/>Contrato Backend y API GPS para Seguimiento Individual (1 Bolsín = 1 Ruta = 1 Remito)<br/><i>[implementacion]</i>"]:::teoria
     node_PPAI_PAT_ADAPTER_GPS["PPAI-PAT-ADAPTER-GPS<br/>Patrón Adapter para Modelos de GPS Tracker (XTR-4500L, NavTrack QX-7A, GeoPulse MTR-900)<br/><i>[patron-gof]</i>"]:::patron
     node_PPAI_PAT_STATE_BOLSIN["PPAI-PAT-STATE-BOLSIN<br/>Aplicación del Patrón State y Trazabilidad CambioEstadoBolsin en el PPAI<br/><i>[patron-gof]</i>"]:::patron
     node_PPAI_UX_APP_SHELL["PPAI-UX-APP-SHELL<br/>UX PPAI - Núcleo de la App en Islas (navegación, cabecera, temas claro/oscuro y motion Rumbo)<br/><i>[convencion]</i>"]:::conv
@@ -476,8 +486,14 @@ flowchart TD
     node_PPAI_IMPL_BACKEND_REVISION -.->|"conecta con"| node_PPAI_DOM_BOLSIN
     node_PPAI_IMPL_BACKEND_REVISION -.->|"conecta con"| node_PPAI_PAT_ADAPTER_GPS
     node_PPAI_IMPL_BACKEND_REVISION -.->|"conecta con"| node_DSI_U3_ARQ_MONOLITICA
+    node_PPAI_IMPL_BOLSINES_CICLO_VIDA -->|"depende de"| node_PPAI_DOM_BOLSIN
+    node_PPAI_IMPL_BOLSINES_CICLO_VIDA -->|"depende de"| node_PPAI_DOM_REMITO
+    node_PPAI_IMPL_BOLSINES_CICLO_VIDA -->|"depende de"| node_PPAI_DOM_PRECINTO
     node_PPAI_IMPL_FRONTEND_HANDOFF -->|"depende de"| node_PPAI_UX_APP_SHELL
     node_PPAI_IMPL_FRONTEND_HANDOFF -->|"depende de"| node_PPAI_UX_LOGIN
+    node_PPAI_IMPL_SEGUIMIENTO_CONTRATO_BACK -->|"depende de"| node_PPAI_CU_36
+    node_PPAI_IMPL_SEGUIMIENTO_CONTRATO_BACK -->|"depende de"| node_PPAI_CU_30
+    node_PPAI_IMPL_SEGUIMIENTO_CONTRATO_BACK -->|"depende de"| node_PPAI_PAT_ADAPTER_GPS
     node_PPAI_PAT_ADAPTER_GPS -->|"depende de"| node_DSI_U2_PATRONES_ESTRUCTURALES
     node_PPAI_PAT_ADAPTER_GPS -->|"depende de"| node_PPAI_CU_36
     node_PPAI_PAT_ADAPTER_GPS -.->|"conecta con"| node_DSI_U2_PATRONES_ESTRUCTURALES
@@ -539,7 +555,9 @@ flowchart TD
 | [PPAI-DOM-PRECINTO](nodos/PPAI-DOM-PRECINTO.md) | Dominio PPAI - Gestión de Precintos, Cierre, Reapertura y Trazabilidad | `dominio` | PPAI | PPAI-DOM-BOLSIN, PPAI-CU-36 |
 | [PPAI-DOM-REMITO](nodos/PPAI-DOM-REMITO.md) | Dominio PPAI - Entidad Remito y Reglas de Agrupación por Destino | `dominio` | PPAI | DSI-U1-MAQUINA-ESTADOS, PPAI-DOM-BOLSIN, PPAI-DOM-DOCUMENTACION |
 | [PPAI-IMPL-BACKEND-REVISION](nodos/PPAI-IMPL-BACKEND-REVISION.md) | Revisión Técnica Backend (feature/backend) y Ajustes Pendientes | `arquitectura` | PPAI | PPAI-CU-36, PPAI-CU-30, PPAI-DOM-BOLSIN, PPAI-PAT-ADAPTER-GPS, DSI-U3-ARQ-MONOLITICA |
+| [PPAI-IMPL-BOLSINES-CICLO-VIDA](nodos/PPAI-IMPL-BOLSINES-CICLO-VIDA.md) | Ciclo de vida en /bolsines — Remito, Documentación, Precintado y Reapertura | `implementacion` | PPAI |  |
 | [PPAI-IMPL-FRONTEND-HANDOFF](nodos/PPAI-IMPL-FRONTEND-HANDOFF.md) | Traspaso Frontend - Estado, orden de implementación y reglas para el agente que codifica | `referencia` | PPAI |  |
+| [PPAI-IMPL-SEGUIMIENTO-CONTRATO-BACK](nodos/PPAI-IMPL-SEGUIMIENTO-CONTRATO-BACK.md) | Contrato Backend y API GPS para Seguimiento Individual (1 Bolsín = 1 Ruta = 1 Remito) | `implementacion` | PPAI |  |
 | [PPAI-PAT-ADAPTER-GPS](nodos/PPAI-PAT-ADAPTER-GPS.md) | Patrón Adapter para Modelos de GPS Tracker (XTR-4500L, NavTrack QX-7A, GeoPulse MTR-900) | `patron-gof` | PPAI | DSI-U2-PATRONES-ESTRUCTURALES, PPAI-CU-36, PPAI-DIS-ARQUITECTURA |
 | [PPAI-PAT-STATE-BOLSIN](nodos/PPAI-PAT-STATE-BOLSIN.md) | Aplicación del Patrón State y Trazabilidad CambioEstadoBolsin en el PPAI | `patron-gof` | PPAI | DSI-U2-PATRONES-COMPORTAMENTALES, PPAI-DOM-BOLSIN, PPAI-DOM-PRECINTO, PPAI-CU-36 |
 | [PPAI-UX-APP-SHELL](nodos/PPAI-UX-APP-SHELL.md) | UX PPAI - Núcleo de la App en Islas (navegación, cabecera, temas claro/oscuro y motion Rumbo) | `convencion` | PPAI |  |

@@ -1,32 +1,33 @@
 "use client";
 
-import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
+import {
+  LngLatBounds,
+  Map as MapLibreMap,
+  setWorkerUrl,
+  type GeoJSONSource,
+  type LineLayerSpecification,
+} from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { LocateFixed, MapPinOff, Minus, Plus, RefreshCw } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/actions/Button";
 import { IconButton } from "@/components/ui/actions/IconButton";
+import { cn } from "@/lib/cn";
 import { MicroLabel } from "@/components/ui/display/MicroLabel";
 import type {
   BolsinSeguimiento,
   CmOrigenSeguimiento,
 } from "@/dtos/seguimiento-bolsin.dto";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { obtenerEstilosGoogleMaps } from "@/lib/seguimiento/google-maps-styles";
 import {
   calcularRutaGeodesicaEnvio,
   obtenerCoordenadaCm,
   resolverRutaEnvio,
   type RutaEnvioResuelta,
 } from "@/lib/seguimiento/rutas-envio";
-import { GoogleMarkerOverlay } from "./GoogleMarkerOverlay";
+import { MarcadorMapa } from "./MarcadorMapa";
 import { MarcadorBolsin } from "./MarcadorBolsin";
 
 gsap.registerPlugin(useGSAP);
@@ -34,9 +35,20 @@ gsap.registerPlugin(useGSAP);
 const CENTRO_ARGENTINA = { lat: -32.2, lng: -63.8 };
 const ZOOM_INICIAL = 5;
 
-let googleOptionsConfiguradas = false;
+function estiloMapa(oscuro: boolean): string {
+  return oscuro
+    ? "https://tiles.openfreemap.org/styles/dark"
+    : "https://tiles.openfreemap.org/styles/bright";
+}
 
-export interface MapaGoogleSeguimientoProps {
+function coordenadasMapa(punto: {
+  lat: number;
+  lng: number;
+}): [number, number] {
+  return [punto.lng, punto.lat];
+}
+
+export interface MapaLibreSeguimientoProps {
   bolsines: BolsinSeguimiento[];
   seleccionadoNro: number | null;
   hoveredBolsinNro?: number | null;
@@ -45,6 +57,7 @@ export interface MapaGoogleSeguimientoProps {
   cmOrigen?: CmOrigenSeguimiento | null;
   loading?: boolean;
   filtroActivo?: boolean;
+  detalleMovilMinimizado?: boolean;
 }
 
 function esTemaOscuroActivo(): boolean {
@@ -65,23 +78,12 @@ function leerTokenCss(nombre: string, respaldo: string): string {
 
 function prefiereMovimientoReducido(): boolean {
   if (typeof window === "undefined") return false;
-  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+  return (
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false
+  );
 }
 
-function crearIconoPunteado(color: string, opacidad = 0.9): google.maps.IconSequence {
-  return {
-    icon: {
-      path: "M 0,-1 0,1",
-      strokeOpacity: opacidad,
-      strokeColor: color,
-      scale: 3,
-    },
-    offset: "0",
-    repeat: "14px",
-  };
-}
-
-export function MapaGoogleSeguimiento({
+export function MapaLibreSeguimiento({
   bolsines,
   seleccionadoNro,
   hoveredBolsinNro = null,
@@ -90,21 +92,29 @@ export function MapaGoogleSeguimiento({
   cmOrigen = null,
   loading = false,
   filtroActivo = false,
-}: MapaGoogleSeguimientoProps) {
+  detalleMovilMinimizado = false,
+}: MapaLibreSeguimientoProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapStageRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<google.maps.Map | null>(null);
-  const polylinesRef = useRef<google.maps.Polyline[]>([]);
+  const controlesRef = useRef<HTMLDivElement>(null);
+  const centroInicial = useRef(
+    bolsines.length === 0 && cmOrigen
+      ? obtenerCoordenadaCm(cmOrigen.codigo, CENTRO_ARGENTINA)
+      : CENTRO_ARGENTINA,
+  );
+  const mapRef = useRef<MapLibreMap | null>(null);
   const rutasCacheRef = useRef<Map<string, RutaEnvioResuelta>>(new Map());
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
-  const [temaOscuro, setTemaOscuro] = useState<boolean>(() => esTemaOscuroActivo());
-  const [mapInstancia, setMapInstancia] = useState<google.maps.Map | null>(null);
+  const [temaOscuro, setTemaOscuro] = useState<boolean>(() =>
+    esTemaOscuroActivo(),
+  );
+  const [mapInstancia, setMapInstancia] = useState<MapLibreMap | null>(null);
   const [errorMapa, setErrorMapa] = useState<boolean>(false);
   const [reintentoTick, setReintentoTick] = useState<number>(0);
-  const [rutasResueltas, setRutasResueltas] = useState<Map<number, RutaEnvioResuelta>>(
-    () => new Map(),
-  );
+  const [rutasResueltas, setRutasResueltas] = useState<
+    Map<number, RutaEnvioResuelta>
+  >(() => new Map());
 
   const enModoFoco = seleccionadoNro !== null;
 
@@ -112,7 +122,7 @@ export function MapaGoogleSeguimiento({
     () =>
       seleccionadoNro === null
         ? null
-        : bolsines.find((b) => b.nroBolsin === seleccionadoNro) ?? null,
+        : (bolsines.find((b) => b.nroBolsin === seleccionadoNro) ?? null),
     [bolsines, seleccionadoNro],
   );
 
@@ -136,92 +146,49 @@ export function MapaGoogleSeguimiento({
     };
   }, []);
 
-  // Inicializar Google Maps JS API
   useEffect(() => {
     const stage = mapStageRef.current;
     if (!stage) return;
 
-    let cancelado = false;
-    const prevAuthFailure = (window as Window & { gm_authFailure?: () => void })
-      .gm_authFailure;
-
-    (window as Window & { gm_authFailure?: () => void }).gm_authFailure = () => {
-      if (!cancelado) {
-        setErrorMapa(true);
-      }
-      prevAuthFailure?.();
-    };
-
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() ?? "";
-    const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID?.trim() || undefined;
-
-    if (!googleOptionsConfiguradas) {
-      setOptions({
-        ...(apiKey ? { key: apiKey } : {}),
-        v: "weekly",
-        language: "es",
-        region: "AR",
+    let map: MapLibreMap;
+    try {
+      setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
+      map = new MapLibreMap({
+        container: stage,
+        center: coordenadasMapa(centroInicial.current),
+        zoom: ZOOM_INICIAL,
+        minZoom: 3,
+        maxZoom: 16,
+        maplibreLogo: false,
       });
-      googleOptionsConfiguradas = true;
+    } catch {
+      setErrorMapa(true);
+      return;
     }
 
-    importLibrary("maps")
-      .then((mapsLib) => {
-        if (cancelado || !mapStageRef.current) return;
-
-        const centroInicial =
-          bolsines.length === 0 && cmOrigen
-            ? obtenerCoordenadaCm(cmOrigen.codigo, CENTRO_ARGENTINA)
-            : CENTRO_ARGENTINA;
-
-        const mapOptions: google.maps.MapOptions = {
-          center: centroInicial,
-          zoom: ZOOM_INICIAL,
-          disableDefaultUI: true,
-          gestureHandling: "greedy",
-          clickableIcons: false,
-          ...(mapId
-            ? { mapId }
-            : { styles: obtenerEstilosGoogleMaps(esTemaOscuroActivo()) }),
-        };
-
-        const map = new mapsLib.Map(mapStageRef.current, mapOptions);
-        mapRef.current = map;
-
-        setErrorMapa(false);
-        setMapInstancia(map);
-      })
-      .catch(() => {
-        if (!cancelado) {
-          setErrorMapa(true);
-        }
-      });
+    let estiloCargado = false;
+    map.on("style.load", () => {
+      estiloCargado = true;
+    });
+    map.on("error", () => {
+      if (!estiloCargado) setErrorMapa(true);
+    });
+    mapRef.current = map;
+    setMapInstancia(map);
 
     return () => {
-      cancelado = true;
-      polylinesRef.current.forEach((p) => p.setMap(null));
-      polylinesRef.current = [];
       mapRef.current = null;
-      setMapInstancia(null);
-      (window as Window & { gm_authFailure?: () => void }).gm_authFailure =
-        prevAuthFailure;
+      map.remove();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reintentoTick]);
 
-  // Actualizar estilos claro/oscuro en vivo sin destruir el mapa
   useEffect(() => {
-    const map = mapRef.current;
-    const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID?.trim();
-    if (!map || mapId) return;
-
-    map.setOptions({
-      styles: obtenerEstilosGoogleMaps(temaOscuro),
-    });
-  }, [temaOscuro]);
+    if (!mapInstancia || mapRef.current !== mapInstancia) return;
+    mapInstancia.setStyle(estiloMapa(temaOscuro), { diff: false });
+  }, [mapInstancia, temaOscuro]);
 
   // Resolver rutas por envío (CM Origen -> Posición -> CM Destino)
-  // Primero asigna el trazado vial síncrono para render instantáneo y luego refina con Directions / OSRM
+  // Primero asigna el trazado vial síncrono para render instantáneo y luego refina con OSRM
   useEffect(() => {
     let cancelado = false;
 
@@ -229,7 +196,7 @@ export function MapaGoogleSeguimiento({
     const pendientes: BolsinSeguimiento[] = [];
 
     for (const bolsin of bolsines) {
-      const cacheKey = `${bolsin.nroBolsin}:${bolsin.ubicacion?.latitud ?? "none"}:${bolsin.ubicacion?.longitud ?? "none"}:${bolsin.cmDestino.codigo}`;
+      const cacheKey = `${bolsin.nroBolsin}:${bolsin.ubicacion?.latitud ?? "none"}:${bolsin.ubicacion?.longitud ?? "none"}:${bolsin.cmOrigen?.codigo ?? cmOrigen?.codigo}:${bolsin.cmDestino.codigo}`;
       const enCache = rutasCacheRef.current.get(cacheKey);
       if (enCache) {
         iniciales.set(bolsin.nroBolsin, enCache);
@@ -242,18 +209,12 @@ export function MapaGoogleSeguimiento({
       }
     }
 
-    if (pendientes.length === 0) {
-      return () => {
-        cancelado = true;
-      };
-    }
-
     async function resolverPendientes() {
       const resueltas = new Map<number, RutaEnvioResuelta>(iniciales);
 
       await Promise.all(
         pendientes.map(async (bolsin) => {
-          const cacheKey = `${bolsin.nroBolsin}:${bolsin.ubicacion?.latitud ?? "none"}:${bolsin.ubicacion?.longitud ?? "none"}:${bolsin.cmDestino.codigo}`;
+          const cacheKey = `${bolsin.nroBolsin}:${bolsin.ubicacion?.latitud ?? "none"}:${bolsin.ubicacion?.longitud ?? "none"}:${bolsin.cmOrigen?.codigo ?? cmOrigen?.codigo}:${bolsin.cmDestino.codigo}`;
           const ruta = await resolverRutaEnvio(bolsin, cmOrigen);
           rutasCacheRef.current.set(cacheKey, ruta);
           resueltas.set(bolsin.nroBolsin, ruta);
@@ -270,128 +231,84 @@ export function MapaGoogleSeguimiento({
     return () => {
       cancelado = true;
     };
-  }, [bolsines, cmOrigen, mapInstancia]);
+  }, [bolsines, cmOrigen]);
 
-  // Dibujar polilíneas: vista general vs Modo Foco
   useEffect(() => {
-    const map = mapRef.current;
-    polylinesRef.current.forEach((p) => p.setMap(null));
-    polylinesRef.current = [];
+    const map = mapInstancia;
+    if (!map || mapRef.current !== map) return;
 
-    if (!map || typeof google === "undefined" || !google.maps?.Polyline) {
-      return;
-    }
+    const pintarRutas = () => {
+      const primaria = leerTokenCss("--primary", "#0251b0");
+      const lima = leerTokenCss("--lime", "#d1ff42");
+      const ambar = leerTokenCss("--amber", "#f59e0b");
+      const dibujar = (
+        tramo: string,
+        rutas: RutaEnvioResuelta["rutaCompleta"][],
+        paint: LineLayerSpecification["paint"],
+      ) => {
+        const id = `seguimiento-${tramo}`;
+        const data = {
+          type: "MultiLineString" as const,
+          coordinates: rutas
+            .filter((ruta) => ruta.length >= 2)
+            .map((ruta) => ruta.map(coordenadasMapa)),
+        };
+        const source = map.getSource<GeoJSONSource>(id);
+        if (source) {
+          source.setData(data);
+          for (const [propiedad, valor] of Object.entries(paint ?? {})) {
+            map.setPaintProperty(id, propiedad, valor);
+          }
+        } else {
+          map.addSource(id, { type: "geojson", data });
+          map.addLayer({ id, type: "line", source: id, paint });
+        }
+      };
 
-    const colorPrimario = leerTokenCss("--primary", "#0251b0");
-    const colorLima = leerTokenCss("--lime", "#d1ff42");
-    const colorAmbar = leerTokenCss("--amber", "#f59e0b");
-
-    if (bolsinSeleccionado) {
-      const ruta =
-        rutasResueltas.get(bolsinSeleccionado.nroBolsin) ??
-        calcularRutaGeodesicaEnvio(bolsinSeleccionado, cmOrigen);
-
-      const esA3 =
-        bolsinSeleccionado.ubicacion === null ||
-        bolsinSeleccionado.ubicacion.estadoCobertura === "sin_cobertura";
-
-      const polyHalo = new google.maps.Polyline({
-        path: ruta.rutaCompleta,
-        geodesic: true,
-        strokeColor: temaOscuro ? "#0b1220" : "#0f172a",
-        strokeOpacity: temaOscuro ? 0.28 : 0.16,
-        strokeWeight: 7,
-        zIndex: 20,
-        map,
-      });
-
-      const polyRecorrido = new google.maps.Polyline({
-        path: ruta.tramoRecorrido,
-        geodesic: true,
-        strokeColor: esA3 ? colorAmbar : colorLima,
-        strokeOpacity: esA3 ? 0 : 0.95,
-        strokeWeight: 4,
-        icons: esA3 ? [crearIconoPunteado(colorAmbar, 0.95)] : undefined,
-        zIndex: 30,
-        map,
-      });
-
-      const polyRestante = new google.maps.Polyline({
-        path: ruta.tramoRestante,
-        geodesic: true,
-        strokeColor: colorPrimario,
-        strokeOpacity: 0,
-        strokeWeight: 3,
-        icons: [crearIconoPunteado(colorPrimario, 0.8)],
-        zIndex: 25,
-        map,
-      });
-
-      polylinesRef.current.push(polyHalo, polyRecorrido, polyRestante);
-      return;
-    }
-
-    // Vista general: rutas individuales de cada envío en trazo suave
-    for (const bolsin of bolsines) {
-      const ruta =
+      const rutaDe = (bolsin: BolsinSeguimiento) =>
         rutasResueltas.get(bolsin.nroBolsin) ??
         calcularRutaGeodesicaEnvio(bolsin, cmOrigen);
+      const foco = bolsinSeleccionado ? rutaDe(bolsinSeleccionado) : null;
+      const sinCobertura =
+        !bolsinSeleccionado?.ubicacion ||
+        bolsinSeleccionado.ubicacion.estadoCobertura === "sin_cobertura";
 
-      const polyBase = new google.maps.Polyline({
-        path: ruta.rutaCompleta,
-        geodesic: true,
-        strokeColor: colorPrimario,
-        strokeOpacity: 0.28,
-        strokeWeight: 2,
-        zIndex: 10,
-        map,
+      dibujar(
+        "general",
+        foco ? [] : bolsines.map((bolsin) => rutaDe(bolsin).rutaCompleta),
+        { "line-color": primaria, "line-opacity": 0.28, "line-width": 2 },
+      );
+      dibujar("halo", foco ? [foco.rutaCompleta] : [], {
+        "line-color": "#0b1220",
+        "line-opacity": temaOscuro ? 0.28 : 0.16,
+        "line-width": 7,
       });
-      polylinesRef.current.push(polyBase);
-    }
-  }, [bolsinSeleccionado, bolsines, cmOrigen, mapInstancia, rutasResueltas, temaOscuro]);
-
-  // Encuadrar cámara en Modo Foco al seleccionar un bolsín
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !bolsinSeleccionado) return;
-
-    const ruta =
-      rutasResueltas.get(bolsinSeleccionado.nroBolsin) ??
-      calcularRutaGeodesicaEnvio(bolsinSeleccionado, cmOrigen);
-
-    const reduced = prefiereMovimientoReducido();
-
-    if (typeof google !== "undefined" && google.maps?.LatLngBounds) {
-      const bounds = new google.maps.LatLngBounds();
-      for (const punto of ruta.rutaCompleta) {
-        bounds.extend(punto);
-      }
-      bounds.extend(ruta.origen);
-      bounds.extend(ruta.posicionActual);
-      bounds.extend(ruta.destino);
-
-      const padding = isDesktop
-        ? { top: 88, right: 410, bottom: 88, left: 400 }
-        : { top: 84, right: 24, bottom: 260, left: 24 };
-
-      map.fitBounds(bounds, padding);
-
-      const listener = map.addListener("idle", () => {
-        listener.remove();
-        const currentZoom = map.getZoom();
-        if (typeof currentZoom === "number" && currentZoom > 11) {
-          map.setZoom(11);
-        }
-        const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID?.trim();
-        if (mapId && !reduced) {
-          map.setTilt(45);
-        }
+      dibujar("restante", foco ? [foco.tramoRestante] : [], {
+        "line-color": primaria,
+        "line-width": 3,
+        "line-dasharray": [1, 2],
       });
-    } else {
-      map.panTo(ruta.posicionActual);
-      map.setZoom(Math.max(map.getZoom() ?? ZOOM_INICIAL, 8));
-    }
-  }, [bolsinSeleccionado, cmOrigen, isDesktop, rutasResueltas]);
+      dibujar("recorrido", foco ? [foco.tramoRecorrido] : [], {
+        "line-color": sinCobertura ? ambar : lima,
+        "line-width": 4,
+        "line-dasharray": sinCobertura ? [1, 2] : [1, 0],
+      });
+    };
+
+    map.on("style.load", pintarRutas);
+    if (map.getSource("seguimiento-general") || map.isStyleLoaded())
+      pintarRutas();
+    return () => {
+      map.off("style.load", pintarRutas);
+    };
+  }, [
+    bolsinSeleccionado,
+    bolsines,
+    cmOrigen,
+    mapInstancia,
+    rutasResueltas,
+    temaOscuro,
+  ]);
 
   const rutaFoco = useMemo(() => {
     if (!bolsinSeleccionado) return null;
@@ -491,44 +408,146 @@ export function MapaGoogleSeguimiento({
     map.setZoom(Math.max(3, (map.getZoom() ?? ZOOM_INICIAL) - 1));
   }, []);
 
-  const handleRecentrar = useCallback(() => {
+  const limites = useMemo(() => {
+    const bounds = new LngLatBounds();
+    for (const { coordenadas } of itemsMarcadores) {
+      bounds.extend(coordenadasMapa(coordenadas));
+    }
+    if (rutaFoco) {
+      for (const punto of [
+        rutaFoco.origen,
+        ...rutaFoco.rutaCompleta,
+        rutaFoco.posicionActual,
+        rutaFoco.destino,
+      ]) {
+        bounds.extend(coordenadasMapa(punto));
+      }
+    }
+    return bounds;
+  }, [itemsMarcadores, rutaFoco]);
+
+  const encuadrarMapa = useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
-    const centro =
-      bolsines.length === 0 && cmOrigen
+
+    const duration = prefiereMovimientoReducido() ? 0 : 500;
+    if (limites.isEmpty()) {
+      const centro = cmOrigen
         ? obtenerCoordenadaCm(cmOrigen.codigo, CENTRO_ARGENTINA)
         : CENTRO_ARGENTINA;
-
-    if (prefiereMovimientoReducido()) {
-      map.setCenter(centro);
-      map.setZoom(ZOOM_INICIAL);
-    } else {
-      map.panTo(centro);
-      map.setZoom(ZOOM_INICIAL);
+      map.easeTo({
+        center: coordenadasMapa(centro),
+        zoom: ZOOM_INICIAL,
+        duration,
+      });
+      return;
     }
-    map.setTilt(0);
-  }, [bolsines.length, cmOrigen]);
+
+    const vista = map.getContainer().getBoundingClientRect();
+    if (!vista.width || !vista.height) return;
+
+    const workspace = containerRef.current?.closest("[data-seg-workspace]");
+    const rect = (borde: string) => {
+      const panel = workspace?.querySelector(`[data-seg-map-edge="${borde}"]`);
+      return panel?.getClientRects().length
+        ? panel.getBoundingClientRect()
+        : null;
+    };
+
+    const margen = isDesktop ? 42 : 32;
+    const izquierda = rect("left");
+    const derecha = rect("right");
+    const superior = rect("top");
+    const inferior = rect("bottom");
+    const controles = controlesRef.current?.getBoundingClientRect();
+
+    const top = Math.max(
+      superior ? superior.bottom - vista.top + margen : 0,
+      isDesktop ? 88 : margen,
+    );
+    const bottom = Math.max(
+      margen,
+      inferior ? vista.bottom - inferior.top + margen : 0,
+      controles ? vista.bottom - controles.top + margen : 0,
+    );
+    map.fitBounds(limites, {
+      padding: {
+        left: izquierda
+          ? Math.max(margen, izquierda.right - vista.left + margen)
+          : margen,
+        right: derecha
+          ? Math.max(margen, vista.right - derecha.left + margen)
+          : margen,
+        top,
+        bottom: Math.min(bottom, Math.max(margen, vista.height - top - 60)),
+      },
+      maxZoom: enModoFoco ? 11 : 12,
+      duration,
+    });
+  }, [cmOrigen, enModoFoco, isDesktop, limites]);
+
+  useEffect(() => {
+    if (!mapInstancia || mapRef.current !== mapInstancia) return;
+
+    const stage = mapInstancia.getContainer();
+    const workspace = containerRef.current?.closest("[data-seg-workspace]");
+    const paneles = Array.from(
+      workspace?.querySelectorAll("[data-seg-map-edge]") ?? [],
+    );
+    let frame = 0;
+    const ajustarEncuadre = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        mapInstancia.resize();
+        encuadrarMapa();
+      });
+    };
+
+    const alMoverPanel = (event: Event) => {
+      if (
+        event.target === event.currentTarget &&
+        (event as TransitionEvent).propertyName === "left"
+      ) {
+        ajustarEncuadre();
+      }
+    };
+    const observer = new ResizeObserver(ajustarEncuadre);
+    observer.observe(stage);
+    if (controlesRef.current) observer.observe(controlesRef.current);
+    for (const panel of paneles) {
+      observer.observe(panel);
+      panel.addEventListener("transitionend", alMoverPanel);
+    }
+    ajustarEncuadre();
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      for (const panel of paneles) {
+        panel.removeEventListener("transitionend", alMoverPanel);
+      }
+    };
+  }, [detalleMovilMinimizado, encuadrarMapa, mapInstancia]);
 
   return (
     <div
       ref={containerRef}
       role="region"
-      aria-label="Mapa de seguimiento de bolsines en Google Maps"
+      aria-label="Mapa de seguimiento de bolsines"
       className="relative h-full w-full overflow-hidden bg-canvas select-none"
     >
-      {!errorMapa ? (
-        <div ref={mapStageRef} className="h-full w-full" />
-      ) : (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-raised px-6 text-center">
+      <div ref={mapStageRef} className="relative isolate h-full w-full" />
+      {errorMapa && (
+        <div className="absolute inset-0 z-20 flex h-full w-full flex-col items-center justify-center gap-3 bg-raised px-6 text-center">
           <div className="flex size-11 items-center justify-center rounded-2xl border border-edge bg-surface text-muted">
             <MapPinOff aria-hidden="true" className="size-5" />
           </div>
           <p className="font-display text-base font-bold text-fg">
-            No pudimos conectar con Google Maps
+            No pudimos cargar el mapa
           </p>
           <p className="max-w-md text-xs text-muted">
-            Podés seguir consultando los bolsines en tránsito, revisar coordenadas
-            y avisar la ubicación al gerente desde la lista lateral.
+            Podés seguir consultando los bolsines en tránsito, revisar
+            coordenadas y avisar la ubicación al gerente desde la lista lateral.
           </p>
           <Button
             variant="secondary"
@@ -544,7 +563,7 @@ export function MapaGoogleSeguimiento({
         </div>
       )}
 
-      {/* Marcadores individuales por bolsín en Google Maps vía OverlayView + React Portal */}
+      {/* Marcadores individuales por bolsín  vía OverlayView + React Portal */}
       {mapInstancia &&
         !errorMapa &&
         itemsMarcadores.map((item) => {
@@ -554,7 +573,7 @@ export function MapaGoogleSeguimiento({
           const zIndex = seleccionado ? 60 : hovered ? 50 : 25;
 
           return (
-            <GoogleMarkerOverlay
+            <MarcadorMapa
               key={item.id}
               map={mapInstancia}
               position={item.coordenadas}
@@ -572,24 +591,26 @@ export function MapaGoogleSeguimiento({
                 }
                 onSeleccionar={onSeleccionar}
               />
-            </GoogleMarkerOverlay>
+            </MarcadorMapa>
           );
         })}
 
       {/* Marcadores discretos de CM Origen y CM Destino en Modo Foco */}
       {mapInstancia && !errorMapa && bolsinSeleccionado && rutaFoco ? (
         <>
-          <GoogleMarkerOverlay
+          <MarcadorMapa
             map={mapInstancia}
             position={rutaFoco.origen}
             zIndex={20}
           >
             <span className="inline-flex items-center gap-1 rounded-full border border-edge bg-glass px-2.5 py-0.5 font-mono text-[10px] font-semibold text-fg backdrop-blur-[12px]">
               <span className="size-1.5 rounded-full bg-lime" />
-              {bolsinSeleccionado.cmOrigen?.codigo ?? cmOrigen?.codigo ?? "Origen"}
+              {bolsinSeleccionado.cmOrigen?.codigo ??
+                cmOrigen?.codigo ??
+                "Origen"}
             </span>
-          </GoogleMarkerOverlay>
-          <GoogleMarkerOverlay
+          </MarcadorMapa>
+          <MarcadorMapa
             map={mapInstancia}
             position={rutaFoco.destino}
             zIndex={20}
@@ -598,12 +619,21 @@ export function MapaGoogleSeguimiento({
               <span className="size-1.5 rounded-full bg-primary" />
               {bolsinSeleccionado.cmDestino.codigo}
             </span>
-          </GoogleMarkerOverlay>
+          </MarcadorMapa>
         </>
       ) : null}
 
-      {/* Controles de zoom/recentrado y leyenda compacta (respetando atribución inferior de Google) */}
-      <div className="pointer-events-none fixed bottom-[var(--shell-bottom)] right-4 z-10 flex flex-col items-end gap-2 md:bottom-7">
+      {/* Controles de zoom/recentrado y leyenda compacta (respetando atribución cartográfica) */}
+      <div
+        ref={controlesRef}
+        className={cn(
+          "pointer-events-none fixed right-4 z-10 flex flex-col items-end gap-2 md:bottom-7",
+          detalleMovilMinimizado
+            ? "bottom-[calc(var(--shell-bottom)+68px)]"
+            : "bottom-[var(--shell-bottom)]",
+          enModoFoco && "md:right-[calc(var(--seg-detail-width)+28px)]",
+        )}
+      >
         <div className="pointer-events-auto flex items-center gap-1 rounded-[var(--isle-r)] border border-edge bg-glass p-1.5 backdrop-blur-[16px]">
           <IconButton
             aria-label="Acercar mapa"
@@ -624,9 +654,9 @@ export function MapaGoogleSeguimiento({
             <Minus className="size-4" aria-hidden="true" />
           </IconButton>
           <IconButton
-            aria-label="Recentrar mapa en la comisión"
-            title="Centrar en la comisión"
-            onClick={handleRecentrar}
+            aria-label="Recentrar mapa de seguimiento"
+            title="Recentrar seguimiento"
+            onClick={encuadrarMapa}
             disabled={errorMapa || !mapInstancia || loading}
             className="size-9 rounded-[10px]"
           >
@@ -634,10 +664,15 @@ export function MapaGoogleSeguimiento({
           </IconButton>
         </div>
 
-        <div className="pointer-events-auto hidden items-center gap-3 rounded-[var(--isle-r)] border border-edge bg-glass px-3.5 py-2 backdrop-blur-[16px] sm:flex">
+        <div
+          className={cn(
+            "pointer-events-auto hidden items-center gap-3 rounded-[var(--isle-r)] border border-edge bg-glass px-3.5 py-2 backdrop-blur-[16px]",
+            enModoFoco ? "xl:flex" : "sm:flex",
+          )}
+        >
           <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-fg">
             <span className="size-2 rounded-full border border-lime-edge bg-lime" />
-            En vivo
+            Última actualización
           </span>
           <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-fg">
             <span className="size-2 rounded-full bg-amber" />

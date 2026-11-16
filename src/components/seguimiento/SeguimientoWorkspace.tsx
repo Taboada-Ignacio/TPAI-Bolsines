@@ -277,7 +277,11 @@ export function SeguimientoWorkspace() {
     bolsinesFiltrados.length === 1 ? "bolsín" : "bolsines";
 
   return (
-    <div ref={workspaceRef} className="relative h-full w-full overflow-hidden">
+    <div
+      ref={workspaceRef}
+      data-seg-workspace=""
+      className="relative isolate h-full w-full overflow-hidden [--seg-list-width:min(368px,calc((100vw_-_var(--shell-left))*0.32))] [--seg-detail-width:min(376px,calc((100vw_-_var(--shell-left))*0.32))]"
+    >
       <PageActions>
         <IconButton
           aria-label="Actualizar telemetría"
@@ -293,7 +297,7 @@ export function SeguimientoWorkspace() {
       </PageActions>
 
       {/* Mapa 3D a sangre */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 z-0">
         <MapaSeguimiento
           bolsines={bolsinesFiltrados}
           seleccionadoNro={bolsinSeleccionado?.nroBolsin ?? null}
@@ -303,6 +307,7 @@ export function SeguimientoWorkspace() {
           cmOrigen={cmOrigen}
           loading={loading}
           filtroActivo={filtroActivo}
+          detalleMovilMinimizado={mobileDetalleMinimizado}
         />
       </div>
 
@@ -310,10 +315,11 @@ export function SeguimientoWorkspace() {
       <Island
         as="aside"
         data-seg-island=""
+        data-seg-map-edge="left"
         aria-label="Bolsines en seguimiento"
         className={cn(
           "fixed z-20 top-[var(--shell-top)] left-[var(--shell-left)] bottom-4",
-          "w-[min(368px,calc(100vw-var(--shell-left)-16px))]",
+          "w-[var(--seg-list-width)]",
           "rounded-[var(--isle-r)] hidden md:flex flex-col overflow-hidden",
           "transition-[left] duration-[320ms] ease-[cubic-bezier(0.16,1,0.3,1)]",
         )}
@@ -379,10 +385,11 @@ export function SeguimientoWorkspace() {
         <Island
           as="section"
           data-seg-island=""
+          data-seg-map-edge="right"
           aria-label={`Detalle del bolsín #${bolsinSeleccionado.nroBolsin}`}
           className={cn(
             "fixed z-20 top-[var(--shell-top)] right-4 bottom-[72px]",
-            "w-[min(376px,calc(100vw-var(--shell-left)-400px))]",
+            "w-[var(--seg-detail-width)]",
             "rounded-[var(--isle-r)] hidden md:flex flex-col overflow-hidden",
           )}
         >
@@ -402,6 +409,7 @@ export function SeguimientoWorkspace() {
       {/* Mobile (< 768px): Barra compacta superior */}
       <Island
         data-seg-island=""
+        data-seg-map-edge="top"
         className="fixed z-20 top-[var(--shell-top)] inset-x-[var(--isle-gap)] rounded-[var(--isle-r)] px-3 py-2.5 flex items-center gap-2 md:hidden"
       >
         <div className="relative min-w-0 flex-1">
@@ -547,6 +555,7 @@ export function SeguimientoWorkspace() {
       {!isDesktop && bolsinSeleccionado && mobileDetalleMinimizado ? (
         <Island
           as="aside"
+          data-seg-map-edge="bottom"
           aria-label={`Ruta del bolsín #${bolsinSeleccionado.nroBolsin}`}
           className="fixed z-20 inset-x-[var(--isle-gap)] bottom-[var(--shell-bottom)] flex items-center justify-between gap-2.5 rounded-[var(--isle-r)] px-3.5 py-2.5 md:hidden"
         >

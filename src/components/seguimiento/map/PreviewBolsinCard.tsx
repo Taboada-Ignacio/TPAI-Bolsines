@@ -74,7 +74,7 @@ export function PreviewBolsinCard({
         {enVivo ? (
           <span className="inline-flex items-center gap-1 rounded-full border border-lime-edge bg-lime px-2 py-0.5 font-mono text-[10px] font-semibold text-on-lime">
             <span aria-hidden="true" className="size-1.5 rounded-full bg-on-lime" />
-            En vivo
+            Última actualización
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 rounded-full border border-amber/40 bg-amber/15 px-2 py-0.5 font-mono text-[10px] font-semibold text-amber-ink">

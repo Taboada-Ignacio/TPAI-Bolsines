@@ -46,7 +46,7 @@ const destinosOficialesPorFixture = new Map<string, string>([
   ["CM-BA:107", "CM-MDQ-01"],
 ]);
 
-function resolverSedeOficialOrigen(codOrigen: string, numero: number): string {
+function resolverSedeOficialOrigen(codOrigen: string, numero: number): string { //mejoras para el front
   return (
     origenesOficialesPorFixture.get(`${codOrigen}:${numero}`) ??
     sedesOficialesPorCM.get(codOrigen) ??
@@ -54,7 +54,7 @@ function resolverSedeOficialOrigen(codOrigen: string, numero: number): string {
   );
 }
 
-function resolverSedeOficialDestino(
+function resolverSedeOficialDestino(  //mejoras para el front
   codDestino: string,
   numero: number,
 ): string {
@@ -65,12 +65,12 @@ function resolverSedeOficialDestino(
   );
 }
 
-type BolsinConRemitoOpcional = Bolsin & {
+type BolsinConRemitoOpcional = Bolsin & {  //mejoras para el front
   getRemito?: () => RemitoResumen | null | undefined;
   remito?: RemitoResumen | null;
 };
 
-function extraerRemitoOpcional(bolsin: Bolsin): RemitoResumen | null | undefined {
+function extraerRemitoOpcional(bolsin: Bolsin): RemitoResumen | null | undefined { //mejoras para el front
   const candidato = bolsin as BolsinConRemitoOpcional;
   const valor =
     typeof candidato.getRemito === "function"
@@ -122,7 +122,7 @@ export class GestorConsultarUbicacionDeBolsin {
       InterfazGPSTracker,
       "obtenerLocalizacionDeBolsines"
     > = () => new InterfazGPSTracker(),
-  ) {}
+  ) { }
 
   async opcConsultarUbicacionDeBolsines(
     idSesion: number,
@@ -185,7 +185,7 @@ export class GestorConsultarUbicacionDeBolsin {
     return cambio?.esAmbitoBolsin() && cambio.esEnviado();
   }
 
-  private obtenerDatosConsultaGps(registros: RegistroBolsin[]) {
+  private obtenerDatosConsultaGps(registros: RegistroBolsin[]) { //esta para que el front se vea mejor
     return registros.map((registro) => {
       const numero = registro.bolsin.getNumeroBolsin();
       const codOrigen = registro.bolsin.obtenerCodCMOrigen();
@@ -199,7 +199,7 @@ export class GestorConsultarUbicacionDeBolsin {
     });
   }
 
-  private async resolverEmailsGcmPorDestino(registros: RegistroBolsin[]) {
+  private async resolverEmailsGcmPorDestino(registros: RegistroBolsin[]) { //es para la confirmacion, son mejoras para el front
     const codigosUnicos = Array.from(
       new Set(registros.map(({ bolsin }) => bolsin.obtenerCodCMDestino())),
     );
@@ -225,7 +225,7 @@ export class GestorConsultarUbicacionDeBolsin {
     return mapa;
   }
 
-  private construirPuntoBolsin(
+  private construirPuntoBolsin( //arma el DTO PuntoBolsin que el frontend usa para representar un bolsín en el mapa
     registro: RegistroBolsin,
     latitud: number,
     longitud: number,

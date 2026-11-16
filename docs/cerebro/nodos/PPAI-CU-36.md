@@ -175,3 +175,11 @@ Se retira la operación `procesarJSONConDatosBolsines()` del gestor. En el redis
 El mapa de `/seguimiento` no usa la API ni el SDK de Google Maps. Por la estética elegida para el seguimiento, `MapaBolsines.tsx` renderiza con MapLibre GL JS y carga el estilo **Bright** y los recursos cartográficos de OpenFreeMap. Las coordenadas y su fecha provienen del GPS oficial: `AdaptadorXTR4500L.adaptarLocalizacionBolsines()` interpreta y normaliza la respuesta XTR y el gestor asocia los puntos normalizados con los bolsines.
 
 `InterfazGoogleMaps.obtenerMapaConPosicionDeBolsines()` delega en `ServidorGoogleMaps.getMapaLocation()`, que entrega los puntos y la URL del estilo. Los nombres, las operaciones y la delegación se conservan para demostrar la correspondencia con el UML aprobado. El botón **Ver ubicación en Google Maps** del correo del CU 31 abre una URL pública independiente.
+
+### [NACHO] Renderizado cartográfico del seguimiento en main
+
+`MapaSeguimiento` carga `MapaLibreSeguimiento` solo en el cliente. MapLibre GL JS renderiza los estilos Bright y Dark de OpenFreeMap y usa el worker local en `/maplibre/maplibre-gl-worker.mjs`. Las capas GeoJSON representan las rutas generales y los tramos en modo foco. `MarcadorMapa` monta el marcador React de cada bolsín mediante MapLibre. Ante un fallo de inicialización del mapa, la pantalla permite reintentar y mantiene accesible la lista.
+
+La API GPS de la cátedra sigue proveyendo las ubicaciones. El cálculo de rutas en pantalla consulta OSRM con un trazado local de respaldo. Se retiraron el SDK de mapas de Google y sus variables públicas de la configuración de seguimiento. Las referencias a Google Maps del diseño histórico y los enlaces del correo del CU 31 se conservan. El contrato del CU 36 y el Adapter GPS siguen iguales.
+
+Verificación: Compose resolvió sus servicios y `git diff --check` pasó. La instalación de dependencias quedó bloqueada por resolución DNS del registro npm. Typecheck, lint, tests, build y la comprobación del mapa en el navegador quedan pendientes.

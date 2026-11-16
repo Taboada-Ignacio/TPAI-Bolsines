@@ -1,28 +1,28 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { MapaGoogleSeguimientoProps } from "./MapaGoogleSeguimiento";
+import type { MapaLibreSeguimientoProps } from "./MapaLibreSeguimiento";
 
-export type MapaSeguimientoProps = MapaGoogleSeguimientoProps;
+export type MapaSeguimientoProps = MapaLibreSeguimientoProps;
 
-const MapaGoogleSeguimientoDinamico = dynamic(
+const MapaLibreSeguimientoDinamico = dynamic(
   () =>
-    import("./MapaGoogleSeguimiento").then(
-      (mod) => mod.MapaGoogleSeguimiento,
+    import("./MapaLibreSeguimiento").then(
+      (mod) => mod.MapaLibreSeguimiento,
     ),
   {
     ssr: false,
     loading: () => (
       <div
         role="region"
-        aria-label="Mapa de seguimiento de bolsines en Google Maps"
+        aria-label="Mapa de seguimiento de bolsines"
         className="h-full w-full bg-canvas"
       />
     ),
   },
 );
 
-/** Adaptador público estable hacia MapaGoogleSeguimiento (carga solo en cliente). */
+/** Adaptador público estable hacia MapaLibreSeguimiento (carga solo en cliente). */
 export function MapaSeguimiento(props: MapaSeguimientoProps) {
-  return <MapaGoogleSeguimientoDinamico {...props} />;
+  return <MapaLibreSeguimientoDinamico {...props} />;
 }

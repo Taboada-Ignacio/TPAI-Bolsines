@@ -61,7 +61,7 @@ export function BolsinTransitoRow({
         className,
       )}
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
         <div className="min-w-0 flex items-baseline gap-2">
           <span className="font-display font-bold text-[15px] tracking-[-0.02em] text-fg tabular-nums">
             Bolsín #{bolsin.nroBolsin}
@@ -77,7 +77,7 @@ export function BolsinTransitoRow({
               aria-hidden="true"
               className="size-1.5 rounded-full bg-on-lime"
             />
-            En vivo
+            Última actualización
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber/15 text-amber-ink border border-amber/40 font-mono text-[10px] font-semibold whitespace-nowrap shrink-0">
@@ -96,6 +96,7 @@ export function BolsinTransitoRow({
           className="size-3.5 shrink-0 text-muted"
           strokeWidth={2}
         />
+        <span className="shrink-0 text-xs font-medium text-muted">Destino</span>
         <span className="truncate">{bolsin.cmDestino.nombre}</span>
       </div>
 

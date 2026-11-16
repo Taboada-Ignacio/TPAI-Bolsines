@@ -16,7 +16,7 @@ export interface MarcadorBolsinProps {
 }
 
 /**
- * Marcador individual de un bolsín sobre Google Maps (`GoogleMarkerOverlay`).
+ * Marcador individual de un bolsín sobre MapLibre.
  * Reemplaza al marcador de camión agrupado: 1 marcador = 1 bolsín = 1 viaje/ruta.
  */
 export function MarcadorBolsin({
@@ -31,7 +31,7 @@ export function MarcadorBolsin({
 }: MarcadorBolsinProps) {
   const enVivo = bolsin.ubicacion?.estadoCobertura === "vivo";
   const atenuado = filtroActivo && !coincideFiltro && !seleccionado;
-  const estadoTexto = enVivo ? "señal en vivo" : "sin cobertura";
+  const estadoTexto = enVivo ? "última actualización" : "sin cobertura";
   const ariaLabel = `Bolsín #${bolsin.nroBolsin}, precinto ${String(bolsin.numeroPrecinto)}, destino ${bolsin.cmDestino.nombre}, ${estadoTexto}`;
 
   return (
