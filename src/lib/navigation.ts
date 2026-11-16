@@ -38,7 +38,7 @@ export const DESTINOS: Destino[] = [
     href: "/seguimiento",
     nombre: "Seguimiento",
     nombreCorto: "Seguimiento",
-    detalle: "Dónde está cada bolsín que salió de tu comisión",
+    detalle: "Consultar ubicación de bolsines",
     icono: MapPinned,
     cuerpo: "bleed",
     enTablero: true,

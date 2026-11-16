@@ -4,7 +4,7 @@ titulo: Diseño Arquitectónico y Vistas del CU 36 (Monolítico y Microservicios
 tipo: arquitectura
 unidad: PPAI
 categoria: Arquitectura
-tags: [arquitectura, cu36, vistas, componentes, despliegue, mirroring, aws, monolitico, microservicios]
+tags: [arquitectura, cu36, vistas, componentes, despliegue, mirroring, aws, monolitico, microservicios, nacho]
 conectado_con: [DSI-00-CONVENCIONES, DSI-U2-COMPONENTES, DSI-U3-RNF-ISO25000, DSI-U3-ARQ-MONOLITICA, DSI-U3-ARQ-MICROSERVICIOS, PPAI-CU-36, PPAI-PAT-ADAPTER-GPS, PPAI-CU-30]
 depende_de: [DSI-U3-RNF-ISO25000, PPAI-CU-36, PPAI-PAT-ADAPTER-GPS]
 ---
@@ -85,3 +85,7 @@ Conforme a **RNF 2** y **RNF 3**:
 - **Nodo BD Principal (AWS RDS Primary)**: Base de datos PostgreSQL activa.
 - **Nodo BD Espejo (AWS RDS Mirror - Otra AZ)**: Réplica síncrona conectada al Servidor de Aplicaciones para Failover transparente 7x24x365.
 - **Nodos Externos**: `Servidor Google Maps`, `Dispositivos GPS Tracker`, `Servidor Microsoft Graph (Outlook)`.
+
+### [NACHO] Correspondencia con la implementación del CU 36
+
+Las referencias a Google Maps de las vistas anteriores corresponden al diseño original. El mapa implementado utiliza MapLibre GL JS y OpenFreeMap, sin la API ni el SDK de Google Maps. El [nodo del CU 36](PPAI-CU-36.md#nacho-tecnologías-cartográficas-del-cu-36) describe las clases que conservan la nomenclatura UML, el GPS oficial y el enlace externo del correo.

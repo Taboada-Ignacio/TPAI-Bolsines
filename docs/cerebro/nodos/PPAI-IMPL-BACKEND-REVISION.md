@@ -4,7 +4,7 @@ titulo: Revisión Técnica Backend (feature/backend) y Ajustes Pendientes
 tipo: arquitectura
 unidad: PPAI
 categoria: Implementacion
-tags: [backend, nextjs, prisma, revision, cu36, ppai, tracking]
+tags: [backend, nextjs, prisma, revision, cu36, ppai, tracking, nacho]
 conectado_con: [PPAI-CU-36, PPAI-CU-30, PPAI-DOM-BOLSIN, PPAI-PAT-ADAPTER-GPS, DSI-U3-ARQ-MONOLITICA]
 depende_de: [PPAI-CU-36, PPAI-DOM-BOLSIN, PPAI-PAT-ADAPTER-GPS]
 ---
@@ -193,7 +193,7 @@ Pasaron 213 pruebas de Vitest, TypeScript, ESLint, la validación de Prisma y `d
 
 ### [NACHO] CU 31 disponible para prueba independiente
 
-El Route Handler autenticado delega en `PantNotificarUbicacionBolsin`, que invoca al gestor. Se usa el prefijo `/api/auth` por el alcance de la cookie vigente. El gestor valida el DTO y depende de `ServicioCorreo`. Nodemailer envía a Mailpit por SMTP local. Las pruebas cubren validación, composición, aceptación y rechazo SMTP, errores HTTP y sesión. La futura integración con CU 36 aportará el destinatario y la ubicación preparados.
+El Route Handler autenticado delega en `PantNotificarUbicacionBolsin`, que invoca al gestor. Se conserva el prefijo `/api/auth` del endpoint. La sesión también se usa en el layout moderno mediante una cookie con alcance `/`. El gestor valida el DTO y depende de `ServicioCorreo`. Nodemailer envía a Mailpit por SMTP local. Las pruebas cubren validación, composición, aceptación y rechazo SMTP, errores HTTP y sesión. La futura integración con CU 36 aportará el destinatario y la ubicación preparados.
 
 Pasaron 230 pruebas de Vitest, incluidas 17 del CU 31. Cuatro pruebas HTTP de GPS quedaron omitidas. Pasaron TypeScript, ESLint, Prisma, el build de producción con Webpack y la validación de Compose. El envío real a Mailpit queda por verificar porque el entorno denegó acceso al motor de Docker. El README incluye la prueba manual con sesión y datos ficticios.
 
@@ -212,3 +212,43 @@ Compose comparte las claves por modelo entre el backend y el GPS oficial mediant
 El endpoint autenticado de seguimiento conecta una consulta de bolsines Enviados por CM origen con `GestorConsultarUbicacionDeBolsin` y el Adapter XTR. La asignación de sede oficial está limitada a los diez fixtures del seed. La pantalla proyecta todas las posiciones recibidas y comparte la selección entre mapa y lista. La prueba de gestor cubre las dos sedes de Córdoba en un mismo lote y la consulta vacía. La prueba en vivo del mapa y los contenedores quedó pendiente por acceso local restringido.
 
 Pasaron TypeScript, ESLint y 225 pruebas de Vitest. Se omitieron las seis pruebas HTTP que requieren el GPS oficial. El build con Webpack falló con EPERM al crear un directorio bajo .next/static.
+---
+
+## 4. Modo en memoria con `pg-mem` (y cómo desactivarlo para Docker)
+
+Para desarrollar y testear el frontend sin depender de Docker ni de una instancia externa de PostgreSQL, en `feature/frontend` se agregó soporte opcional de PostgreSQL en memoria (`pg-mem`):
+
+- **Archivos:**
+  - `src/infrastructure/prisma.ts`: `getPrisma()` revisa `process.env.USE_PG_MEM === "true"`.
+  - `src/infrastructure/pg-mem-prisma.ts`: `crearPrismaEnMemoria()` levanta una instancia `pg-mem`, ejecuta el DDL de `prisma/migrations/20261114202500_init_domain_entities/migration.sql` y carga los seeds iniciales (`rol`, `estado`, `comision_medica`, `usuario`, `empleado`).
+  - `tests/pg-mem-integration.test.ts`: test de integración que valida tablas, seeds, login, registro y actualización de perfil sobre `pg-mem`.
+- **Cómo desactivarlo para correr con Docker + PostgreSQL real (como antes):**
+  1. En `.env` (o en el entorno del contenedor), **no definir `USE_PG_MEM`** o dejar **`USE_PG_MEM=false`** (en `docker-compose.yml` no está seteada, así que por defecto ya usa PostgreSQL real).
+  2. Asegurar que `DATABASE_URL` apunte al servicio `postgres` (en Docker Compose ya se arma con `DOCKER_DATABASE_URL` / `POSTGRES_*`).
+  3. Con `USE_PG_MEM` ausente o distinto de `"true"`, `getPrisma()` instancia `new PrismaClient({ adapter: new PrismaPg({ connectionString }) })` y se conecta normalmente a PostgreSQL.
+
+### [NACHO] Integración con el layout del frontend
+
+La raíz redirige a `/inicio` y el proxy redirige a `/login` si falta una sesión. El grupo de rutas protegido valida la sesión persistida y comparte la cookie de alcance `/` con los endpoints. `/seguimiento` vive en ese grupo y usa `MapaBolsines` con MapLibre y OpenFreeMap. La pantalla consume `GET /api/auth/cu36/seguimiento`, mantiene el encuadre del lote, la selección por marcador o lista y la actualización manual. Se conserva un solo proceso Next.js en Compose con PostgreSQL, GPS oficial, migraciones, seed y Mailpit. Los filtros y la confirmación de notificación quedan pendientes.
+
+ESLint, Prisma validate y Compose config pasaron. Vitest registró 250 pruebas aprobadas, seis omitidas y tres suites bloqueadas por dependencias locales ausentes. TypeScript encontró módulos ausentes y tipos de Next generados antes de retirar la ruta duplicada. El build falló por DNS de Google Fonts y por permisos de escritura bajo `.next`. La instalación de las dependencias faltantes quedó bloqueada por DNS del registro de npm.
+
+### [NACHO] Seguimiento y cancelación al salir del mapa
+
+La corrección se limita al ciclo de vida de la pantalla y de MapLibre (ver nodo CU 36). La suite local registró 260 pruebas aprobadas y seis HTTP contra el GPS omitidas. El motor de Docker denegó acceso.
+
+ESLint pasó. El typecheck estándar detectó referencias generadas obsoletas bajo `.next/dev/types`. El build con Webpack quedó bloqueado por DNS de Google Fonts y por permisos de escritura bajo `.next`.
+
+### [NACHO] CU 36 y delegación al CU 31
+
+La pantalla de seguimiento delega la consulta, la selección y la confirmación en `PantallaConsultarUbicacionDeBolsines` y `GestorConsultarUbicacionDeBolsin`. Se reusan la sesión persistida y el envío del CU 31. Los repositorios hidratan entidades para aplicar las reglas de origen, estado y rol en el dominio. El [nodo del CU 36](PPAI-CU-36.md#nacho-consulta-selección-y-aviso-al-gcm) registra la correspondencia UML, los contratos y las diferencias entre vistas.
+
+Verificaciones de esta entrega: Vitest pasó 269 pruebas con un worker y omitió las seis pruebas HTTP del GPS. ESLint, Prisma y la validación de Compose pasaron. El typecheck estándar tropieza con referencias obsoletas de `.next/dev`; la comprobación que excluye esa salida generada obtuvo cero diagnósticos. El build con Webpack quedó bloqueado por DNS de Google Fonts y por permisos en `.next`. El acceso denegado a Docker impidió comprobar el mapa con GPS real y la recepción en Mailpit.
+
+### [NACHO] Formato del correo de ubicación
+
+`ServicioCorreoSMTP` acepta el HTML opcional del CU 31 y conserva el cuerpo en texto plano. El [nodo de notificación](PPAI-CU-30.md#nacho-correo-con-la-identidad-visual-de-bolsines) detalla la presentación. Vitest pasó 270 pruebas y omitió seis HTTP contra el GPS. ESLint y la configuración de Compose pasaron. Una prueba con el transporte en memoria de Nodemailer confirmó las dos alternativas MIME. El typecheck estándar encontró referencias obsoletas en `.next/dev`; al excluir esa caché, TypeScript obtuvo cero diagnósticos. El build con Webpack quedó bloqueado por DNS de Google Fonts y por permisos de escritura bajo `.next`. La entrega visual en Mailpit quedó pendiente por acceso denegado al motor de Docker y falta de conexión a la bandeja local.
+
+### [NACHO] Integración cartográfica efectiva
+
+El backend devuelve el estilo de OpenFreeMap y los puntos normalizados por el Adapter XTR. MapLibre GL JS renderiza `/seguimiento` en el navegador. Las referencias anteriores a Google Maps describen el UML o decisiones históricas. El mapa implementado prescinde de su API y SDK. El [nodo del CU 36](PPAI-CU-36.md#nacho-tecnologías-cartográficas-del-cu-36) registra la elección estética y distingue el enlace público del correo.

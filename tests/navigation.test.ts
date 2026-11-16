@@ -105,6 +105,11 @@ describe("navigation", () => {
       "comisiones-medicas",
       "bolsines",
     ]);
+    expect(tablero[0]).toMatchObject({
+      nombre: "Seguimiento",
+      detalle: "Consultar ubicación de bolsines",
+      href: "/seguimiento",
+    });
   });
 
   it("construye segmentos de breadcrumb tipo URL desde pathname", () => {

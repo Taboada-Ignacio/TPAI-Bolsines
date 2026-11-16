@@ -110,3 +110,7 @@ La frontera configura una clave por modelo en `apisKeys`, en orden XTR, QX y MTR
 ### [NACHO] Validación de apisKeys en la frontera GPS
 
 `InterfazGPSTracker` guarda una copia privada de tres claves en orden XTR-4500L, QX-7A y MTR-900. Por defecto las lee de las variables `GPS_TRACKER_*_API_KEY` del backend. El constructor rechaza claves ausentes o en blanco con `ErrorGPSTracker` de tipo `CONFIGURACION` sin revelar valores. `crearAdaptador()` selecciona por modelo y entrega la clave al adaptador por constructor. Se conservan las asociaciones del UML, las firmas y la salida común `string[][]`.
+
+### [NACHO] Ubicaciones GPS y cartografía
+
+`AdaptadorXTR4500L.adaptarLocalizacionBolsines()` interpreta y valida el JSON de XTR-4500L y normaliza sus filas. El gestor recibe esas filas mediante `InterfazGPSTracker`, las asocia a los bolsines y entrega los puntos a la frontera cartográfica. MapLibre GL JS representa los puntos sobre los recursos de OpenFreeMap. Los dos componentes cartográficos intervienen en la visualización y la API GPS oficial aporta la ubicación.
