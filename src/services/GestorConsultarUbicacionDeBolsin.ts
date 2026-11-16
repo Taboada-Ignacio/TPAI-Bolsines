@@ -1,5 +1,6 @@
 import { InterfazGPSTracker } from "@/adapters/InterfazGPSTracker";
 import type { InterfazGoogleMaps } from "@/adapters/InterfazGoogleMaps";
+import { obtenerCoordenadaCm } from "@/lib/seguimiento/rutas-envio";
 import type { Bolsin } from "@/domain/Bolsin";
 import type { ComisionMedica } from "@/domain/ComisionMedica";
 import type { Empleado } from "@/domain/Empleado";
@@ -108,11 +109,13 @@ export class GestorConsultarUbicacionDeBolsin {
   }
 
   private obtenerNroBolsinYCodCMOrigen(registros: RegistroBolsin[]) {
+    const modoMemoria = process.env.USE_PG_MEM === "true";
     return registros.flatMap((registro) => {
       const numero = registro.bolsin.getNumeroBolsin();
-      const origen = origenesOficiales.get(
-        `${registro.bolsin.obtenerCodCMOrigen()}:${numero}`,
-      );
+      const codOrigen = registro.bolsin.obtenerCodCMOrigen();
+      const origen =
+        origenesOficiales.get(`${codOrigen}:${numero}`) ??
+        (modoMemoria ? codOrigen : undefined);
       return origen ? [{ ...registro, numero, origen }] : [];
     });
   }
@@ -122,12 +125,36 @@ export class GestorConsultarUbicacionDeBolsin {
   ): Promise<PuntoBolsin[]> {
     const consultables = this.obtenerNroBolsinYCodCMOrigen(registros);
     if (!consultables.length) return [];
-    const ubicaciones = await this.crearTracker().obtenerLocalizacionDeBolsines(
-      "XTR-4500L",
-      consultables.map(({ numero }) => numero),
-      consultables.map(({ origen }) => origen),
-      [],
-    );
+
+    let ubicaciones: string[][];
+    try {
+      ubicaciones = await this.crearTracker().obtenerLocalizacionDeBolsines(
+        "XTR-4500L",
+        consultables.map(({ numero }) => numero),
+        consultables.map(({ origen }) => origen),
+        [],
+      );
+    } catch (error) {
+      if (process.env.USE_PG_MEM !== "true") throw error;
+      const ahora = new Date().toISOString();
+      return consultables.map((registro) => {
+        const origenCoord = obtenerCoordenadaCm(
+          registro.bolsin.obtenerCodCMOrigen(),
+        );
+        const destino = this.obtenerCMDestino(registro.bolsin);
+        const destinoCoord = obtenerCoordenadaCm(destino.getCodigo());
+        return {
+          id: registro.id,
+          numero: registro.bolsin.getNumeroBolsin(),
+          precinto: registro.bolsin.getNumeroPrecinto(),
+          destino: destino.getNombre(),
+          codigoDestino: destino.getCodigo(),
+          latitud: (origenCoord.lat + destinoCoord.lat) / 2,
+          longitud: (origenCoord.lng + destinoCoord.lng) / 2,
+          actualizado: ahora,
+        };
+      });
+    }
     const porNumero = new Map(
       consultables.map((registro) => [String(registro.numero), registro]),
     );

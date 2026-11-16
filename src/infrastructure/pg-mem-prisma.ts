@@ -64,13 +64,31 @@ INSERT INTO "public"."usuario" ("nombre", "contrasena") VALUES
   ('parametrizador.demo', '123456'),
   ('documentacion.demo', '123456'),
   ('bolsines.demo', '123456'),
-  ('gerente.demo', '123456');
+  ('gerente.demo', '123456'),
+  ('gcm.cm-mza', '123456'),
+  ('gcm.cm-ba', '123456'),
+  ('gcm.cm-cat', '123456'),
+  ('gcm.cm-cba', '123456');
 
 INSERT INTO "public"."empleado" ("nombre", "apellido", "email", "usuario_id", "rol_id", "comision_medica_id") VALUES
   ('Martín', 'Fernández', 'parametrizador.demo@example.com', 1, 1, 24),
   ('Lucía', 'González', 'documentacion.demo@example.com', 2, 2, 5),
   ('Nicolás', 'Rodríguez', 'bolsines.demo@example.com', 3, 3, 5),
-  ('Carolina', 'Martínez', 'gerente.demo@example.com', 4, 4, 20);
+  ('Carolina', 'Martínez', 'gerente.demo@example.com', 4, 4, 20),
+  ('Gerente', 'CM-MZA', 'gcm.cm-mza@example.test', 5, 4, 12),
+  ('Gerente', 'CM-BA', 'gcm.cm-ba@example.test', 6, 4, 1),
+  ('Gerente', 'CM-CAT', 'gcm.cm-cat@example.test', 7, 4, 2),
+  ('Gerente', 'CM-CBA', 'gcm.cm-cba@example.test', 8, 4, 5);
+
+INSERT INTO "public"."bolsin" ("fecha", "numero_bolsin", "numero_precinto", "peso", "cm_origen_id", "cm_destino_id") VALUES
+  ('2026-11-15T10:00:00Z', 101, 940101, 4.2, 5, 20),
+  ('2026-11-15T11:30:00Z', 110, 940110, 5.1, 5, 12),
+  ('2026-11-15T12:45:00Z', 104, 940104, 2.8, 5, 1);
+
+INSERT INTO "public"."cambio_estado_bolsin" ("fecha_hora_inicio", "fecha_hora_fin", "bolsin_id", "estado_id", "responsable_ce_id") VALUES
+  ('2026-11-15T10:00:00Z', NULL, 1, 3, 3),
+  ('2026-11-15T11:30:00Z', NULL, 2, 3, 3),
+  ('2026-11-15T12:45:00Z', NULL, 3, 3, 3);
 `;
 
 type MemRow = Record<string, unknown>;
