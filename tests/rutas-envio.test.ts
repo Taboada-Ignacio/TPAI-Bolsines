@@ -31,7 +31,7 @@ const BOLSIN_EN_VIVO: BolsinSeguimiento = {
     fechaHoraActualizacion: "2026-11-15T14:22:00.000Z",
     estadoCobertura: "vivo",
   },
-  remitos: [],
+  remito: null,
 };
 
 afterEach(() => {

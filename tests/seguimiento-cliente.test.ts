@@ -31,13 +31,11 @@ const BOLSINES_FIXTURE: BolsinSeguimiento[] = [
       fechaHoraActualizacion: "2026-11-15T14:22:00.000Z",
       estadoCobertura: "vivo",
     },
-    remitos: [
-      {
-        numero: "REM-4401",
-        asunto: "Dictamen Junta Médica #882",
-        tipoDocumento: "Expediente médico",
-      },
-    ],
+    remito: {
+      numero: "REM-4401",
+      asunto: "Dictamen Junta Médica #882",
+      tipoDocumento: "Expediente médico",
+    },
   },
   {
     nroBolsin: 108,
@@ -58,7 +56,7 @@ const BOLSINES_FIXTURE: BolsinSeguimiento[] = [
       fechaHoraActualizacion: "2026-11-15T14:19:00.000Z",
       estadoCobertura: "vivo",
     },
-    remitos: [],
+    remito: null,
   },
   {
     nroBolsin: 112,
@@ -79,7 +77,7 @@ const BOLSINES_FIXTURE: BolsinSeguimiento[] = [
       fechaHoraActualizacion: "2026-11-15T11:04:00.000Z",
       estadoCobertura: "sin_cobertura",
     },
-    remitos: [],
+    remito: null,
   },
 ];
 
@@ -199,7 +197,7 @@ describe("seguimiento-cliente (CU 36 + CU 30/31)", () => {
       const res = await obtenerSeguimientoBolsines(modelo);
 
       expect(fetchMock).toHaveBeenCalledWith(
-        "/api/auth/cu36/seguimiento",
+        `/api/auth/cu36/seguimiento?modeloGps=${modelo}`,
         expect.objectContaining({ method: "GET" }),
       );
       expect(res.esModoDemo).toBe(false);

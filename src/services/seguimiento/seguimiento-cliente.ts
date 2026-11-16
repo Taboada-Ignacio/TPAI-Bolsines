@@ -33,8 +33,8 @@ export class ErrorSeguimientoCliente extends Error {
 }
 
 export const CM_ORIGEN_DEMO = {
-  codigo: "CM-01",
-  nombre: "CM-01 Córdoba",
+  codigo: "CM-CBA",
+  nombre: "Comisión Médica Córdoba",
   direccion: "Av. Vélez Sarsfield 2311, Córdoba",
 } as const;
 
@@ -44,9 +44,9 @@ export const BOLSINES_DEMO: BolsinSeguimiento[] = [
     numeroPrecinto: "P-9021",
     cmOrigen: CM_ORIGEN_DEMO,
     cmDestino: {
-      codigo: "CM-02",
-      nombre: "CM-02 Rosario",
-      emailGcm: "gcm.rosario@art-bolsines.gob.ar",
+      codigo: "CM-SF",
+      nombre: "Comisión Médica Santa Fe",
+      emailGcm: "gcm.cm-sf@example.test",
     },
     ubicacion: {
       latitud: -32.9468,
@@ -55,27 +55,20 @@ export const BOLSINES_DEMO: BolsinSeguimiento[] = [
       estadoCobertura: "vivo",
     },
     pesoKg: 4.2,
-    remitos: [
-      {
-        numero: "REM-4401",
-        asunto: "Dictamen Junta Médica #882",
-        tipoDocumento: "Expediente médico",
-      },
-      {
-        numero: "REM-4402",
-        asunto: "Estudios complementarios lote B",
-        tipoDocumento: "Documentación clínica",
-      },
-    ],
+    remito: {
+      numero: "REM-4401",
+      asunto: "Dictamen Junta Médica #882",
+      tipoDocumento: "Expediente médico",
+    },
   },
   {
     nroBolsin: 108,
     numeroPrecinto: "P-9034",
     cmOrigen: CM_ORIGEN_DEMO,
     cmDestino: {
-      codigo: "CM-03",
-      nombre: "CM-03 Buenos Aires",
-      emailGcm: "gcm.caba@art-bolsines.gob.ar",
+      codigo: "CM-BA",
+      nombre: "Comisión Médica Buenos Aires",
+      emailGcm: "gcm.cm-ba@example.test",
     },
     ubicacion: {
       latitud: -34.6037,
@@ -84,22 +77,20 @@ export const BOLSINES_DEMO: BolsinSeguimiento[] = [
       estadoCobertura: "vivo",
     },
     pesoKg: 2.8,
-    remitos: [
-      {
-        numero: "REM-4410",
-        asunto: "Oficio judicial SRT 192/26",
-        tipoDocumento: "Nota legal",
-      },
-    ],
+    remito: {
+      numero: "REM-4410",
+      asunto: "Oficio judicial SRT 192/26",
+      tipoDocumento: "Nota legal",
+    },
   },
   {
     nroBolsin: 112,
     numeroPrecinto: "P-9047",
     cmOrigen: CM_ORIGEN_DEMO,
     cmDestino: {
-      codigo: "CM-04",
-      nombre: "CM-04 Mendoza",
-      emailGcm: "gcm.mendoza@art-bolsines.gob.ar",
+      codigo: "CM-MZA",
+      nombre: "Comisión Médica Mendoza",
+      emailGcm: "gcm.cm-mza@example.test",
     },
     ubicacion: {
       latitud: -32.8895,
@@ -108,27 +99,20 @@ export const BOLSINES_DEMO: BolsinSeguimiento[] = [
       estadoCobertura: "sin_cobertura",
     },
     pesoKg: 5.1,
-    remitos: [
-      {
-        numero: "REM-4415",
-        asunto: "Historia clínica certificada",
-        tipoDocumento: "Documentación clínica",
-      },
-      {
-        numero: "REM-4416",
-        asunto: "Constancia de traslado inter-CM",
-        tipoDocumento: "Remito interno",
-      },
-    ],
+    remito: {
+      numero: "REM-4415",
+      asunto: "Historia clínica certificada",
+      tipoDocumento: "Documentación clínica",
+    },
   },
   {
     nroBolsin: 119,
     numeroPrecinto: "P-9052",
     cmOrigen: CM_ORIGEN_DEMO,
     cmDestino: {
-      codigo: "CM-05",
-      nombre: "CM-05 Tucumán",
-      emailGcm: "gcm.tucuman@art-bolsines.gob.ar",
+      codigo: "CM-TUC",
+      nombre: "Comisión Médica Tucumán",
+      emailGcm: "gcm.cm-tuc@example.test",
     },
     ubicacion: {
       latitud: -26.8083,
@@ -137,13 +121,11 @@ export const BOLSINES_DEMO: BolsinSeguimiento[] = [
       estadoCobertura: "vivo",
     },
     pesoKg: 3.5,
-    remitos: [
-      {
-        numero: "REM-4421",
-        asunto: "Legajo médico laboral #310",
-        tipoDocumento: "Expediente médico",
-      },
-    ],
+    remito: {
+      numero: "REM-4421",
+      asunto: "Legajo médico laboral #310",
+      tipoDocumento: "Expediente médico",
+    },
   },
 ];
 
@@ -154,6 +136,7 @@ export function construirRespaldoSeguimiento(
     cmOrigen: CM_ORIGEN_DEMO,
     modeloGps: modelo,
     bolsines: BOLSINES_DEMO,
+    sinUbicacion: 0,
   });
 
   return {
@@ -331,22 +314,29 @@ function adaptarCu36Backend(
     const destCat = comisionesPorNombre.get(
       punto.destino.trim().toLowerCase(),
     );
+    const tieneUbicacion =
+      punto.latitud !== null &&
+      punto.longitud !== null &&
+      punto.actualizado !== null;
     return {
       nroBolsin: punto.numero,
-      numeroPrecinto: punto.precinto ?? `B-${punto.numero}`,
+      numeroPrecinto: punto.precinto,
       cmOrigen,
       cmDestino: {
-        codigo: destCat?.codigo ?? punto.destino,
+        codigo: punto.destinoCodigo ?? destCat?.codigo ?? punto.destino,
         nombre: punto.destino,
-        emailGcm: destCat?.email ?? null,
+        emailGcm: punto.emailGcm ?? destCat?.email ?? null,
       },
-      ubicacion: {
-        latitud: punto.latitud,
-        longitud: punto.longitud,
-        fechaHoraActualizacion: punto.actualizado,
-        estadoCobertura: "vivo",
-      },
-      remitos: [],
+      ubicacion: tieneUbicacion
+        ? {
+            latitud: punto.latitud!,
+            longitud: punto.longitud!,
+            fechaHoraActualizacion: punto.actualizado!,
+            estadoCobertura: punto.estadoCobertura ?? "vivo",
+          }
+        : null,
+      pesoKg: punto.pesoKg,
+      remito: punto.remito ?? null,
     };
   });
 
@@ -354,6 +344,7 @@ function adaptarCu36Backend(
     cmOrigen,
     modeloGps: modelo,
     bolsines,
+    sinUbicacion: backend.sinUbicacion,
   });
 }
 
@@ -366,7 +357,7 @@ export async function obtenerSeguimientoBolsines(
   signal?: AbortSignal,
 ): Promise<SeguimientoResultado> {
   const modeloValidado = modeloGpsSchema.parse(modelo);
-  const url = "/api/auth/cu36/seguimiento";
+  const url = `/api/auth/cu36/seguimiento?modeloGps=${encodeURIComponent(modeloValidado)}`;
 
   const [seguimientoRes, comisionesPorNombre] = await Promise.all([
     consultarJsonConRespaldo<SeguimientoResponse | Cu36BackendResponse>(
@@ -399,12 +390,12 @@ export async function notificarUbicacionGerente(
 ): Promise<NotificarUbicacionResultado> {
   const payloadValidado = notificarUbicacionRequestSchema.parse(payload);
 
-  const emailDestino =
-    payloadValidado.emailDestino ?? "gcm.destino@art-bolsines.gob.ar";
   const fechaHoraActualizacion =
     payloadValidado.fechaHoraActualizacion ?? new Date().toISOString();
   const bodyBackend = {
-    emailDestino,
+    ...(payloadValidado.emailDestino
+      ? { emailDestino: payloadValidado.emailDestino }
+      : {}),
     nroBolsin: payloadValidado.nroBolsin,
     latitud: String(payloadValidado.latitud ?? 0),
     longitud: String(payloadValidado.longitud ?? 0),
@@ -425,13 +416,19 @@ export async function notificarUbicacionGerente(
     signal,
   );
 
+  if (!resultado.esModoDemo && !payloadValidado.emailDestino) {
+    throw new ErrorSeguimientoCliente(
+      "La comisión médica destino no tiene un correo electrónico configurado para recibir la notificación.",
+    );
+  }
+
   if ("enviado" in resultado) {
     return resultado;
   }
 
   return {
     enviado: true,
-    destinatarioEmail: emailDestino,
+    destinatarioEmail: payloadValidado.emailDestino!,
     destinatarioNombre: `Gerente CM destino (Bolsín #${payloadValidado.nroBolsin})`,
     fechaEnvio: new Date().toISOString(),
     esModoDemo: resultado.esModoDemo,

@@ -62,6 +62,7 @@ export function BolsinesView() {
 
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("");
+  const [filtroOrigen, setFiltroOrigen] = useState("");
   const [page, setPage] = useState(1);
 
   const [sheetState, setSheetState] = useState<SheetState>(null);
@@ -131,11 +132,14 @@ export function BolsinesView() {
 
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
-    return bolsines.filter((b) => {
+    const lista = bolsines.filter((b) => {
       if (
         filtroEstado &&
         String(b.estadoActual?.id ?? "") !== filtroEstado
       ) {
+        return false;
+      }
+      if (filtroOrigen && String(b.cmOrigen.id) !== filtroOrigen) {
         return false;
       }
       if (!q) return true;
@@ -146,10 +150,19 @@ export function BolsinesView() {
         b.cmOrigen.nombre.toLowerCase().includes(q) ||
         b.cmDestino.codigo.toLowerCase().includes(q) ||
         b.cmDestino.nombre.toLowerCase().includes(q) ||
+        (b.remito?.numero.toLowerCase().includes(q) ?? false) ||
         (b.estadoActual?.nombre.toLowerCase().includes(q) ?? false)
       );
     });
-  }, [bolsines, busqueda, filtroEstado]);
+
+    // Prioriza bolsines en viaje ("Enviado") y luego los más recientes (id descendente)
+    return [...lista].sort((a, b) => {
+      const aEnviado = a.estadoActual?.nombre === "Enviado" ? 1 : 0;
+      const bEnviado = b.estadoActual?.nombre === "Enviado" ? 1 : 0;
+      if (aEnviado !== bEnviado) return bEnviado - aEnviado;
+      return b.id - a.id;
+    });
+  }, [bolsines, busqueda, filtroEstado, filtroOrigen]);
 
   const totalPages = Math.max(1, Math.ceil(filtrados.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -205,6 +218,7 @@ export function BolsinesView() {
   function limpiarFiltros() {
     setBusqueda("");
     setFiltroEstado("");
+    setFiltroOrigen("");
     setPage(1);
   }
 
@@ -283,6 +297,25 @@ export function BolsinesView() {
               {catalogos.estadosBolsin.map((estado) => (
                 <option key={estado.id} value={estado.id}>
                   {estado.nombre}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          <div className="w-full sm:w-56">
+            <Select
+              aria-label="Filtrar por CM origen"
+              value={filtroOrigen}
+              onChange={(e) => {
+                setFiltroOrigen(e.target.value);
+                setPage(1);
+              }}
+              className="rounded-full"
+            >
+              <option value="">Todas las CM origen</option>
+              {catalogos.comisiones.map((cm) => (
+                <option key={cm.id} value={cm.id}>
+                  {cm.codigo} · {cm.nombre}
                 </option>
               ))}
             </Select>

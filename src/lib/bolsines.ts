@@ -20,6 +20,12 @@ export interface CatalogoEmpleado {
   comisionMedica?: CatalogoComision;
 }
 
+export interface RemitoBolsinResumen {
+  numero: string;
+  asunto: string;
+  tipoDocumento: string;
+}
+
 export interface BolsinListadoItem {
   id: number;
   fecha: string;
@@ -29,6 +35,7 @@ export interface BolsinListadoItem {
   cmOrigen: CatalogoComision;
   cmDestino: CatalogoComision;
   estadoActual: { id: number; nombre: string } | null;
+  remito?: RemitoBolsinResumen | null;
 }
 
 export interface CambioEstadoItem {

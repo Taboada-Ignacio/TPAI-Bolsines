@@ -248,40 +248,31 @@ export function BolsinDetallePanel({
           ) : null}
         </dl>
 
-        {/* Remitos asociados */}
+        {/* Remito asociado (máx. 1 por bolsín) */}
         <section
-          aria-label="Remitos asociados"
+          aria-label="Remito asociado"
           className="flex flex-col gap-2 border-t border-hair pt-3"
         >
-          <MicroLabel>
-            Remitos asociados ({bolsin.remitos.length})
-          </MicroLabel>
+          <MicroLabel>Remito asociado</MicroLabel>
 
-          {bolsin.remitos.length === 0 ? (
+          {!bolsin.remito ? (
             <p className="rounded-[10px] border border-hair bg-surface px-3 py-2.5 text-xs text-muted">
-              Este bolsín no tiene remitos asociados.
+              Este bolsín no tiene remito asociado.
             </p>
           ) : (
-            <ul className="flex flex-col gap-1.5">
-              {bolsin.remitos.map((remito) => (
-                <li
-                  key={remito.numero}
-                  className="flex items-center justify-between gap-2 rounded-[10px] border border-hair bg-surface px-3 py-2"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-[12.5px] font-semibold text-fg">
-                      {remito.asunto}
-                    </p>
-                    <p className="truncate text-[11px] text-muted">
-                      {remito.tipoDocumento}
-                    </p>
-                  </div>
-                  <span className="shrink-0 font-mono text-[11px] font-medium text-muted">
-                    {remito.numero}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <div className="flex items-center justify-between gap-2 rounded-[10px] border border-hair bg-surface px-3 py-2">
+              <div className="min-w-0">
+                <p className="truncate text-[12.5px] font-semibold text-fg">
+                  {bolsin.remito.asunto}
+                </p>
+                <p className="truncate text-[11px] text-muted">
+                  {bolsin.remito.tipoDocumento}
+                </p>
+              </div>
+              <span className="shrink-0 font-mono text-[11px] font-medium text-muted">
+                {bolsin.remito.numero}
+              </span>
+            </div>
           )}
         </section>
       </div>

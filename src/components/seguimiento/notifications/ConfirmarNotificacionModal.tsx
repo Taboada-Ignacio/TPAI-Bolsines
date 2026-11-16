@@ -420,43 +420,34 @@ export function ConfirmarNotificacionModal({
                   </div>
                 </dl>
 
-                <section aria-label="Detalle de remitos incluidos">
+                <section aria-label="Detalle del remito incluido">
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <MicroLabel>
-                      Detalle de remitos ({bolsin.remitos.length})
-                    </MicroLabel>
+                    <MicroLabel>Detalle del remito</MicroLabel>
                   </div>
 
-                  {bolsin.remitos.length > 0 ? (
-                    <ul className="flex flex-col gap-2">
-                      {bolsin.remitos.map((remito) => (
-                        <li
-                          key={remito.numero}
-                          className="flex items-start gap-2.5 rounded-control border border-hair bg-raised/70 px-3 py-2"
-                        >
-                          <FileText
-                            className="mt-0.5 size-4 shrink-0 text-muted"
-                            aria-hidden="true"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                              <span className="font-mono text-xs font-semibold text-fg">
-                                {remito.numero}
-                              </span>
-                              <span className="text-xs text-muted">
-                                · {remito.tipoDocumento}
-                              </span>
-                            </div>
-                            <p className="mt-0.5 text-sm text-fg">
-                              {remito.asunto}
-                            </p>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
+                  {bolsin.remito ? (
+                    <div className="flex items-start gap-2.5 rounded-control border border-hair bg-raised/70 px-3 py-2">
+                      <FileText
+                        className="mt-0.5 size-4 shrink-0 text-muted"
+                        aria-hidden="true"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                          <span className="font-mono text-xs font-semibold text-fg">
+                            {bolsin.remito.numero}
+                          </span>
+                          <span className="text-xs text-muted">
+                            · {bolsin.remito.tipoDocumento}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 text-sm text-fg">
+                          {bolsin.remito.asunto}
+                        </p>
+                      </div>
+                    </div>
                   ) : (
                     <p className="rounded-control border border-hair bg-raised/70 px-3 py-2.5 text-sm text-muted">
-                      Este bolsín no registra remitos asociados.
+                      Este bolsín no registra remito asociado.
                     </p>
                   )}
                 </section>

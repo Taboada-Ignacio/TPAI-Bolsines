@@ -55,13 +55,11 @@ describe("seguimiento-bolsin.dto", () => {
             fechaHoraActualizacion: "2026-11-15T14:22:00.000Z",
             estadoCobertura: "vivo",
           },
-          remitos: [
-            {
-              numero: "REM-4401",
-              asunto: "Dictamen Junta Médica #882",
-              tipoDocumento: "Expediente médico",
-            },
-          ],
+          remito: {
+            numero: "REM-4401",
+            asunto: "Dictamen Junta Médica #882",
+            tipoDocumento: "Expediente médico",
+          },
           pesoKg: 4.2,
         },
         {
@@ -78,7 +76,7 @@ describe("seguimiento-bolsin.dto", () => {
             fechaHoraActualizacion: "2026-11-15T11:04:00-03:00",
             estadoCobertura: "sin_cobertura",
           },
-          remitos: [],
+          remito: null,
         },
         {
           nroBolsin: 120,
@@ -88,7 +86,7 @@ describe("seguimiento-bolsin.dto", () => {
             nombre: "CM-05 Tucumán",
           },
           ubicacion: null,
-          remitos: [],
+          remito: null,
         },
       ],
     });
@@ -214,7 +212,7 @@ describe("seguimiento-cliente", () => {
             fechaHoraActualizacion: "2026-11-15T15:00:00.000Z",
             estadoCobertura: "vivo",
           },
-          remitos: [],
+          remito: null,
         },
       ],
     };
@@ -227,7 +225,7 @@ describe("seguimiento-cliente", () => {
     const res = await obtenerSeguimientoBolsines("QX-7A", controller.signal);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/auth/cu36/seguimiento",
+      "/api/auth/cu36/seguimiento?modeloGps=QX-7A",
       expect.objectContaining({
         method: "GET",
         signal: controller.signal,
@@ -338,7 +336,7 @@ describe("seguimiento-cliente", () => {
     });
     expect(demoRes.esModoDemo).toBe(true);
     expect(demoRes.enviado).toBe(true);
-    expect(demoRes.destinatarioEmail).toBe("gcm.mendoza@art-bolsines.gob.ar");
+    expect(demoRes.destinatarioEmail).toBe("gcm.cm-mza@example.test");
   });
 
   it("notificarUbicacionGerente propaga error amigable en voseo ante 500", async () => {

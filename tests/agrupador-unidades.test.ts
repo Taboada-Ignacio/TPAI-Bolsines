@@ -24,7 +24,7 @@ const BOLSINES_MULTI: BolsinSeguimiento[] = [
       fechaHoraActualizacion: "2026-11-15T14:22:00.000Z",
       estadoCobertura: "vivo",
     },
-    remitos: [],
+    remito: null,
   },
   {
     nroBolsin: 108,
@@ -41,7 +41,7 @@ const BOLSINES_MULTI: BolsinSeguimiento[] = [
       fechaHoraActualizacion: "2026-11-15T14:19:00.000Z",
       estadoCobertura: "vivo",
     },
-    remitos: [],
+    remito: null,
   },
   {
     nroBolsin: 112,
@@ -58,7 +58,7 @@ const BOLSINES_MULTI: BolsinSeguimiento[] = [
       fechaHoraActualizacion: "2026-11-15T11:04:00.000Z",
       estadoCobertura: "sin_cobertura",
     },
-    remitos: [],
+    remito: null,
   },
   {
     nroBolsin: 119,
@@ -75,7 +75,7 @@ const BOLSINES_MULTI: BolsinSeguimiento[] = [
       fechaHoraActualizacion: "2026-11-15T14:24:00.000Z",
       estadoCobertura: "vivo",
     },
-    remitos: [],
+    remito: null,
   },
 ];
 

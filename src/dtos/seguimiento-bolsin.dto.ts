@@ -43,11 +43,13 @@ export type RemitoSeguimiento = z.infer<typeof remitoSeguimientoSchema>;
 
 export const bolsinSeguimientoSchema = z.object({
   nroBolsin: z.number().int().positive(),
-  numeroPrecinto: z.union([textoObligatorio, z.number().int().positive()]),
+  numeroPrecinto: z
+    .union([textoObligatorio, z.number().int().positive()])
+    .nullable(),
   cmOrigen: cmOrigenSeguimientoSchema.optional(),
   cmDestino: cmDestinoSeguimientoSchema,
   ubicacion: ubicacionBolsinSchema.nullable(),
-  remitos: z.array(remitoSeguimientoSchema),
+  remito: remitoSeguimientoSchema.nullable().optional(),
   pesoKg: z.number().finite().positive().optional(),
 });
 export type BolsinSeguimiento = z.infer<typeof bolsinSeguimientoSchema>;
@@ -56,17 +58,23 @@ export const seguimientoResponseSchema = z.object({
   cmOrigen: cmOrigenSeguimientoSchema,
   modeloGps: modeloGpsSchema,
   bolsines: z.array(bolsinSeguimientoSchema),
+  sinUbicacion: z.number().int().min(0).optional().default(0),
 });
 export type SeguimientoResponse = z.infer<typeof seguimientoResponseSchema>;
 
 export const cu36PuntoBackendSchema = z.object({
   id: z.number().int().positive(),
   numero: z.number().int().positive(),
-  precinto: z.number().int().positive().nullable(),
+  precinto: z.union([textoObligatorio, z.number().int().positive()]).nullable(),
   destino: textoObligatorio,
-  latitud: z.number().finite().min(-90).max(90),
-  longitud: z.number().finite().min(-180).max(180),
-  actualizado: z.iso.datetime({ offset: true }),
+  destinoCodigo: textoObligatorio.optional(),
+  emailGcm: z.email().nullable().optional(),
+  pesoKg: z.number().finite().positive().optional(),
+  remito: remitoSeguimientoSchema.nullable().optional(),
+  latitud: z.number().finite().min(-90).max(90).nullable(),
+  longitud: z.number().finite().min(-180).max(180).nullable(),
+  actualizado: z.iso.datetime({ offset: true }).nullable(),
+  estadoCobertura: estadoCoberturaSchema.optional(),
 });
 export type Cu36PuntoBackend = z.infer<typeof cu36PuntoBackendSchema>;
 

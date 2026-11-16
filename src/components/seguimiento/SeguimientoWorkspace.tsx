@@ -14,7 +14,6 @@ import {
 import { PageActions } from "@/components/layout/PageActions";
 import { BolsinDetallePanel } from "@/components/seguimiento/detail/BolsinDetallePanel";
 import { SeguimientoFiltrosBar } from "@/components/seguimiento/filters/SeguimientoFiltrosBar";
-import { BolsinesABordoSheet } from "@/components/seguimiento/list/BolsinesABordoSheet";
 import { BolsinesTransitoList } from "@/components/seguimiento/list/BolsinesTransitoList";
 import { MapaSeguimiento } from "@/components/seguimiento/map/MapaSeguimiento";
 import { ConfirmarNotificacionModal } from "@/components/seguimiento/notifications/ConfirmarNotificacionModal";
@@ -33,10 +32,6 @@ import {
 } from "@/dtos/seguimiento-bolsin.dto";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/cn";
-import {
-  agruparEnUnidadesTransporte,
-  type UnidadTransporte,
-} from "@/lib/seguimiento/agrupador-unidades";
 import {
   ErrorSeguimientoCliente,
   obtenerSeguimientoBolsines,
@@ -88,8 +83,6 @@ export function SeguimientoWorkspace() {
   const [cmDestinoCodigo, setCmDestinoCodigo] = useState("");
   const [seleccionadoNro, setSeleccionadoNro] = useState<number | null>(null);
   const [hoveredBolsinNro, setHoveredBolsinNro] = useState<number | null>(null);
-  const [unidadMobileAbierta, setUnidadMobileAbierta] =
-    useState<UnidadTransporte | null>(null);
   const [mobileListaAbierta, setMobileListaAbierta] = useState(false);
   const [mobileDetalleMinimizado, setMobileDetalleMinimizado] = useState(false);
   const [notificarModalAbierto, setNotificarModalAbierto] = useState(false);
@@ -206,11 +199,6 @@ export function SeguimientoWorkspace() {
     [bolsines, precintoQuery, cmDestinoCodigo],
   );
 
-  const unidades = useMemo(
-    () => agruparEnUnidadesTransporte(bolsines, { bolsinesFiltrados }),
-    [bolsines, bolsinesFiltrados],
-  );
-
   const filtroActivo =
     precintoQuery.trim().length > 0 || cmDestinoCodigo.trim().length > 0;
 
@@ -287,12 +275,10 @@ export function SeguimientoWorkspace() {
       <div className="absolute inset-0">
         <MapaSeguimiento
           bolsines={bolsinesFiltrados}
-          unidades={unidades}
           seleccionadoNro={bolsinSeleccionado?.nroBolsin ?? null}
           hoveredBolsinNro={hoveredBolsinNro}
           onHoverBolsin={setHoveredBolsinNro}
           onSeleccionar={handleSeleccionar}
-          onTapUnidadMobile={(unidad) => setUnidadMobileAbierta(unidad)}
           cmOrigen={cmOrigen}
           loading={loading}
           filtroActivo={filtroActivo}
@@ -583,17 +569,6 @@ export function SeguimientoWorkspace() {
           </div>
         </Island>
       ) : null}
-
-      {/* Mobile (< 768px): Sheet "Bolsines a bordo" al tocar un camión con N bolsines */}
-      <BolsinesABordoSheet
-        unidad={unidadMobileAbierta}
-        open={!isDesktop && unidadMobileAbierta !== null}
-        onClose={() => setUnidadMobileAbierta(null)}
-        onSeleccionarBolsin={(nroBolsin) => {
-          setUnidadMobileAbierta(null);
-          handleSeleccionar(nroBolsin);
-        }}
-      />
 
       {/* Modal CU 30/31: Avisar ubicación al gerente */}
       <ConfirmarNotificacionModal

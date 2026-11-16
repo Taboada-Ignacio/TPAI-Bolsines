@@ -19,38 +19,29 @@ import type {
   CmOrigenSeguimiento,
 } from "@/dtos/seguimiento-bolsin.dto";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { cn } from "@/lib/cn";
-import {
-  agruparEnUnidadesTransporte,
-  type UnidadTransporte,
-} from "@/lib/seguimiento/agrupador-unidades";
 import { obtenerEstilosGoogleMaps } from "@/lib/seguimiento/google-maps-styles";
 import {
-  calcularRumboGrados,
   calcularRutaGeodesicaEnvio,
   obtenerCoordenadaCm,
   resolverRutaEnvio,
   type RutaEnvioResuelta,
 } from "@/lib/seguimiento/rutas-envio";
 import { GoogleMarkerOverlay } from "./GoogleMarkerOverlay";
-import { MarcadorCamion } from "./MarcadorCamion";
+import { MarcadorBolsin } from "./MarcadorBolsin";
 
 gsap.registerPlugin(useGSAP);
 
 const CENTRO_ARGENTINA = { lat: -32.2, lng: -63.8 };
 const ZOOM_INICIAL = 5;
-const ZOOM_DESAGRUPAR_MOBILE = 8;
 
 let googleOptionsConfiguradas = false;
 
 export interface MapaGoogleSeguimientoProps {
   bolsines: BolsinSeguimiento[];
-  unidades?: UnidadTransporte[];
   seleccionadoNro: number | null;
   hoveredBolsinNro?: number | null;
   onHoverBolsin?: (nroBolsin: number | null) => void;
   onSeleccionar: (nroBolsin: number) => void;
-  onTapUnidadMobile?: (unidad: UnidadTransporte) => void;
   cmOrigen?: CmOrigenSeguimiento | null;
   loading?: boolean;
   filtroActivo?: boolean;
@@ -92,12 +83,10 @@ function crearIconoPunteado(color: string, opacidad = 0.9): google.maps.IconSequ
 
 export function MapaGoogleSeguimiento({
   bolsines,
-  unidades: unidadesProp,
   seleccionadoNro,
   hoveredBolsinNro = null,
   onHoverBolsin,
   onSeleccionar,
-  onTapUnidadMobile,
   cmOrigen = null,
   loading = false,
   filtroActivo = false,
@@ -114,18 +103,10 @@ export function MapaGoogleSeguimiento({
   const [mapInstancia, setMapInstancia] = useState<google.maps.Map | null>(null);
   const [errorMapa, setErrorMapa] = useState<boolean>(false);
   const [reintentoTick, setReintentoTick] = useState<number>(0);
-  const [zoomActual, setZoomActual] = useState<number>(ZOOM_INICIAL);
-  const [camionAbiertoId, setCamionAbiertoId] = useState<string | null>(null);
   const [rutasResueltas, setRutasResueltas] = useState<Map<number, RutaEnvioResuelta>>(
     () => new Map(),
   );
 
-  const unidades = useMemo(
-    () => unidadesProp ?? agruparEnUnidadesTransporte(bolsines),
-    [unidadesProp, bolsines],
-  );
-
-  const desagruparMobile = !isDesktop && zoomActual >= ZOOM_DESAGRUPAR_MOBILE;
   const enModoFoco = seleccionadoNro !== null;
 
   const bolsinSeleccionado = useMemo(
@@ -185,8 +166,6 @@ export function MapaGoogleSeguimiento({
       googleOptionsConfiguradas = true;
     }
 
-    let zoomListener: google.maps.MapsEventListener | null = null;
-
     Promise.all([
       importLibrary("maps"),
       apiKey ? importLibrary("routes").catch(() => null) : Promise.resolve(null),
@@ -217,13 +196,6 @@ export function MapaGoogleSeguimiento({
           directionsServiceRef.current = new routesLib.DirectionsService();
         }
 
-        zoomListener = map.addListener("zoom_changed", () => {
-          const z = map.getZoom();
-          if (typeof z === "number") {
-            setZoomActual(z);
-          }
-        });
-
         setErrorMapa(false);
         setMapInstancia(map);
       })
@@ -235,7 +207,6 @@ export function MapaGoogleSeguimiento({
 
     return () => {
       cancelado = true;
-      zoomListener?.remove();
       polylinesRef.current.forEach((p) => p.setMap(null));
       polylinesRef.current = [];
       mapRef.current = null;
@@ -442,73 +413,46 @@ export function MapaGoogleSeguimiento({
     );
   }, [bolsinSeleccionado, cmOrigen, rutasResueltas]);
 
-  // Filtrar marcadores visibles (Modo Foco muestra un único camión en la ubicación real del bolsín seleccionado)
+  // Marcadores individuales por bolsín (1 marcador = 1 bolsín = 1 viaje/ruta)
   const itemsMarcadores = useMemo(() => {
     if (enModoFoco && bolsinSeleccionado && rutaFoco) {
-      const esA3 =
-        bolsinSeleccionado.ubicacion === null ||
-        bolsinSeleccionado.ubicacion.estadoCobertura === "sin_cobertura";
       const posReal = bolsinSeleccionado.ubicacion
         ? {
             lat: bolsinSeleccionado.ubicacion.latitud,
             lng: bolsinSeleccionado.ubicacion.longitud,
           }
         : rutaFoco.posicionActual;
-      const rumboHaciaDestino = calcularRumboGrados(posReal, rutaFoco.destino);
-
-      const unidadFoco: UnidadTransporte = {
-        id: `foco-${bolsinSeleccionado.nroBolsin}`,
-        ruta: "OTRA",
-        sentido: "ida",
-        etiqueta: `#${bolsinSeleccionado.nroBolsin}`,
-        coordenadas: [posReal.lng, posReal.lat],
-        rumboGrados: rumboHaciaDestino,
-        bolsines: [bolsinSeleccionado],
-        bolsinesCoincidentes: [bolsinSeleccionado],
-        coincidenciasFiltro: 1,
-        tieneA3: esA3,
-        estado: esA3 ? "alerta_a3" : "vivo",
-      };
 
       return [
         {
-          id: `foco-${bolsinSeleccionado.nroBolsin}`,
+          id: `bolsin-${bolsinSeleccionado.nroBolsin}`,
           coordenadas: posReal,
-          tipo: "unidad" as const,
-          unidad: unidadFoco,
+          bolsin: bolsinSeleccionado,
         },
       ];
     }
 
-    if (desagruparMobile) {
-      const filtrados = bolsines.filter((b) => Boolean(b.ubicacion));
-      return filtrados.map((b) => ({
-        id: `bolsin-${b.nroBolsin}`,
-        coordenadas: {
-          lat: b.ubicacion!.latitud,
-          lng: b.ubicacion!.longitud,
-        },
-        tipo: "bolsin" as const,
-        bolsin: b,
-      }));
-    }
+    return bolsines.map((b) => {
+      const ruta =
+        rutasResueltas.get(b.nroBolsin) ??
+        calcularRutaGeodesicaEnvio(b, cmOrigen);
+      const coordenadas = b.ubicacion
+        ? { lat: b.ubicacion.latitud, lng: b.ubicacion.longitud }
+        : ruta.posicionActual;
 
-    return unidades.map((u) => ({
-      id: `unidad-${u.id}`,
-      coordenadas: {
-        lat: u.coordenadas[1],
-        lng: u.coordenadas[0],
-      },
-      tipo: "unidad" as const,
-      unidad: u,
-    }));
+      return {
+        id: `bolsin-${b.nroBolsin}`,
+        coordenadas,
+        bolsin: b,
+      };
+    });
   }, [
     bolsines,
     bolsinSeleccionado,
-    desagruparMobile,
+    cmOrigen,
     enModoFoco,
     rutaFoco,
-    unidades,
+    rutasResueltas,
   ]);
 
   // Animación de entrada de marcadores con GSAP + matchMedia
@@ -612,50 +556,14 @@ export function MapaGoogleSeguimiento({
         </div>
       )}
 
-      {/* Marcadores en Google Maps vía OverlayView + React Portal */}
+      {/* Marcadores individuales por bolsín en Google Maps vía OverlayView + React Portal */}
       {mapInstancia &&
         !errorMapa &&
         itemsMarcadores.map((item) => {
-          if (item.tipo === "bolsin") {
-            const b = item.bolsin;
-            const enVivo = b.ubicacion?.estadoCobertura === "vivo";
-            const seleccionado = b.nroBolsin === seleccionadoNro;
-            return (
-              <GoogleMarkerOverlay
-                key={item.id}
-                map={mapInstancia}
-                position={item.coordenadas}
-                zIndex={seleccionado ? 60 : 20}
-              >
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSeleccionar(b.nroBolsin);
-                  }}
-                  aria-label={`Bolsín #${b.nroBolsin}, ${b.cmDestino.nombre}, ${enVivo ? "en vivo" : "sin cobertura"}`}
-                  className={cn(
-                    "inline-flex min-h-12 min-w-12 items-center justify-center rounded-full border px-2.5 font-mono text-xs font-bold tabular-nums cursor-pointer",
-                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
-                    seleccionado
-                      ? "border-primary bg-primary text-on-primary"
-                      : enVivo
-                        ? "border-lime-edge bg-lime text-on-lime"
-                        : "border-amber/60 bg-surface text-amber-ink",
-                  )}
-                >
-                  #{b.nroBolsin}
-                </button>
-              </GoogleMarkerOverlay>
-            );
-          }
-
-          const unidad = item.unidad;
-          const abierto = camionAbiertoId === unidad.id;
-          const contieneSeleccionado =
-            seleccionadoNro !== null &&
-            unidad.bolsines.some((b) => b.nroBolsin === seleccionadoNro);
-          const zIndex = abierto ? 80 : contieneSeleccionado ? 60 : 30;
+          const b = item.bolsin;
+          const seleccionado = b.nroBolsin === seleccionadoNro;
+          const hovered = b.nroBolsin === hoveredBolsinNro;
+          const zIndex = seleccionado ? 60 : hovered ? 50 : 25;
 
           return (
             <GoogleMarkerOverlay
@@ -664,25 +572,17 @@ export function MapaGoogleSeguimiento({
               position={item.coordenadas}
               zIndex={zIndex}
             >
-              <MarcadorCamion
-                unidad={unidad}
+              <MarcadorBolsin
+                bolsin={b}
                 isDesktop={isDesktop}
                 filtroActivo={filtroActivo}
-                seleccionadoNro={seleccionadoNro}
-                hoveredBolsinNro={hoveredBolsinNro}
-                abierto={abierto}
-                onAbrirChange={(next) =>
-                  setCamionAbiertoId(next ? unidad.id : null)
+                coincideFiltro={true}
+                seleccionado={seleccionado}
+                hovered={hovered}
+                onHoverChange={(next) =>
+                  onHoverBolsin?.(next ? b.nroBolsin : null)
                 }
-                onHoverBolsin={(nro) => onHoverBolsin?.(nro)}
-                onSeleccionarBolsin={onSeleccionar}
-                onTapMobile={(u) => {
-                  if (u.bolsines.length === 1 && u.bolsines[0]) {
-                    onSeleccionar(u.bolsines[0].nroBolsin);
-                  } else {
-                    onTapUnidadMobile?.(u);
-                  }
-                }}
+                onSeleccionar={onSeleccionar}
               />
             </GoogleMarkerOverlay>
           );
@@ -758,7 +658,7 @@ export function MapaGoogleSeguimiento({
           <MicroLabel className="text-[10px]">
             {enModoFoco
               ? `Foco #${bolsinSeleccionado?.nroBolsin ?? ""}`
-              : `${unidades.length} ${unidades.length === 1 ? "unidad" : "unidades"}`}
+              : `${bolsines.length} ${bolsines.length === 1 ? "bolsín" : "bolsines"}`}
           </MicroLabel>
         </div>
       </div>
