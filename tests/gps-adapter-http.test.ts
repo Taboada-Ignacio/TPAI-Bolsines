@@ -9,9 +9,9 @@ const url = process.env.GPS_ADAPTER_TEST_BASE_URL ?? "";
 const solicitudes: Parameters<
   InterfazGPSTracker["obtenerLocalizacionDeBolsines"]
 >[] = [
-  ["XTR-4500L", [42], ["CM-CBA"], []],
-  ["QX-7A", [43], [], ["CM-SF"]],
-  ["MTR-900", [44], [], []],
+  ["XTR-4500L", [101], ["CM-CBA-01"], []],
+  ["QX-7A", [101], [], ["CM-ROS-02"]],
+  ["MTR-900", [101], [], []],
 ];
 
 function crearFrontera(transporte: TransporteHTTPGPS) {
@@ -22,40 +22,45 @@ function crearFrontera(transporte: TransporteHTTPGPS) {
   });
 }
 
-describe.skipIf(!url)(
-  "Integración HTTP contra el backend GPS en desarrollo",
-  () => {
-    it.each(solicitudes)(
-      "normaliza las posiciones del simulador %s",
-      async (modelo, nrosBolsines, origen, destino) => {
-        const frontera = crearFrontera(new TransporteHTTPGPS(url));
-        const filas = await frontera.obtenerLocalizacionDeBolsines(
-          modelo,
-          nrosBolsines,
-          origen,
-          destino,
-        );
-        expect(filas).toEqual([
-          [
-            String(nrosBolsines[0]),
-            expect.any(String),
-            expect.any(String),
-            expect.stringMatching(/Z$/),
-          ],
-        ]);
-      },
-    );
+describe.skipIf(!url)("Integración HTTP contra el GPS oficial", () => {
+  it.each(solicitudes)(
+    "normaliza las posiciones oficiales %s",
+    async (modelo, nrosBolsines, origen, destino) => {
+      const frontera = crearFrontera(new TransporteHTTPGPS(url));
+      const filas = await frontera.obtenerLocalizacionDeBolsines(
+        modelo,
+        nrosBolsines,
+        origen,
+        destino,
+      );
+      expect(filas).toEqual([
+        [
+          String(nrosBolsines[0]),
+          expect.any(String),
+          expect.any(String),
+          expect.stringMatching(/Z$/),
+        ],
+      ]);
+    },
+  );
 
-    it("propaga el 503 simulado por el backend", async () => {
-      const fetchConFallo: typeof fetch = (input, init) => {
-        const endpoint = new URL(String(input));
-        endpoint.searchParams.set("simularFallo", "1");
-        return fetch(endpoint, init);
-      };
-      const frontera = crearFrontera(new TransporteHTTPGPS(url, fetchConFallo));
-      await expect(
-        frontera.obtenerLocalizacionDeBolsines(...solicitudes[2]),
-      ).rejects.toMatchObject({ tipo: "HTTP", estadoHttp: 503 });
-    });
-  },
-);
+  it("comprueba el estado del GPS", async () => {
+    const respuesta = await fetch(new URL("/health", url));
+    expect(respuesta.status).toBe(200);
+    await expect(respuesta.json()).resolves.toEqual({ status: "ok" });
+  });
+
+  it("propaga el 401 de una clave incorrecta", async () => {
+    const servicio = new ServicioGPSTrackerXTR4500L(new TransporteHTTPGPS(url));
+    await expect(
+      servicio.getBolsinLocation("incorrecta", 101, "CM-CBA-01"),
+    ).rejects.toMatchObject({ tipo: "HTTP", estadoHttp: 401 });
+  });
+
+  it("propaga el 404 de un bolsín inexistente", async () => {
+    const frontera = crearFrontera(new TransporteHTTPGPS(url));
+    await expect(
+      frontera.obtenerLocalizacionDeBolsines("MTR-900", [999], [], []),
+    ).rejects.toMatchObject({ tipo: "HTTP", estadoHttp: 404 });
+  });
+});

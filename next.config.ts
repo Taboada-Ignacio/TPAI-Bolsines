@@ -1,9 +1,5 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  logging: {
-    incomingRequests: { ignore: [/^\/api\/gps-simulator\//] },
-  },
-};
+const nextConfig: NextConfig = {};
 
 export default nextConfig;

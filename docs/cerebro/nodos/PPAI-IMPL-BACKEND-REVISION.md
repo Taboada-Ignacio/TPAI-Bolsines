@@ -182,3 +182,33 @@ Para desarrollar y testear el frontend sin depender de Docker ni de una instanci
   1. En `.env` (o en el entorno del contenedor), **no definir `USE_PG_MEM`** o dejar **`USE_PG_MEM=false`** (en `docker-compose.yml` no está seteada, así que por defecto ya usa PostgreSQL real).
   2. Asegurar que `DATABASE_URL` apunte al servicio `postgres` (en Docker Compose ya se arma con `DOCKER_DATABASE_URL` / `POSTGRES_*`).
   3. Con `USE_PG_MEM` ausente o distinto de `"true"`, `getPrisma()` instancia `new PrismaClient({ adapter: new PrismaPg({ connectionString }) })` y se conecta normalmente a PostgreSQL.
+
+---
+
+### [NACHO] Inicialización automática de PostgreSQL
+
+El servicio existente `migrate` clasifica la base antes de aplicar Prisma. Una base nueva registra un marcador pendiente en el esquema técnico `bolsines_bootstrap`. La carga, la comprobación de un GCM con usuario y correo por cada una de las 24 comisiones y la confirmación del marcador son atómicas. Una base completa aplica las migraciones pendientes y omite el seed. Para adoptar una base legada se exige el esquema, el historial y evidencia de datos. Las bases parciales bloquean el arranque dependiente.
+
+Pasaron 213 pruebas de Vitest, TypeScript, ESLint, la validación de Prisma y `docker compose config --quiet`. Cuatro pruebas HTTP quedaron omitidas. Siete escenarios con dobles verificaron el orden de inicialización, la omisión del seed, la adopción legada y el rollback. Las pruebas de primer arranque, reinicio, conservación de datos e inicialización incompleta con PostgreSQL quedan pendientes por acceso denegado al motor de Docker.
+
+### [NACHO] CU 31 disponible para prueba independiente
+
+El Route Handler autenticado delega en `PantNotificarUbicacionBolsin`, que invoca al gestor. Se usa el prefijo `/api/auth` por el alcance de la cookie vigente. El gestor valida el DTO y depende de `ServicioCorreo`. Nodemailer envía a Mailpit por SMTP local. Las pruebas cubren validación, composición, aceptación y rechazo SMTP, errores HTTP y sesión. La futura integración con CU 36 aportará el destinatario y la ubicación preparados.
+
+Pasaron 230 pruebas de Vitest, incluidas 17 del CU 31. Cuatro pruebas HTTP de GPS quedaron omitidas. Pasaron TypeScript, ESLint, Prisma, el build de producción con Webpack y la validación de Compose. El envío real a Mailpit queda por verificar porque el entorno denegó acceso al motor de Docker. El README incluye la prueba manual con sesión y datos ficticios.
+
+### [NACHO] Migración al GPS Tracker oficial
+
+Los endpoints y datos del simulador interno descriptos arriba se retiraron. Compose construye `gps-tracker` con Java 17 desde la revisión oficial `bd457ed8349a08dad9f3533dd93530aebf844204`. El backend espera su health check y consulta `http://gps-tracker:8080`. El [nodo del Adapter](PPAI-PAT-ADAPTER-GPS.md#nacho-migración-al-gps-tracker-oficial) describe el contrato. PostgreSQL, el seed, el CU 31 y Mailpit se conservaron.
+
+Pasaron TypeScript, ESLint, el build con Webpack y la validación de Compose. Vitest ejecutó 219 pruebas con éxito y omitió las seis que requieren el GPS oficial. El motor de Docker denegó acceso al intentar levantar el stack. Queda pendiente la verificación del servicio Java 17 y de la red interna de Compose.
+
+### [NACHO] Configuración de claves en InterfazGPSTracker
+
+Compose comparte las claves por modelo entre el backend y el GPS oficial mediante las variables de Spring correspondientes. La frontera valida las tres claves al construirse y conserva la selección por modelo documentada en [el nodo del Adapter](PPAI-PAT-ADAPTER-GPS.md#nacho-validación-de-apiskeys-en-la-frontera-gps). Vitest pasó 223 pruebas y omitió seis de integración HTTP que requieren el GPS oficial.
+
+### [NACHO] Primera pantalla de consulta del CU 36
+
+El endpoint autenticado de seguimiento conecta una consulta de bolsines Enviados por CM origen con `GestorConsultarUbicacionDeBolsin` y el Adapter XTR. La asignación de sede oficial está limitada a los diez fixtures del seed. La pantalla proyecta todas las posiciones recibidas y comparte la selección entre mapa y lista. La prueba de gestor cubre las dos sedes de Córdoba en un mismo lote y la consulta vacía. La prueba en vivo del mapa y los contenedores quedó pendiente por acceso local restringido.
+
+Pasaron TypeScript, ESLint y 225 pruebas de Vitest. Se omitieron las seis pruebas HTTP que requieren el GPS oficial. El build con Webpack falló con EPERM al crear un directorio bajo .next/static.

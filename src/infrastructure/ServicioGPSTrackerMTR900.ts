@@ -10,7 +10,7 @@ export class ServicioGPSTrackerMTR900 {
     nroBolsin: number,
   ): Promise<string[][]> {
     const cuerpo = await this.transporte.consultar(
-      "mtr-900/fetchCargoPositions",
+      "geopulse-mtr-900/fetchCargoPositions",
       apiKey,
       nroBolsin,
     );

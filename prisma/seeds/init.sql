@@ -86,6 +86,28 @@ BEGIN
 END;
 $seed$;
 
+-- 4a. Gerentes de demostración para las comisiones que todavía no tienen uno.
+-- Usa el bloqueo de empleado adquirido en la sección anterior.
+WITH gerentes_faltantes AS (
+  SELECT cm.id AS comision_medica_id, cm.codigo, r.id AS rol_id,
+    'gcm.' || lower(cm.codigo) AS usuario
+  FROM public.comision_medica cm
+  CROSS JOIN public.rol r
+  WHERE r.nombre = 'Gerente de Comisión Médica'
+    AND NOT EXISTS (
+      SELECT 1 FROM public.empleado e
+      WHERE e.comision_medica_id = cm.id AND e.rol_id = r.id
+    )
+), usuarios_nuevos AS (
+  INSERT INTO public.usuario (nombre, contrasena)
+  SELECT usuario, '123456' FROM gerentes_faltantes
+  RETURNING id, nombre
+)
+INSERT INTO public.empleado (nombre, apellido, email, usuario_id, rol_id, comision_medica_id)
+SELECT 'Gerente', g.codigo, g.usuario || '@example.test', u.id, g.rol_id, g.comision_medica_id
+FROM gerentes_faltantes g
+JOIN usuarios_nuevos u ON u.nombre = g.usuario;
+
 -- 5. Bolsines ficticios para el CU 36 (números reservados 36001 a 36035)
 DO $bolsines$
 DECLARE
@@ -103,7 +125,8 @@ BEGIN
       TIMESTAMPTZ '2026-11-01 09:00:00-03' + serie * INTERVAL '11 hours' AS fecha,
       (ARRAY['CM-CBA', 'CM-SF', 'CM-CABA', 'CM-MZA', 'CM-BA'])[(serie - 1) % 5 + 1] AS origen,
       (ARRAY['CM-SF', 'CM-CABA', 'CM-MZA', 'CM-BA', 'CM-CBA'])[(serie - 1) % 5 + 1] AS destino,
-      (ARRAY['Creado', 'Cerrado', 'Enviado', 'RecibidoEnCMDestino', 'DeBaja'])[(serie - 1) / 7 + 1] AS estado,
+      -- Los originales no tienen ubicacion en el GPS oficial; solo 101-110 se siembran Enviados para el CU 36.
+      (ARRAY['Creado', 'Cerrado', 'Cerrado', 'RecibidoEnCMDestino', 'DeBaja'])[(serie - 1) / 7 + 1] AS estado,
       (ARRAY[
         'parametrizador.demo@example.com',
         'documentacion.demo@example.com',
@@ -111,6 +134,26 @@ BEGIN
         'gerente.demo@example.com'
       ])[(serie - 1) % 4 + 1] AS responsable
     FROM generate_series(1, 35) AS numeros(serie)
+    UNION ALL
+    -- Fixtures del GPS oficial (bd457ed8349a08dad9f3533dd93530aebf844204).
+    -- Las CM locales son correspondencias geográficas. Para XTR y QX se
+    -- deben enviar los códigos oficiales indicados en cada fila.
+    -- Bolsin no persiste el modelo GPS. Los modelos comentados son para pruebas.
+    SELECT numero, 940000 + numero, 600,
+      TIMESTAMPTZ '2026-03-07 09:00:00-03',
+      origen, destino, 'Enviado', 'bolsines.demo@example.com'
+    FROM (VALUES
+      (101, 'CM-CBA', 'CM-SF'),  -- CM-CBA-01 -> CM-ROS-02 / XTR-4500L
+      (102, 'CM-SF',  'CM-MZA'), -- CM-ROS-02 -> CM-MDZ-03 / NavTrack QX-7A
+      (103, 'CM-MZA', 'CM-BA'),  -- CM-MDZ-03 -> CM-BA-01 / GeoPulse MTR-900
+      (104, 'CM-BA',  'CM-CBA'), -- CM-BA-01 -> CM-CBA-01 / XTR-4500L
+      (105, 'CM-TUC', 'CM-SAL'), -- CM-TUC-01 -> CM-SLA-01 / NavTrack QX-7A
+      (106, 'CM-SAL', 'CM-JUJ'), -- CM-SLA-01 -> CM-JUJ-01 / GeoPulse MTR-900
+      (107, 'CM-NEU', 'CM-BA'),  -- CM-NQN-01 -> CM-MDQ-01 / XTR-4500L
+      (108, 'CM-BA',  'CM-BA'),  -- CM-MDQ-01 -> CM-BA-01 / NavTrack QX-7A
+      (109, 'CM-BA',  'CM-CBA'), -- CM-LPL-01 -> CM-CBA-01 / GeoPulse MTR-900
+      (110, 'CM-CBA', 'CM-SF')   -- CM-CBA-02 -> CM-ROS-02 / XTR-4500L
+    ) AS gps(numero, origen, destino)
   LOOP
     SELECT id INTO STRICT id_origen FROM public.comision_medica WHERE codigo = demo.origen;
 

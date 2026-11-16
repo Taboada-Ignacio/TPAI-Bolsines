@@ -2,8 +2,8 @@ import { ErrorGPSTracker } from "@/lib/gps-tracker/ErrorGPSTracker";
 
 export class TransporteHTTPGPS {
   constructor(
-    private readonly baseUrl = process.env.GPS_SIMULADOR_BASE_URL ??
-      "http://127.0.0.1:3000",
+    private readonly baseUrl = process.env.GPS_TRACKER_BASE_URL ??
+      "http://127.0.0.1:8080",
     private readonly solicitar: typeof fetch = fetch,
   ) {}
 
@@ -16,13 +16,14 @@ export class TransporteHTTPGPS {
     const url = this.urlPara(ruta);
     if (!apiKey.trim()) throw new ErrorGPSTracker("CONFIGURACION");
     url.search = new URLSearchParams({
-      apiKey,
-      nroBolsin: String(nroBolsin),
+      numeroBolsin: String(nroBolsin),
       ...parametros,
     }).toString();
     const signal = AbortSignal.timeout(5000);
     try {
       const respuesta = await this.solicitar(url, {
+        method: "GET",
+        headers: { "X-API-Key": apiKey },
         cache: "no-store",
         redirect: "error",
         signal,
@@ -48,6 +49,6 @@ export class TransporteHTTPGPS {
     ) {
       throw new ErrorGPSTracker("CONFIGURACION");
     }
-    return new URL(`/api/gps-simulator/${ruta}`, base);
+    return new URL(`/api/${ruta}`, base);
   }
 }

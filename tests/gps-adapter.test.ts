@@ -11,6 +11,7 @@ import { TransporteHTTPGPS } from "@/infrastructure/TransporteHTTPGPS";
 import { ErrorGPSTracker } from "@/lib/gps-tracker/ErrorGPSTracker";
 
 const clave = "clave de prueba +&";
+const claves = [clave, "clave QX", "clave MTR"] as const;
 const fecha = "2026-11-15T18:30:00.125Z";
 const fila = ["42", "-31.42", "-64.18", fecha];
 const fila43 = ["43", "-31.42", "-64.18", fecha];
@@ -24,10 +25,14 @@ const solicitudes: Parameters<
 
 function jsonXtr(nroBolsin: number) {
   return {
-    numeroBolsin: nroBolsin,
-    latitud: -31.42,
-    longitud: -64.18,
-    fechaHoraActualizacion: fecha,
+    items: [
+      {
+        numeroBolsin: nroBolsin,
+        latitud: -31.42,
+        longitud: -64.18,
+        fechaHoraUltimaActualizacion: fecha,
+      },
+    ],
   };
 }
 
@@ -89,7 +94,6 @@ describe("Adaptadores GPS", () => {
     expectTypeOf<
       ServicioGPSTrackerMTR900["fetchCargoPositions"]
     >().toEqualTypeOf<(key: string, nro: number) => Promise<string[][]>>();
-    expect(new InterfazGPSTracker()).toBeInstanceOf(InterfazGPSTracker);
   });
 
   it("usa la interfaz común para los tres adaptadores y conserva el orden del lote", async () => {
@@ -107,7 +111,7 @@ describe("Adaptadores GPS", () => {
       .mockImplementation(async (_key, nro) => [
         [String(nro), ...fila.slice(1)],
       ]);
-    const frontera = new InterfazGPSTracker(servicios, clave);
+    const frontera = new InterfazGPSTracker(servicios, claves);
 
     const adaptadores: IAdaptadorLocalizacionBolsines[] = [
       new AdaptadorXTR4500L(
@@ -149,12 +153,16 @@ describe("Adaptadores GPS", () => {
     {
       formato: "XTR con coordenada inválida",
       indice: 0,
-      cuerpo: JSON.stringify({ ...jsonXtr(42), latitud: 91 }),
+      cuerpo: JSON.stringify({
+        items: [{ ...jsonXtr(42).items[0], latitud: 91 }],
+      }),
     },
     {
       formato: "XTR con tipos incorrectos",
       indice: 0,
-      cuerpo: JSON.stringify({ ...jsonXtr(42), latitud: "-31.42" }),
+      cuerpo: JSON.stringify({
+        items: [{ ...jsonXtr(42).items[0], latitud: "-31.42" }],
+      }),
     },
     { formato: "QX con tres campos", indice: 1, cuerpo: "42,-31.42,-64.18" },
     {
@@ -179,27 +187,30 @@ describe("Adaptadores GPS", () => {
     },
     { formato: "MTR sin JSON", indice: 2, cuerpo: "[" },
     {
-      formato: "MTR con valores numéricos",
+      formato: "MTR con número de bolsín como cadena",
       indice: 2,
-      cuerpo: JSON.stringify([[42, -31.42, -64.18, fecha]]),
+      cuerpo: JSON.stringify([["42", -31.42, -64.18, fecha]]),
     },
     { formato: "MTR sin filas", indice: 2, cuerpo: "[]" },
     {
       formato: "MTR con más de una fila",
       indice: 2,
-      cuerpo: JSON.stringify([fila, fila]),
+      cuerpo: JSON.stringify([
+        [42, -31.42, -64.18, fecha],
+        [42, -31.42, -64.18, fecha],
+      ]),
     },
     {
       formato: "MTR con número de bolsín incorrecto",
       indice: 2,
-      cuerpo: JSON.stringify([fila43]),
+      cuerpo: JSON.stringify([[43, -31.42, -64.18, fecha]]),
     },
   ])("rechaza $formato", async ({ indice, cuerpo }) => {
     const transporte = new TransporteHTTPGPS(
       "http://localhost",
       async () => new Response(cuerpo),
     );
-    const frontera = new InterfazGPSTracker(crearServicios(transporte), clave);
+    const frontera = new InterfazGPSTracker(crearServicios(transporte), claves);
     const resultado = frontera.obtenerLocalizacionDeBolsines(
       ...solicitudes[indice],
     );
@@ -258,6 +269,31 @@ describe("Adaptadores GPS", () => {
 });
 
 describe("Frontera GPS", () => {
+  const variables = [
+    "GPS_TRACKER_XTR_API_KEY",
+    "GPS_TRACKER_NAVTRACK_API_KEY",
+    "GPS_TRACKER_GEOPULSE_API_KEY",
+  ];
+
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("carga exactamente tres claves de entorno en el orden de los modelos", () => {
+    variables.forEach((variable, indice) =>
+      vi.stubEnv(variable, claves[indice]),
+    );
+    expect(new InterfazGPSTracker()["apisKeys"]).toEqual(claves);
+  });
+
+  it.each(variables)("rechaza %s ausente o en blanco", (variable) => {
+    variables.forEach((nombre, indice) => vi.stubEnv(nombre, claves[indice]));
+    for (const valor of [undefined, "", "  "]) {
+      vi.stubEnv(variable, valor);
+      expect(() => new InterfazGPSTracker()).toThrow(
+        "Configuración de GPS inválida o incompleta.",
+      );
+    }
+  });
+
   it("crea el adaptador, delega la consulta XTR y devuelve un lote vacío sin HTTP", async () => {
     const servicios = crearServicios();
     const xtr = vi
@@ -265,7 +301,7 @@ describe("Frontera GPS", () => {
       .mockResolvedValue(JSON.stringify(jsonXtr(42)));
     const qx = vi.spyOn(servicios.qx, "retrieveTrackingData");
     const mtr = vi.spyOn(servicios.mtr, "fetchCargoPositions");
-    const frontera = new InterfazGPSTracker(servicios, clave);
+    const frontera = new InterfazGPSTracker(servicios, claves);
     const crear = vi.spyOn(frontera, "crearAdaptador");
     await expect(
       frontera.obtenerLocalizacionDeBolsines("XTR-4500L", [42], ["ORIG-1"], []),
@@ -291,7 +327,7 @@ describe("Frontera GPS", () => {
   >[])(
     "rechaza datos de CM incompatibles para %s antes de crear el adaptador",
     async (modelo, numeros, origenes, destinos) => {
-      const frontera = new InterfazGPSTracker();
+      const frontera = new InterfazGPSTracker(undefined, claves);
       const crear = vi.spyOn(frontera, "crearAdaptador");
       await expect(
         frontera.obtenerLocalizacionDeBolsines(
@@ -312,42 +348,60 @@ describe("Cliente HTTP GPS", () => {
   it("forma las URLs y envía únicamente los parámetros del contrato de cada proveedor", async () => {
     const fetchHttp = vi.fn<typeof fetch>(async (url) => {
       const path = String(url);
-      if (path.includes("getBolsinLocation")) return Response.json(jsonXtr(42));
+      const fechaLocal = "2026-11-15T15:30";
+      if (path.includes("getBolsinLocation"))
+        return Response.json({
+          items: [
+            {
+              ...jsonXtr(42).items[0],
+              fechaHoraUltimaActualizacion: fechaLocal,
+            },
+          ],
+        });
       if (path.includes("retrieveTrackingData"))
-        return new Response(fila.join(","));
-      return Response.json([fila]);
+        return new Response([...fila.slice(0, 3), fechaLocal].join(","));
+      return Response.json([[42, -31.42, -64.18, fechaLocal]]);
     });
     const servicios = crearServicios(
       new TransporteHTTPGPS("http://127.0.0.1:3200", fetchHttp),
     );
     const resultados = await Promise.all(
       solicitudes.map((solicitud) =>
-        new InterfazGPSTracker(servicios, clave).obtenerLocalizacionDeBolsines(
+        new InterfazGPSTracker(servicios, claves).obtenerLocalizacionDeBolsines(
           ...solicitud,
         ),
       ),
     );
-    expect(resultados).toEqual([[fila], [fila], [fila]]);
+    const filaUtc = [...fila.slice(0, 3), "2026-11-15T18:30:00.000Z"];
+    expect(resultados).toEqual([[filaUtc], [filaUtc], [filaUtc]]);
     expect(
-      fetchHttp.mock.calls.map(([url]) => {
+      fetchHttp.mock.calls.map(([url, opciones]) => {
         const { origin, pathname, searchParams } = new URL(String(url));
-        return [origin, pathname, Object.fromEntries(searchParams)];
+        return [
+          origin,
+          pathname,
+          Object.fromEntries(searchParams),
+          new Headers(opciones?.headers).get("X-API-Key"),
+        ];
       }),
     ).toEqual([
       [
         "http://127.0.0.1:3200",
-        "/api/gps-simulator/xtr-4500l/getBolsinLocation",
-        { apiKey: clave, nroBolsin: "42", codCMOrigen: "ORIG-1" },
+        "/api/xtr-4500l/getBolsinLocation",
+        { numeroBolsin: "42", codigoComisionMedicaOrigen: "ORIG-1" },
+        claves[0],
       ],
       [
         "http://127.0.0.1:3200",
-        "/api/gps-simulator/qx-7a/retrieveTrackingData",
-        { apiKey: clave, nroBolsin: "42", codCMDestino: "DEST-1" },
+        "/api/navtrack-qx-7a/retrieveTrackingData",
+        { numeroBolsin: "42", codigoComisionMedicaDestino: "DEST-1" },
+        claves[1],
       ],
       [
         "http://127.0.0.1:3200",
-        "/api/gps-simulator/mtr-900/fetchCargoPositions",
-        { apiKey: clave, nroBolsin: "42" },
+        "/api/geopulse-mtr-900/fetchCargoPositions",
+        { numeroBolsin: "42" },
+        claves[2],
       ],
     ]);
     for (const [, opciones] of fetchHttp.mock.calls) {
@@ -359,7 +413,7 @@ describe("Cliente HTTP GPS", () => {
     }
   });
 
-  it.each([400, 401, 503])(
+  it.each([400, 401, 404, 503])(
     "propaga el estado HTTP %i sin exponer el cuerpo ni la clave en logs",
     async (estadoHttp) => {
       const log = vi.spyOn(console, "log");

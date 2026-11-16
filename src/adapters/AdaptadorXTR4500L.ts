@@ -73,13 +73,13 @@ export class AdaptadorXTR4500L implements IAdaptadorLocalizacionBolsines {
     }
     const resultado = localizacionXtr.safeParse(cuerpo);
     if (!resultado.success) throw new ErrorGPSTracker("RESPUESTA_INVALIDA");
-    const { numeroBolsin, latitud, longitud, fechaHoraActualizacion } =
-      resultado.data;
+    const { numeroBolsin, latitud, longitud, fechaHoraUltimaActualizacion } =
+      resultado.data.items[0];
     return [
       String(numeroBolsin),
       String(latitud),
       String(longitud),
-      fechaHoraActualizacion,
+      fechaHoraUltimaActualizacion,
     ];
   }
 }

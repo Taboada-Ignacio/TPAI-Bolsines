@@ -7,7 +7,7 @@ categoria: CU
 prioridad: Media
 complejidad: Simple
 actor_secundario: Servidor de Correo (Outlook Microsoft Graph)
-tags: [cu30, cu31, notificacion, email, microsoft-graph, outlook, rnf5]
+tags: [cu30, cu31, notificacion, email, microsoft-graph, outlook, rnf5, nacho]
 conectado_con: [DSI-00-CONVENCIONES, DSI-U3-RNF-ISO25000, PPAI-CU-36]
 depende_de: [PPAI-CU-36]
 ---
@@ -42,3 +42,9 @@ Se implementa a través de la interfaz **`IServidorCorreo`** y el adaptador **`M
 - Endpoint de Graph: `POST https://graph.microsoft.com/v1.0/users/{user-id}/sendMail`
 - Autenticación: OAuth 2.0 Bearer Token (Azure Active Directory / Microsoft Entra ID).
 - Payload JSON con `message.subject`, `message.body.contentType: "HTML"` y `message.toRecipients`.
+
+## [NACHO] Implementación local del CU 31
+
+`PantNotificarUbicacionBolsin` («Boundary») delega en `GestorNotificarUbicacionBolsin` («Control»). El gestor depende del contrato `ServicioCorreo`. `ServicioCorreoSMTP` realiza esa interfaz y entrega los mensajes a Mailpit mediante Nodemailer. El CU 31 recibe los datos preparados como `SolicitudNotificacionUbicacion` y preserva la fecha del GPS. El endpoint de prueba `POST /api/auth/cu31/notificar-ubicacion` autentica con la sesión existente.
+
+El simulador local implementa el alcance del CU 31 aprobado para esta etapa. La integración con el gestor del CU 36 y la conexión de producción descrita en el RNF 5 quedan pendientes.

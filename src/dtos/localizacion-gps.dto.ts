@@ -1,13 +1,17 @@
 import { z } from "zod";
 
-export const localizacionXtr = z.object({
+const itemXtr = z.object({
   numeroBolsin: z.int32(),
   latitud: z.number(),
   longitud: z.number(),
-  fechaHoraActualizacion: z.string(),
+  fechaHoraUltimaActualizacion: z.string(),
 });
 
-export const matrizGps = z.array(z.array(z.string()));
+export const localizacionXtr = z.object({ items: z.tuple([itemXtr]) });
+
+export const matrizGps = z
+  .array(z.tuple([z.int32(), z.number(), z.number(), z.string()]))
+  .transform((filas) => filas.map((fila) => fila.map(String)));
 
 const numeroDeBolsin = z
   .string()
