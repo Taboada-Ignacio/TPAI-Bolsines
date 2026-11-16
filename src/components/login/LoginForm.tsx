@@ -20,6 +20,29 @@ export interface LoginFormProps {
   contrasenaRef: RefObject<HTMLInputElement | null>;
 }
 
+function leerErrorGoogleInicial(): string | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  const err = params.get("error");
+  const email = params.get("email");
+  if (!err) return null;
+  if (err === "google_no_registrado") {
+    return email
+      ? `La cuenta ${email} no está vinculada a ningún empleado. Creá un empleado con ese email o ingresá con tu usuario.`
+      : "Tu cuenta de Google no está vinculada a ningún empleado.";
+  }
+  if (err === "google_no_configurado") {
+    return "El acceso con Google no está configurado en el servidor.";
+  }
+  if (err === "google_cancelado") {
+    return "Se canceló el inicio de sesión con Google.";
+  }
+  if (err === "google_error") {
+    return "No pudimos validar tu cuenta con Google. Probá de nuevo.";
+  }
+  return null;
+}
+
 export function LoginForm({
   state,
   usuario,
@@ -31,7 +54,9 @@ export function LoginForm({
   usuarioRef,
   contrasenaRef,
 }: LoginFormProps) {
-  const [googleNotice, setGoogleNotice] = useState(false);
+  const [googleError, setGoogleError] = useState<string | null>(
+    leerErrorGoogleInicial,
+  );
   const isSubmitting = state.status === "submitting";
   const isEntering = state.status === "entering";
   const isLocked = isSubmitting || isEntering;
@@ -50,13 +75,13 @@ export function LoginForm({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setGoogleNotice(false);
+    setGoogleError(null);
     onSubmit();
   }
 
   function handleGoogleClick() {
-    setGoogleNotice(true);
-    usuarioRef.current?.focus();
+    setGoogleError(null);
+    window.location.href = "/api/auth/google";
   }
 
   return (
@@ -98,9 +123,12 @@ export function LoginForm({
           <span>Continuar con Google</span>
         </button>
 
-        {googleNotice ? (
-          <p className="text-center text-[12.5px] font-medium text-muted">
-            Acceso con Google no habilitado aún. Ingresá con tu usuario.
+        {googleError ? (
+          <p
+            role="alert"
+            className="text-center text-[12.5px] font-medium text-danger-ink"
+          >
+            {googleError}
           </p>
         ) : null}
 

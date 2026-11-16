@@ -21,6 +21,28 @@ export class SesionService {
     };
   }
 
+  async iniciarPorEmail(email: string) {
+    const buscarPorEmail = (
+      this.repositorio as RepositorioSesion & {
+        buscarUsuarioPorEmail?: (
+          email: string,
+        ) => ReturnType<RepositorioSesion["buscarUsuario"]>;
+      }
+    ).buscarUsuarioPorEmail;
+    if (!buscarPorEmail) throw new SesionInvalida();
+    const registro = await buscarPorEmail.call(this.repositorio, email);
+    if (!registro) throw new SesionInvalida();
+    const sesion = new Sesion(new Date(), null, registro.usuario);
+    const perfil = await this.perfil(registro.id, sesion);
+    return {
+      ...perfil,
+      sesion: {
+        id: await this.repositorio.crear(registro.id, sesion),
+        fechaHoraInicio: sesion.getFechaHoraInicio(),
+      },
+    };
+  }
+
   async consultar(id: number) {
     const registro = await this.buscarEmpleadoLogueado(id);
     const perfil = this.datosPerfil(

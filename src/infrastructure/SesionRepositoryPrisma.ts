@@ -12,6 +12,19 @@ export class SesionRepositoryPrisma implements RepositorioSesion {
       : null;
   }
 
+  async buscarUsuarioPorEmail(email: string) {
+    const fila = await getPrisma().empleado.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+      include: { usuario: true },
+    });
+    return fila
+      ? {
+          id: fila.usuario.id,
+          usuario: new Usuario(fila.usuario.nombre, fila.usuario.contrasena),
+        }
+      : null;
+  }
+
   async buscarEmpleado(usuarioId: number) {
     const fila = await getPrisma().empleado.findUnique({
       where: { usuarioId },
