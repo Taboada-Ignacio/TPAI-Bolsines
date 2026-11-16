@@ -139,3 +139,11 @@ El tramo GPS del CU 36 consulta el servicio oficial `gps-tracker` por HTTP a tra
 La pantalla `/seguimiento` consulta `GET /api/auth/cu36/seguimiento`. La sesión aporta el rol Encargado de Bolsines y la CM origen. `GestorConsultarUbicacionDeBolsin` pide al repositorio los bolsines en estado Enviado de esa CM y llama al Adapter XTR para los fixtures del GPS oficial. Distingue sedes por CM local y número, por ejemplo 101 y 110 de Córdoba. Los demás bolsines se contabilizan como enviados sin ubicación.
 
 La vista usa MapLibre con cartografía de OpenFreeMap en lugar del proveedor cartográfico nombrado en el diagrama. Calcula el encuadre inicial con las coordenadas de todo el lote y permite seleccionar un bolsín en el mapa o en la lista. El detalle muestra la última ubicación informada. Quedan pendientes los filtros del escenario completo, la recuperación de la última posición ante fallos del GPS y la notificación al GCM desde la pantalla.
+
+### [NACHO] Pantalla integrada al frontend
+
+La ruta `src/app/(app)/seguimiento/page.tsx` integra el mapa real de la primera pantalla al layout protegido. Comparte la selección entre mapa y listado y conserva la consulta por sesión al gestor del CU 36. El flujo mantiene la integración XTR y la visualización de detalle. Los filtros y la confirmación de notificación se completarán por separado.
+
+### [NACHO] Ciclo de vida de MapLibre
+
+El primer montaje de prueba de Strict Mode se cancela antes de crear MapLibre. La instancia se mantiene al actualizar los puntos; la selección marca el botón existente. Al salir se cancela el cuadro pendiente, se desconecta el observador y se retiran los marcadores antes de llamar a `mapa.remove()`. El listener del mapa descarta únicamente `AbortError` emitidos después de iniciar su limpieza. El resto se registra. Vitest verificó el montaje diferido y la limpieza idempotente con cuadros simulados. El comportamiento con OpenFreeMap en el navegador queda pendiente de verificación.

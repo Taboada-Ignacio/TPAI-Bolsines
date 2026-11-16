@@ -588,7 +588,7 @@ Respuesta ilustrativa de `login` y `me`
 
 Cada alta de sesión registra la hora del servidor y admite varias sesiones por usuario. `Sesion.getUsuario()` devuelve el usuario asociado. `Empleado.esTuUsuario()` verifica la identidad mediante el nombre único. El cierre registra la fecha de fin y conserva el historial.
 
-La cookie `bolsines_sesion` es `HttpOnly`, `SameSite=Lax`, tiene alcance `/api/auth` y usa `Secure` bajo HTTPS. Contiene el identificador de sesión con firma HMAC-SHA256. Generá una clave local con `[Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))` en PowerShell 7 y guardala como `SESSION_SIGNING_KEY` en `.env`. Compose la suministra al backend.
+La cookie `bolsines_sesion` es `HttpOnly`, `SameSite=Lax`, tiene alcance `/` y usa `Secure` bajo HTTPS. Contiene el identificador de sesión con firma HMAC-SHA256. Generá una clave local con `[Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))` en PowerShell 7 y guardala como `SESSION_SIGNING_KEY` en `.env`. Compose la suministra al backend.
 
 Las contraseñas de demostración se almacenan en texto plano según el modelo académico. Este manejo de credenciales no es adecuado para producción.
 
@@ -736,7 +736,7 @@ npm.cmd run test:run -- tests/gps-adapter-http.test.ts
 
 ## CU 31 — Notificar ubicación de bolsín
 
-`POST /api/auth/cu31/notificar-ubicacion` permite probar la notificación con una sesión válida. La ruta queda bajo `/api/auth` para reutilizar el alcance de la cookie `bolsines_sesion`.
+`POST /api/auth/cu31/notificar-ubicacion` permite probar la notificación con una sesión válida. La ruta usa la misma cookie `bolsines_sesion` que el login y el layout protegido.
 
 | Participante                            | Operación                                                                              | Responsabilidad                                                                |
 | --------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
@@ -811,6 +811,8 @@ npm.cmd run build
 ```
 
 ## Seguimiento de bolsines en el mapa (CU 36)
+
+El servicio `backend` de Compose sirve la interfaz y los endpoints en una sola aplicación Next.js. La raíz redirige a `/inicio`; sin sesión, el proxy lleva a `/login`. La pantalla de seguimiento usa el layout protegido.
 
 Abrí [Seguimiento de bolsines](http://localhost:3000/seguimiento) e iniciá sesión con el usuario Encargado de Bolsines de la base de demostración. Para usar los fixtures 101 y 110 de Córdoba se requiere una base que ya los contenga. El seed aplica a bases nuevas y no agrega esas filas a una base inicializada.
 

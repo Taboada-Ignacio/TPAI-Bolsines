@@ -38,20 +38,34 @@ La separación en capas (`domain`, `services`, `infrastructure`, `adapters`, `dt
 
 ---
 
-### [NACHO] Avances posteriores
+## 3. Cambios y Puntos a Revisar para Nacho (Backend)
 
-- CRUD completos de Rol, Comisión Médica y Estado. Cada catálogo permite crear, listar, consultar por ID, modificar y eliminar mediante su API REST.
-- Carga automática de `prisma/seeds/init.sql` después de las migraciones y de la verificación del esquema, antes de iniciar Next.js. Incluye cuatro roles, cinco estados del bolsín y veinticuatro comisiones médicas ficticias.
+### P1 — Evitar modelo de dominio anémico (`src/domain/`)
+- **Situación:** Las entidades actuales solo exponen constructor, getters y setters.
+- **Acción sugerida:** Incorporar métodos de comportamiento del dominio según GRASP (Experto en la Información), por ejemplo:
+  - En `Bolsin`: `estaEnviado()`, `obtenerEstadoActual()`, `obtenerUltimoCambioEstado()`.
+  - En `Bolsin`: validar la multiplicidad UML `1..*` de `cambiosEstado` al construir o mutar el historial.
+  - En `ComisionMedica` / `Empleado`: helpers de consulta necesarios para `GestorSeguimientoBolsines`.
 
-## 3. [NACHO] Decisiones definitivas P1–P5
+### P2 — Tipo de dato de `numeroPrecinto`
+- **Situación:** En `src/domain/Bolsin.ts` y `prisma/schema.prisma`, `numeroPrecinto` está definido como `number` (`INTEGER`). En `PPAI-DOM-BOLSIN` figura como identificador alfanumérico.
+- **Acción sugerida:** Verificar en la ERS oficial si el precinto puede contener letras o ceros a la izquierda; de ser así, migrar a `string` / `TEXT` antes de poblar datos reales.
 
-### [NACHO] P1 — Pendiente por decisión de diseño
+### P3 — Asociar el modelo de dispositivo GPS al `Bolsin`
+- **Situación:** `Bolsin` y `bolsin` todavía no registran qué modelo de GPS Tracker (`XTR-4500L`, `NavTrack QX-7A`, `GeoPulse MTR-900`) tiene asignado el bolsín.
+- **Acción sugerida:** Agregar el atributo/relación `dispositivoGPS` (o `modeloGps`) en `Bolsin` y `schema.prisma` para que `GPSTrackerAdapterFactory` pueda instanciar el `IGPSTrackerAdapter` correspondiente sin condicionales hardcodeados en el servicio.
 
-La primera etapa se concentró en representar el diagrama de clases de análisis con atributos privados, constructores, getters, setters y asociaciones. Esta estructura es intencional y adecuada para esa etapa. Se postergan `estaEnviado()`, `obtenerEstadoActual()`, `obtenerUltimoCambioEstado()`, la validación de multiplicidad `1..*` del historial y el patrón State.
+### P4 — Seguridad de credenciales en `Usuario`
+- **Situación:** `Usuario` almacena `contrasena: string`.
+- **Acción sugerida:** Al implementar el login y la creación de `Sesion`, almacenar siempre hash seguro (ej. `crypto.scrypt` o `argon2`/`bcrypt`) y nunca devolver `contrasena` en DTOs ni respuestas HTTP.
 
-### [NACHO] P2 — Resuelto: conservar Int
+### P5 — Capas pendientes para completar el CU 36 y CU 30/31
+- [ ] Repositorios concretos en `src/infrastructure/` que mapeen entre modelos Prisma y entidades de `src/domain/`.
+- [ ] Implementación de `IGPSTrackerAdapter`, adaptadores concretos (`XTR4500LAdapter`, `NavTrackQX7AAdapter`, `GeoPulseMTR900Adapter`) y `GPSTrackerAdapterFactory` en `src/adapters/`.
+- [ ] `GestorSeguimientoBolsines` en `src/services/` + endpoints del CU 36 en `src/app/api/`.
+- [ ] Integración de notificación por email (CU 30/31 — Microsoft Graph o servicio equivalente).
 
-La descripción del caso define un dispositivo físico numerado, la ERS no especifica un formato alfanumérico y el diagrama de clases de análisis declara `numeroPrecinto: Int`. Se conserva `number` en TypeScript e `Int` en Prisma, obligatorio y no nullable. El CU 36 consulta bolsines ya despachados con precinto asignado. Registrar, cerrar (CU 39), reabrir (CU 40) y eliminar bolsines quedan fuera de este alcance.
+---
 
 ### [NACHO] P3 — Selección explícita del modelo GPS implementada
 
@@ -162,7 +176,7 @@ Pasaron 213 pruebas de Vitest, TypeScript, ESLint, la validación de Prisma y `d
 
 ### [NACHO] CU 31 disponible para prueba independiente
 
-El Route Handler autenticado delega en `PantNotificarUbicacionBolsin`, que invoca al gestor. Se usa el prefijo `/api/auth` por el alcance de la cookie vigente. El gestor valida el DTO y depende de `ServicioCorreo`. Nodemailer envía a Mailpit por SMTP local. Las pruebas cubren validación, composición, aceptación y rechazo SMTP, errores HTTP y sesión. La futura integración con CU 36 aportará el destinatario y la ubicación preparados.
+El Route Handler autenticado delega en `PantNotificarUbicacionBolsin`, que invoca al gestor. Se conserva el prefijo `/api/auth` del endpoint. La sesión también se usa en el layout moderno mediante una cookie con alcance `/`. El gestor valida el DTO y depende de `ServicioCorreo`. Nodemailer envía a Mailpit por SMTP local. Las pruebas cubren validación, composición, aceptación y rechazo SMTP, errores HTTP y sesión. La futura integración con CU 36 aportará el destinatario y la ubicación preparados.
 
 Pasaron 230 pruebas de Vitest, incluidas 17 del CU 31. Cuatro pruebas HTTP de GPS quedaron omitidas. Pasaron TypeScript, ESLint, Prisma, el build de producción con Webpack y la validación de Compose. El envío real a Mailpit queda por verificar porque el entorno denegó acceso al motor de Docker. El README incluye la prueba manual con sesión y datos ficticios.
 
@@ -181,3 +195,29 @@ Compose comparte las claves por modelo entre el backend y el GPS oficial mediant
 El endpoint autenticado de seguimiento conecta una consulta de bolsines Enviados por CM origen con `GestorConsultarUbicacionDeBolsin` y el Adapter XTR. La asignación de sede oficial está limitada a los diez fixtures del seed. La pantalla proyecta todas las posiciones recibidas y comparte la selección entre mapa y lista. La prueba de gestor cubre las dos sedes de Córdoba en un mismo lote y la consulta vacía. La prueba en vivo del mapa y los contenedores quedó pendiente por acceso local restringido.
 
 Pasaron TypeScript, ESLint y 225 pruebas de Vitest. Se omitieron las seis pruebas HTTP que requieren el GPS oficial. El build con Webpack falló con EPERM al crear un directorio bajo .next/static.
+---
+
+## 4. Modo en memoria con `pg-mem` (y cómo desactivarlo para Docker)
+
+Para desarrollar y testear el frontend sin depender de Docker ni de una instancia externa de PostgreSQL, en `feature/frontend` se agregó soporte opcional de PostgreSQL en memoria (`pg-mem`):
+
+- **Archivos:**
+  - `src/infrastructure/prisma.ts`: `getPrisma()` revisa `process.env.USE_PG_MEM === "true"`.
+  - `src/infrastructure/pg-mem-prisma.ts`: `crearPrismaEnMemoria()` levanta una instancia `pg-mem`, ejecuta el DDL de `prisma/migrations/20261114202500_init_domain_entities/migration.sql` y carga los seeds iniciales (`rol`, `estado`, `comision_medica`, `usuario`, `empleado`).
+  - `tests/pg-mem-integration.test.ts`: test de integración que valida tablas, seeds, login, registro y actualización de perfil sobre `pg-mem`.
+- **Cómo desactivarlo para correr con Docker + PostgreSQL real (como antes):**
+  1. En `.env` (o en el entorno del contenedor), **no definir `USE_PG_MEM`** o dejar **`USE_PG_MEM=false`** (en `docker-compose.yml` no está seteada, así que por defecto ya usa PostgreSQL real).
+  2. Asegurar que `DATABASE_URL` apunte al servicio `postgres` (en Docker Compose ya se arma con `DOCKER_DATABASE_URL` / `POSTGRES_*`).
+  3. Con `USE_PG_MEM` ausente o distinto de `"true"`, `getPrisma()` instancia `new PrismaClient({ adapter: new PrismaPg({ connectionString }) })` y se conecta normalmente a PostgreSQL.
+
+### [NACHO] Integración con el layout del frontend
+
+La raíz redirige a `/inicio` y el proxy redirige a `/login` si falta una sesión. El grupo de rutas protegido valida la sesión persistida y comparte la cookie de alcance `/` con los endpoints. `/seguimiento` vive en ese grupo y usa `MapaBolsines` con MapLibre y OpenFreeMap. La pantalla consume `GET /api/auth/cu36/seguimiento`, mantiene el encuadre del lote, la selección por marcador o lista y la actualización manual. Se conserva un solo proceso Next.js en Compose con PostgreSQL, GPS oficial, migraciones, seed y Mailpit. Los filtros y la confirmación de notificación quedan pendientes.
+
+ESLint, Prisma validate y Compose config pasaron. Vitest registró 250 pruebas aprobadas, seis omitidas y tres suites bloqueadas por dependencias locales ausentes. TypeScript encontró módulos ausentes y tipos de Next generados antes de retirar la ruta duplicada. El build falló por DNS de Google Fonts y por permisos de escritura bajo `.next`. La instalación de las dependencias faltantes quedó bloqueada por DNS del registro de npm.
+
+### [NACHO] Seguimiento y cancelación al salir del mapa
+
+La corrección se limita al ciclo de vida de la pantalla y de MapLibre (ver nodo CU 36). La suite local registró 260 pruebas aprobadas y seis HTTP contra el GPS omitidas. El motor de Docker denegó acceso.
+
+ESLint pasó. El typecheck estándar detectó referencias generadas obsoletas bajo `.next/dev/types`. El build con Webpack quedó bloqueado por DNS de Google Fonts y por permisos de escritura bajo `.next`.

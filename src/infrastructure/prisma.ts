@@ -1,5 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../prisma/generated/client";
+import { crearPrismaEnMemoria } from "./pg-mem-prisma";
 
 const globalForPrisma = globalThis as typeof globalThis & {
   bolsinesPrisma?: PrismaClient;
@@ -12,13 +13,17 @@ export function getPrisma(): PrismaClient {
     return prisma;
   }
 
-  const connectionString = process.env.DATABASE_URL;
+  if (process.env.USE_PG_MEM === "true") {
+    prisma = crearPrismaEnMemoria();
+  } else {
+    const connectionString = process.env.DATABASE_URL;
 
-  if (!connectionString) {
-    throw new Error("Se requiere DATABASE_URL para usar Prisma.");
+    if (!connectionString) {
+      throw new Error("Se requiere DATABASE_URL para usar Prisma.");
+    }
+
+    prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
   }
-
-  prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 
   if (process.env.NODE_ENV !== "production") {
     globalForPrisma.bolsinesPrisma = prisma;

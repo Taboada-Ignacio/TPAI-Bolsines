@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { POST as login } from "@/app/api/auth/login/route";
 import { GET as me } from "@/app/api/auth/me/route";
 import { POST as logout } from "@/app/api/auth/logout/route";
+import { GET as limpiarSesion } from "@/app/api/auth/limpiar-sesion/route";
 import { Sesion } from "@/domain/Sesion";
 import { Usuario } from "@/domain/Usuario";
 import { Empleado } from "@/domain/Empleado";
@@ -184,4 +185,15 @@ it("no inicia sesión cuando falta el empleado o la clave de firma", async () =>
   vi.stubEnv("SESSION_SIGNING_KEY", "");
   expect((await login(solicitud("login", credenciales))).status).toBe(500);
   expect(db.sesion.create).not.toHaveBeenCalled();
+});
+
+it("limpia la cookie de sesión y redirige a /login", async () => {
+  const respuesta = await limpiarSesion(
+    new NextRequest("http://localhost/api/auth/limpiar-sesion"),
+  );
+  expect(respuesta.status).toBe(307);
+  expect(respuesta.headers.get("location")).toBe("http://localhost/login");
+  expect(respuesta.headers.get("cache-control")).toBe("no-store");
+  expect(respuesta.headers.get("set-cookie")).toContain("bolsines_sesion=;");
+  expect(respuesta.headers.get("set-cookie")).toContain("Max-Age=0");
 });

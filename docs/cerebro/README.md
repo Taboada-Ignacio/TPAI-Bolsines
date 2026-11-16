@@ -3,10 +3,10 @@
 Repositorio de conocimiento estructurado de **Diseño de Sistemas de Información (UTN - FRC)** y del **Proyecto Práctico de Aplicación Integrador (PPAI) - Sistema de Bolsines (CU 36 + CU 30/31)**.
 
 ## Métricas del Grafo de Conocimiento
-- **Nodos Indexados:** 31
-- **Aristas Válidas:** 169
+- **Nodos Indexados:** 35
+- **Aristas Válidas:** 178
 - **Componentes Conexos:** 1
-- **Densidad del Grafo:** 0.1817
+- **Densidad del Grafo:** 0.1496
 - **Nodos Centrales (Hubs):** `DSI-00-CONVENCIONES` (34), `PPAI-CU-36` (28), `PPAI-DOM-BOLSIN` (20), `PPAI-DIS-ARQUITECTURA` (17), `DSI-U2-PRINCIPIOS-SOLID` (16)
 - **Enlaces Rotos:** 0
 
@@ -33,9 +33,13 @@ flowchart LR
     node_PPAI_DOM_PRECINTO["PPAI-DOM-PRECINTO<br/>Dominio PPAI - Gestión de Precintos, Cierre, Reapertura y Trazabilidad<br/><i>[dominio]</i>"]:::dominio
     node_PPAI_DOM_REMITO["PPAI-DOM-REMITO<br/>Dominio PPAI - Entidad Remito y Reglas de Agrupación por Destino<br/><i>[dominio]</i>"]:::dominio
     node_PPAI_IMPL_BACKEND_REVISION["PPAI-IMPL-BACKEND-REVISION<br/>Revisión Técnica Backend (feature/backend) y Ajustes Pendientes<br/><i>[arquitectura]</i>"]:::arq
+    node_PPAI_IMPL_FRONTEND_HANDOFF["PPAI-IMPL-FRONTEND-HANDOFF<br/>Traspaso Frontend - Estado, orden de implementación y reglas para el agente que codifica<br/><i>[referencia]</i>"]:::conv
     node_PPAI_PAT_ADAPTER_GPS["PPAI-PAT-ADAPTER-GPS<br/>Patrón Adapter para Modelos de GPS Tracker (XTR-4500L, NavTrack QX-7A, GeoPulse MTR-900)<br/><i>[patron-gof]</i>"]:::patron
     node_PPAI_PAT_STATE_BOLSIN["PPAI-PAT-STATE-BOLSIN<br/>Aplicación del Patrón State y Trazabilidad CambioEstadoBolsin en el PPAI<br/><i>[patron-gof]</i>"]:::patron
+    node_PPAI_UX_APP_SHELL["PPAI-UX-APP-SHELL<br/>UX PPAI - Núcleo de la App en Islas (navegación, cabecera, temas claro/oscuro y motion Rumbo)<br/><i>[convencion]</i>"]:::conv
+    node_PPAI_UX_COMISIONES_CRUD["PPAI-UX-COMISIONES-CRUD<br/>UX PPAI - Breadcrumb URL SplitFlap, Sheets Reutilizables y CRUD Comisiones Médicas<br/><i>[convencion]</i>"]:::conv
     node_PPAI_UX_EMPATIA["PPAI-UX-EMPATIA<br/>UX PPAI - Mapa de Empatía del Encargado de Bolsines y Diseño de Mapa CU 36<br/><i>[convencion]</i>"]:::conv
+    node_PPAI_UX_LOGIN["PPAI-UX-LOGIN<br/>UX PPAI - Pantalla de Login con Bolsín 3D (CU 5 Iniciar Sesión, mockeado)<br/><i>[convencion]</i>"]:::conv
     node_PPAI_UX_MANUAL_MARCA["PPAI-UX-MANUAL-MARCA<br/>Manual de Marca, Craft Kit (Rumbo/Costado) y Estrategia de Motion (CU 36)<br/><i>[convencion]</i>"]:::conv
     node_PPAI_CU_30 -->|"depende de"| node_PPAI_CU_36
     ext_DSI_00_CONVENCIONES["DSI-00-CONVENCIONES"]:::external
@@ -101,6 +105,8 @@ flowchart LR
     node_PPAI_IMPL_BACKEND_REVISION -.->|"conecta con"| node_PPAI_DOM_BOLSIN
     node_PPAI_IMPL_BACKEND_REVISION -.->|"conecta con"| node_PPAI_PAT_ADAPTER_GPS
     node_PPAI_IMPL_BACKEND_REVISION -.->|"conecta con"| ext_DSI_U3_ARQ_MONOLITICA
+    node_PPAI_IMPL_FRONTEND_HANDOFF -->|"depende de"| node_PPAI_UX_APP_SHELL
+    node_PPAI_IMPL_FRONTEND_HANDOFF -->|"depende de"| node_PPAI_UX_LOGIN
     node_PPAI_PAT_ADAPTER_GPS -.->|"depende de"| ext_DSI_U2_PATRONES_ESTRUCTURALES
     node_PPAI_PAT_ADAPTER_GPS -->|"depende de"| node_PPAI_CU_36
     node_PPAI_PAT_ADAPTER_GPS -.->|"conecta con"| ext_DSI_U2_PATRONES_ESTRUCTURALES
@@ -113,18 +119,25 @@ flowchart LR
     node_PPAI_PAT_STATE_BOLSIN -.->|"conecta con"| node_PPAI_DOM_BOLSIN
     node_PPAI_PAT_STATE_BOLSIN -.->|"conecta con"| node_PPAI_DOM_PRECINTO
     node_PPAI_PAT_STATE_BOLSIN -.->|"conecta con"| node_PPAI_CU_36
+    node_PPAI_UX_APP_SHELL -->|"depende de"| node_PPAI_UX_MANUAL_MARCA
+    node_PPAI_UX_APP_SHELL -->|"depende de"| node_PPAI_UX_EMPATIA
+    node_PPAI_UX_COMISIONES_CRUD -->|"depende de"| node_PPAI_UX_APP_SHELL
+    node_PPAI_UX_COMISIONES_CRUD -->|"depende de"| node_PPAI_UX_MANUAL_MARCA
     ext_DSI_00_UX_INTERFACES["DSI-00-UX-INTERFACES"]:::external
     node_PPAI_UX_EMPATIA -.->|"depende de"| ext_DSI_00_UX_INTERFACES
     node_PPAI_UX_EMPATIA -->|"depende de"| node_PPAI_CU_36
     node_PPAI_UX_EMPATIA -.->|"conecta con"| ext_DSI_00_UX_INTERFACES
     node_PPAI_UX_EMPATIA -.->|"conecta con"| node_PPAI_CU_36
     node_PPAI_UX_EMPATIA -.->|"conecta con"| node_PPAI_DOM_ORGANIZACION
+    node_PPAI_UX_LOGIN -->|"depende de"| node_PPAI_UX_MANUAL_MARCA
+    node_PPAI_UX_LOGIN -->|"depende de"| node_PPAI_UX_EMPATIA
     node_PPAI_UX_MANUAL_MARCA -->|"depende de"| node_PPAI_UX_EMPATIA
     node_PPAI_UX_MANUAL_MARCA -.->|"depende de"| ext_DSI_00_UX_INTERFACES
     node_PPAI_UX_MANUAL_MARCA -.->|"conecta con"| node_PPAI_UX_EMPATIA
     node_PPAI_UX_MANUAL_MARCA -.->|"conecta con"| ext_DSI_00_UX_INTERFACES
     node_PPAI_UX_MANUAL_MARCA -.->|"conecta con"| node_PPAI_CU_36
     node_PPAI_UX_MANUAL_MARCA -.->|"conecta con"| node_PPAI_CU_30
+    node_PPAI_UX_MANUAL_MARCA -.->|"conecta con"| node_PPAI_UX_APP_SHELL
 ```
 
 ## Grafo Teórico por Unidades
@@ -308,9 +321,13 @@ flowchart TD
     node_PPAI_DOM_PRECINTO["PPAI-DOM-PRECINTO<br/>Dominio PPAI - Gestión de Precintos, Cierre, Reapertura y Trazabilidad<br/><i>[dominio]</i>"]:::dominio
     node_PPAI_DOM_REMITO["PPAI-DOM-REMITO<br/>Dominio PPAI - Entidad Remito y Reglas de Agrupación por Destino<br/><i>[dominio]</i>"]:::dominio
     node_PPAI_IMPL_BACKEND_REVISION["PPAI-IMPL-BACKEND-REVISION<br/>Revisión Técnica Backend (feature/backend) y Ajustes Pendientes<br/><i>[arquitectura]</i>"]:::arq
+    node_PPAI_IMPL_FRONTEND_HANDOFF["PPAI-IMPL-FRONTEND-HANDOFF<br/>Traspaso Frontend - Estado, orden de implementación y reglas para el agente que codifica<br/><i>[referencia]</i>"]:::conv
     node_PPAI_PAT_ADAPTER_GPS["PPAI-PAT-ADAPTER-GPS<br/>Patrón Adapter para Modelos de GPS Tracker (XTR-4500L, NavTrack QX-7A, GeoPulse MTR-900)<br/><i>[patron-gof]</i>"]:::patron
     node_PPAI_PAT_STATE_BOLSIN["PPAI-PAT-STATE-BOLSIN<br/>Aplicación del Patrón State y Trazabilidad CambioEstadoBolsin en el PPAI<br/><i>[patron-gof]</i>"]:::patron
+    node_PPAI_UX_APP_SHELL["PPAI-UX-APP-SHELL<br/>UX PPAI - Núcleo de la App en Islas (navegación, cabecera, temas claro/oscuro y motion Rumbo)<br/><i>[convencion]</i>"]:::conv
+    node_PPAI_UX_COMISIONES_CRUD["PPAI-UX-COMISIONES-CRUD<br/>UX PPAI - Breadcrumb URL SplitFlap, Sheets Reutilizables y CRUD Comisiones Médicas<br/><i>[convencion]</i>"]:::conv
     node_PPAI_UX_EMPATIA["PPAI-UX-EMPATIA<br/>UX PPAI - Mapa de Empatía del Encargado de Bolsines y Diseño de Mapa CU 36<br/><i>[convencion]</i>"]:::conv
+    node_PPAI_UX_LOGIN["PPAI-UX-LOGIN<br/>UX PPAI - Pantalla de Login con Bolsín 3D (CU 5 Iniciar Sesión, mockeado)<br/><i>[convencion]</i>"]:::conv
     node_PPAI_UX_MANUAL_MARCA["PPAI-UX-MANUAL-MARCA<br/>Manual de Marca, Craft Kit (Rumbo/Costado) y Estrategia de Motion (CU 36)<br/><i>[convencion]</i>"]:::conv
     node_DSI_00_CONVENCIONES -.->|"conecta con"| node_DSI_U1_REALIZACIONES_CU
     node_DSI_00_CONVENCIONES -.->|"conecta con"| node_DSI_U1_MAQUINA_ESTADOS
@@ -459,6 +476,8 @@ flowchart TD
     node_PPAI_IMPL_BACKEND_REVISION -.->|"conecta con"| node_PPAI_DOM_BOLSIN
     node_PPAI_IMPL_BACKEND_REVISION -.->|"conecta con"| node_PPAI_PAT_ADAPTER_GPS
     node_PPAI_IMPL_BACKEND_REVISION -.->|"conecta con"| node_DSI_U3_ARQ_MONOLITICA
+    node_PPAI_IMPL_FRONTEND_HANDOFF -->|"depende de"| node_PPAI_UX_APP_SHELL
+    node_PPAI_IMPL_FRONTEND_HANDOFF -->|"depende de"| node_PPAI_UX_LOGIN
     node_PPAI_PAT_ADAPTER_GPS -->|"depende de"| node_DSI_U2_PATRONES_ESTRUCTURALES
     node_PPAI_PAT_ADAPTER_GPS -->|"depende de"| node_PPAI_CU_36
     node_PPAI_PAT_ADAPTER_GPS -.->|"conecta con"| node_DSI_U2_PATRONES_ESTRUCTURALES
@@ -470,17 +489,24 @@ flowchart TD
     node_PPAI_PAT_STATE_BOLSIN -.->|"conecta con"| node_PPAI_DOM_BOLSIN
     node_PPAI_PAT_STATE_BOLSIN -.->|"conecta con"| node_PPAI_DOM_PRECINTO
     node_PPAI_PAT_STATE_BOLSIN -.->|"conecta con"| node_PPAI_CU_36
+    node_PPAI_UX_APP_SHELL -->|"depende de"| node_PPAI_UX_MANUAL_MARCA
+    node_PPAI_UX_APP_SHELL -->|"depende de"| node_PPAI_UX_EMPATIA
+    node_PPAI_UX_COMISIONES_CRUD -->|"depende de"| node_PPAI_UX_APP_SHELL
+    node_PPAI_UX_COMISIONES_CRUD -->|"depende de"| node_PPAI_UX_MANUAL_MARCA
     node_PPAI_UX_EMPATIA -->|"depende de"| node_DSI_00_UX_INTERFACES
     node_PPAI_UX_EMPATIA -->|"depende de"| node_PPAI_CU_36
     node_PPAI_UX_EMPATIA -.->|"conecta con"| node_DSI_00_UX_INTERFACES
     node_PPAI_UX_EMPATIA -.->|"conecta con"| node_PPAI_CU_36
     node_PPAI_UX_EMPATIA -.->|"conecta con"| node_PPAI_DOM_ORGANIZACION
+    node_PPAI_UX_LOGIN -->|"depende de"| node_PPAI_UX_MANUAL_MARCA
+    node_PPAI_UX_LOGIN -->|"depende de"| node_PPAI_UX_EMPATIA
     node_PPAI_UX_MANUAL_MARCA -->|"depende de"| node_PPAI_UX_EMPATIA
     node_PPAI_UX_MANUAL_MARCA -->|"depende de"| node_DSI_00_UX_INTERFACES
     node_PPAI_UX_MANUAL_MARCA -.->|"conecta con"| node_PPAI_UX_EMPATIA
     node_PPAI_UX_MANUAL_MARCA -.->|"conecta con"| node_DSI_00_UX_INTERFACES
     node_PPAI_UX_MANUAL_MARCA -.->|"conecta con"| node_PPAI_CU_36
     node_PPAI_UX_MANUAL_MARCA -.->|"conecta con"| node_PPAI_CU_30
+    node_PPAI_UX_MANUAL_MARCA -.->|"conecta con"| node_PPAI_UX_APP_SHELL
 ```
 
 ## Índice Completo de Nodos del Cerebro
@@ -513,7 +539,11 @@ flowchart TD
 | [PPAI-DOM-PRECINTO](nodos/PPAI-DOM-PRECINTO.md) | Dominio PPAI - Gestión de Precintos, Cierre, Reapertura y Trazabilidad | `dominio` | PPAI | PPAI-DOM-BOLSIN, PPAI-CU-36 |
 | [PPAI-DOM-REMITO](nodos/PPAI-DOM-REMITO.md) | Dominio PPAI - Entidad Remito y Reglas de Agrupación por Destino | `dominio` | PPAI | DSI-U1-MAQUINA-ESTADOS, PPAI-DOM-BOLSIN, PPAI-DOM-DOCUMENTACION |
 | [PPAI-IMPL-BACKEND-REVISION](nodos/PPAI-IMPL-BACKEND-REVISION.md) | Revisión Técnica Backend (feature/backend) y Ajustes Pendientes | `arquitectura` | PPAI | PPAI-CU-36, PPAI-CU-30, PPAI-DOM-BOLSIN, PPAI-PAT-ADAPTER-GPS, DSI-U3-ARQ-MONOLITICA |
+| [PPAI-IMPL-FRONTEND-HANDOFF](nodos/PPAI-IMPL-FRONTEND-HANDOFF.md) | Traspaso Frontend - Estado, orden de implementación y reglas para el agente que codifica | `referencia` | PPAI |  |
 | [PPAI-PAT-ADAPTER-GPS](nodos/PPAI-PAT-ADAPTER-GPS.md) | Patrón Adapter para Modelos de GPS Tracker (XTR-4500L, NavTrack QX-7A, GeoPulse MTR-900) | `patron-gof` | PPAI | DSI-U2-PATRONES-ESTRUCTURALES, PPAI-CU-36, PPAI-DIS-ARQUITECTURA |
 | [PPAI-PAT-STATE-BOLSIN](nodos/PPAI-PAT-STATE-BOLSIN.md) | Aplicación del Patrón State y Trazabilidad CambioEstadoBolsin en el PPAI | `patron-gof` | PPAI | DSI-U2-PATRONES-COMPORTAMENTALES, PPAI-DOM-BOLSIN, PPAI-DOM-PRECINTO, PPAI-CU-36 |
+| [PPAI-UX-APP-SHELL](nodos/PPAI-UX-APP-SHELL.md) | UX PPAI - Núcleo de la App en Islas (navegación, cabecera, temas claro/oscuro y motion Rumbo) | `convencion` | PPAI |  |
+| [PPAI-UX-COMISIONES-CRUD](nodos/PPAI-UX-COMISIONES-CRUD.md) | UX PPAI - Breadcrumb URL SplitFlap, Sheets Reutilizables y CRUD Comisiones Médicas | `convencion` | PPAI |  |
 | [PPAI-UX-EMPATIA](nodos/PPAI-UX-EMPATIA.md) | UX PPAI - Mapa de Empatía del Encargado de Bolsines y Diseño de Mapa CU 36 | `convencion` | PPAI | DSI-00-UX-INTERFACES, PPAI-CU-36, PPAI-DOM-ORGANIZACION |
-| [PPAI-UX-MANUAL-MARCA](nodos/PPAI-UX-MANUAL-MARCA.md) | Manual de Marca, Craft Kit (Rumbo/Costado) y Estrategia de Motion (CU 36) | `convencion` | PPAI | PPAI-UX-EMPATIA, DSI-00-UX-INTERFACES, PPAI-CU-36, PPAI-CU-30 |
+| [PPAI-UX-LOGIN](nodos/PPAI-UX-LOGIN.md) | UX PPAI - Pantalla de Login con Bolsín 3D (CU 5 Iniciar Sesión, mockeado) | `convencion` | PPAI |  |
+| [PPAI-UX-MANUAL-MARCA](nodos/PPAI-UX-MANUAL-MARCA.md) | Manual de Marca, Craft Kit (Rumbo/Costado) y Estrategia de Motion (CU 36) | `convencion` | PPAI | PPAI-UX-EMPATIA, DSI-00-UX-INTERFACES, PPAI-CU-36, PPAI-CU-30, PPAI-UX-APP-SHELL |
