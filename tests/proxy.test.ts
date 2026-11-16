@@ -75,14 +75,31 @@ describe("proxy.ts", () => {
     expect(response.status).toBe(200);
   });
 
-  it("excluye estáticos, models/ y api/ en el matcher", () => {
+  it("excluye estáticos, .well-known, favicon, models/ y api/ en el matcher y en proxy()", () => {
     const pattern = config.matcher[0];
     const regex = new RegExp(`^${pattern}$`);
     expect(regex.test("/inicio")).toBe(true);
     expect(regex.test("/login")).toBe(true);
     expect(regex.test("/_next/static/chunk.js")).toBe(false);
+    expect(regex.test("/favicon.ico")).toBe(false);
+    expect(
+      regex.test("/.well-known/appspecific/com.chrome.devtools.json"),
+    ).toBe(false);
     expect(regex.test("/models/bolsin-poster.webp")).toBe(false);
+    expect(regex.test("/maplibre/maplibre-gl-worker.mjs")).toBe(false);
+    expect(regex.test("/seguimiento/rutas-nacionales.geojson")).toBe(false);
     expect(regex.test("/api/auth/login")).toBe(false);
     expect(regex.test("/api/comisiones-medicas")).toBe(false);
+
+    for (const bypassed of [
+      "/favicon.ico",
+      "/.well-known/appspecific/com.chrome.devtools.json",
+      "/maplibre/maplibre-gl-worker.mjs",
+      "/seguimiento/rutas-nacionales.geojson",
+    ]) {
+      const response = proxy(new NextRequest(`http://localhost${bypassed}`));
+      expect(response.status).toBe(200);
+      expect(response.headers.get("location")).toBeNull();
+    }
   });
 });

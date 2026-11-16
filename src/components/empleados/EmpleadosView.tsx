@@ -1,5 +1,7 @@
 "use client";
 
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
 import {
   AlertTriangle,
   Pencil,
@@ -9,7 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { PageBody } from "@/components/layout/PageBody";
 import { PageHeading } from "@/components/layout/PageHeading";
 import type { CatalogoOpcion } from "@/components/perfil/PerfilView";
@@ -24,6 +26,47 @@ import { ResponsiveSheet } from "@/components/ui/surfaces/ResponsiveSheet";
 import { MasterDetailSplit } from "@/components/ui/surfaces/MasterDetailSplit";
 import type { RegistroEmpleado } from "@/domain/RepositorioEmpleado";
 import { empleadoAltaSchema, empleadoEdicionSchema } from "@/dtos/empleado.dto";
+
+gsap.registerPlugin(useGSAP);
+
+/** Filtra empleados por nombre, apellido, email, usuario, rol o comisión médica. */
+export function filtrarEmpleados(
+  empleados: RegistroEmpleado[],
+  busqueda: string,
+): RegistroEmpleado[] {
+  const q = busqueda.trim().toLowerCase();
+  if (!q) return empleados;
+  return empleados.filter((emp) =>
+    [
+      emp.nombre,
+      emp.apellido,
+      emp.email,
+      emp.usuario.nombre,
+      emp.rol.nombre,
+      emp.comisionMedica.codigo,
+      emp.comisionMedica.nombre,
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(q),
+  );
+}
+
+/** Impide la autoeliminación del usuario autenticado. */
+export function puedeEliminarEmpleado(
+  empleadoId: number,
+  empleadoActualId: number,
+): boolean {
+  return empleadoId !== empleadoActualId;
+}
+
+/** Obtiene las iniciales de un empleado para el avatar del detalle. */
+export function inicialesDeEmpleado(nombre: string, apellido: string): string {
+  return (
+    `${nombre.trim().charAt(0)}${apellido.trim().charAt(0)}`.toUpperCase() ||
+    "US"
+  );
+}
 
 export interface EmpleadosViewProps {
   empleadosIniciales: RegistroEmpleado[];
@@ -79,33 +122,73 @@ export function EmpleadosView({
   const [errors, setErrors] = useState<FormErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [anuncio, setAnuncio] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const montoInicialRef = useRef(true);
 
-  const filtrados = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
-    if (!q) return empleados;
-    return empleados.filter((emp) =>
-      [
-        emp.nombre,
-        emp.apellido,
-        emp.email,
-        emp.usuario.nombre,
-        emp.rol.nombre,
-        emp.comisionMedica.codigo,
-        emp.comisionMedica.nombre,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(q),
-    );
-  }, [busqueda, empleados]);
+  const filtrados = useMemo(
+    () => filtrarEmpleados(empleados, busqueda),
+    [busqueda, empleados],
+  );
 
   const indiceSeleccionado = filtrados.findIndex((e) => e.id === selectedId);
   const seleccionado =
     indiceSeleccionado >= 0 ? filtrados[indiceSeleccionado]! : null;
 
-  function inicialesDe(nombre: string, apellido: string) {
-    return `${nombre.trim().charAt(0)}${apellido.trim().charAt(0)}`.toUpperCase() || "US";
-  }
+  useEffect(() => {
+    if (montoInicialRef.current) {
+      montoInicialRef.current = false;
+      return;
+    }
+    setAnuncio(
+      `${filtrados.length} ${filtrados.length === 1 ? "empleado encontrado" : "empleados encontrados"}.`,
+    );
+  }, [busqueda, filtrados.length]);
+
+  useGSAP(
+    () => {
+      if (filtrados.length === 0) return;
+      const mm = gsap.matchMedia();
+
+      mm.add("(prefers-reduced-motion: no-preference)", () => {
+        gsap.from("[data-empleado-item]", {
+          autoAlpha: 0,
+          y: 10,
+          duration: 0.28,
+          stagger: 0.04,
+          ease: "power3.out",
+          clearProps: "transform,opacity,visibility",
+        });
+      });
+
+      mm.add("(prefers-reduced-motion: reduce)", () => {
+        gsap.set("[data-empleado-item]", { autoAlpha: 1, y: 0 });
+      });
+    },
+    { scope: containerRef },
+  );
+
+  useGSAP(
+    () => {
+      if (!seleccionado) return;
+      const mm = gsap.matchMedia();
+
+      mm.add("(prefers-reduced-motion: no-preference)", () => {
+        gsap.from("[data-empleado-detail]", {
+          autoAlpha: 0,
+          y: 8,
+          duration: 0.22,
+          ease: "power3.out",
+          clearProps: "transform,opacity,visibility",
+        });
+      });
+
+      mm.add("(prefers-reduced-motion: reduce)", () => {
+        gsap.set("[data-empleado-detail]", { autoAlpha: 1, y: 0 });
+      });
+    },
+    { scope: containerRef, dependencies: [seleccionado?.id] },
+  );
 
   function abrirCrear() {
     setValues({
@@ -219,6 +302,9 @@ export function EmpleadosView({
 
         if (body && "id" in body) {
           setEmpleados((prev) => [...prev, body]);
+          setAnuncio(`Empleado ${body.nombre} ${body.apellido} creado.`);
+        } else {
+          setAnuncio("Empleado creado.");
         }
         setMode({ tipo: "cerrado" });
         router.refresh();
@@ -272,6 +358,9 @@ export function EmpleadosView({
         setEmpleados((prev) =>
           prev.map((e) => (e.id === body.id ? body : e)),
         );
+        setAnuncio(`Cambios de ${body.nombre} ${body.apellido} guardados.`);
+      } else {
+        setAnuncio("Cambios guardados.");
       }
       setMode({ tipo: "cerrado" });
       router.refresh();
@@ -300,8 +389,12 @@ export function EmpleadosView({
         );
         return;
       }
-      setEmpleados((prev) => prev.filter((e) => e.id !== deleteTarget.id));
+      const deletedId = deleteTarget.id;
+      const deletedNombre = `${deleteTarget.nombre} ${deleteTarget.apellido}`;
+      setEmpleados((prev) => prev.filter((e) => e.id !== deletedId));
+      setSelectedId((prev) => (prev === deletedId ? null : prev));
       setDeleteTarget(null);
+      setAnuncio(`Empleado ${deletedNombre} eliminado.`);
       router.refresh();
     } catch {
       setDeleteError("No pudimos conectar con el servidor. Probá de nuevo.");
@@ -312,12 +405,21 @@ export function EmpleadosView({
 
   return (
     <PageBody variant="padded">
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {anuncio}
+      </div>
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <PageHeading rotulo="Administración · sistema">
             Gestión de <Marker>empleados</Marker>
           </PageHeading>
-          <p className="font-serif italic text-[20px] text-muted mt-2">
+          <p className="font-serif italic text-[18px] sm:text-[20px] text-muted mt-2">
             alta de usuarios, roles y comisiones médicas
           </p>
         </div>
@@ -357,219 +459,259 @@ export function EmpleadosView({
       </div>
 
       {/* Listado + Panel de detalle integrado (desktop) */}
-      <MasterDetailSplit
-        storageKey="bolsines:empleados:panel-ancho"
-        detailLabel="Detalle del empleado"
-        posicion={
-          seleccionado && indiceSeleccionado >= 0
-            ? { actual: indiceSeleccionado + 1, total: filtrados.length }
-            : null
-        }
-        hasAnterior={indiceSeleccionado > 0}
-        hasSiguiente={
-          indiceSeleccionado >= 0 && indiceSeleccionado < filtrados.length - 1
-        }
-        onAnterior={() => {
-          if (indiceSeleccionado > 0) {
-            setSelectedId(filtrados[indiceSeleccionado - 1]!.id);
+      <div ref={containerRef} className="min-w-0">
+        <MasterDetailSplit
+          storageKey="bolsines:empleados:panel-ancho"
+          detailLabel="Detalle del empleado"
+          posicion={
+            seleccionado && indiceSeleccionado >= 0
+              ? { actual: indiceSeleccionado + 1, total: filtrados.length }
+              : null
           }
-        }}
-        onSiguiente={() => {
-          if (indiceSeleccionado < filtrados.length - 1) {
-            setSelectedId(filtrados[indiceSeleccionado + 1]!.id);
+          hasAnterior={indiceSeleccionado > 0}
+          hasSiguiente={
+            indiceSeleccionado >= 0 && indiceSeleccionado < filtrados.length - 1
           }
-        }}
-        onCerrar={() => setSelectedId(null)}
-        master={
-          <div className="rounded-[20px] border border-edge bg-surface overflow-hidden">
-            {filtrados.length === 0 ? (
-              <div className="p-8 text-center text-[14px] text-muted">
-                No encontramos empleados con ese criterio.
-              </div>
-            ) : (
-              <div>
-                <div className="hidden @md:grid grid-cols-[minmax(180px,1.3fr)_minmax(140px,1fr)_auto] @lg:grid-cols-[minmax(180px,1.25fr)_minmax(140px,1fr)_minmax(120px,0.85fr)_minmax(170px,1.1fr)_168px] items-center gap-4 px-4 py-2.5 border-b border-hair">
-                  <MicroLabel>Empleado</MicroLabel>
-                  <MicroLabel>Rol</MicroLabel>
-                  <MicroLabel className="hidden @lg:block">Sede</MicroLabel>
-                  <MicroLabel className="hidden @lg:block">Email</MicroLabel>
-                  <MicroLabel className="text-right">Acciones</MicroLabel>
+          onAnterior={() => {
+            if (indiceSeleccionado > 0) {
+              setSelectedId(filtrados[indiceSeleccionado - 1]!.id);
+            }
+          }}
+          onSiguiente={() => {
+            if (indiceSeleccionado < filtrados.length - 1) {
+              setSelectedId(filtrados[indiceSeleccionado + 1]!.id);
+            }
+          }}
+          onCerrar={() => setSelectedId(null)}
+          master={
+            <div className="rounded-[20px] border border-edge bg-surface overflow-hidden min-w-0">
+              {filtrados.length === 0 ? (
+                <div className="p-8 text-center">
+                  <p className="text-[14px] text-muted">
+                    {busqueda.trim().length > 0
+                      ? "No encontramos empleados con ese criterio."
+                      : "Todavía no hay empleados cargados."}
+                  </p>
+                  {busqueda.trim().length > 0 ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setBusqueda("")}
+                      className="rounded-full mt-4"
+                    >
+                      Limpiar búsqueda
+                    </Button>
+                  ) : null}
                 </div>
+              ) : (
+                <div>
+                  <div className="hidden @md:grid grid-cols-[minmax(180px,1.3fr)_minmax(140px,1fr)_auto] @lg:grid-cols-[minmax(180px,1.25fr)_minmax(140px,1fr)_minmax(120px,0.85fr)_minmax(170px,1.1fr)_168px] items-center gap-4 px-4 py-2.5 border-b border-hair">
+                    <MicroLabel>Empleado</MicroLabel>
+                    <MicroLabel>Rol</MicroLabel>
+                    <MicroLabel className="hidden @lg:block">Sede</MicroLabel>
+                    <MicroLabel className="hidden @lg:block">Email</MicroLabel>
+                    <MicroLabel className="text-right">Acciones</MicroLabel>
+                  </div>
 
-                <div className="divide-y divide-hair">
-                  {filtrados.map((emp) => {
-                    const esPropio = emp.id === empleadoActualId;
-                    const estaSeleccionado = emp.id === seleccionado?.id;
-                    return (
-                      <div
-                        key={emp.id}
-                        onClick={() => setSelectedId(emp.id)}
-                        className={
-                          estaSeleccionado
-                            ? "flex flex-col gap-3 p-4 @md:grid @md:grid-cols-[minmax(180px,1.3fr)_minmax(140px,1fr)_auto] @lg:grid-cols-[minmax(180px,1.25fr)_minmax(140px,1fr)_minmax(120px,0.85fr)_minmax(170px,1.1fr)_168px] @md:items-center @md:gap-4 bg-raised/90 border-l-2 border-l-accent cursor-pointer transition-colors"
-                            : "flex flex-col gap-3 p-4 @md:grid @md:grid-cols-[minmax(180px,1.3fr)_minmax(140px,1fr)_auto] @lg:grid-cols-[minmax(180px,1.25fr)_minmax(140px,1fr)_minmax(120px,0.85fr)_minmax(170px,1.1fr)_168px] @md:items-center @md:gap-4 hover:bg-hover/40 cursor-pointer transition-colors"
-                        }
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <strong className="font-display text-[15px] font-semibold text-fg truncate">
-                              {emp.nombre} {emp.apellido}
-                            </strong>
-                            {esPropio ? (
-                              <span className="rounded-full border border-edge bg-raised px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-muted shrink-0">
-                                Vos
-                              </span>
-                            ) : null}
-                          </div>
-                          <p className="font-mono text-[12px] text-muted truncate mt-0.5">
-                            @{emp.usuario.nombre}
-                          </p>
-                          <p className="text-[12.5px] text-muted mt-0.5 truncate @md:hidden">
-                            {emp.rol.nombre} · {emp.comisionMedica.codigo}
-                          </p>
-                        </div>
-
-                        <div className="hidden @md:block min-w-0">
-                          <p className="text-[13.5px] text-fg/90 truncate">
-                            {emp.rol.nombre}
-                          </p>
-                          <p className="font-mono text-[11.5px] text-muted truncate mt-0.5 @lg:hidden">
-                            {emp.comisionMedica.codigo} · {emp.email}
-                          </p>
-                        </div>
-
-                        <div className="hidden @lg:block min-w-0">
-                          <span className="inline-block rounded-[6px] border border-edge bg-raised px-2 py-0.5 font-mono text-[11.5px] font-semibold text-fg">
-                            {emp.comisionMedica.codigo}
-                          </span>
-                        </div>
-
-                        <div className="hidden @lg:block min-w-0">
-                          <p className="font-mono text-[12px] text-muted truncate">
-                            {emp.email}
-                          </p>
-                        </div>
-
+                  <div className="divide-y divide-hair">
+                    {filtrados.map((emp) => {
+                      const esPropio = !puedeEliminarEmpleado(
+                        emp.id,
+                        empleadoActualId,
+                      );
+                      const estaSeleccionado = emp.id === seleccionado?.id;
+                      return (
                         <div
-                          className="flex items-center justify-end gap-1 shrink-0"
-                          onClick={(e) => e.stopPropagation()}
+                          key={emp.id}
+                          data-empleado-item
+                          role="button"
+                          tabIndex={0}
+                          aria-pressed={estaSeleccionado}
+                          onClick={() => setSelectedId(emp.id)}
+                          onKeyDown={(e) => {
+                            if (
+                              e.target instanceof HTMLElement &&
+                              e.target.closest("button, a, input, select, textarea") &&
+                              e.target !== e.currentTarget
+                            ) {
+                              return;
+                            }
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setSelectedId(emp.id);
+                            }
+                          }}
+                          className={
+                            estaSeleccionado
+                              ? "flex flex-col gap-3 p-4 @md:grid @md:grid-cols-[minmax(180px,1.3fr)_minmax(140px,1fr)_auto] @lg:grid-cols-[minmax(180px,1.25fr)_minmax(140px,1fr)_minmax(120px,0.85fr)_minmax(170px,1.1fr)_168px] @md:items-center @md:gap-4 bg-raised/90 border-l-2 border-l-accent cursor-pointer transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+                              : "flex flex-col gap-3 p-4 @md:grid @md:grid-cols-[minmax(180px,1.3fr)_minmax(140px,1fr)_auto] @lg:grid-cols-[minmax(180px,1.25fr)_minmax(140px,1fr)_minmax(120px,0.85fr)_minmax(170px,1.1fr)_168px] @md:items-center @md:gap-4 border-l-2 border-l-transparent hover:bg-hover/40 cursor-pointer transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+                          }
                         >
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            leftIcon={<Pencil className="size-3.5" />}
-                            onClick={() => abrirEditar(emp)}
-                            className="rounded-full"
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <strong className="font-display text-[15px] font-semibold text-fg truncate">
+                                {emp.nombre} {emp.apellido}
+                              </strong>
+                              {esPropio ? (
+                                <span className="rounded-full border border-edge bg-raised px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-muted shrink-0">
+                                  Vos
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="font-mono text-[12px] text-muted truncate mt-0.5">
+                              @{emp.usuario.nombre}
+                            </p>
+                            <p className="text-[12.5px] text-muted mt-0.5 truncate @md:hidden">
+                              {emp.rol.nombre} · {emp.comisionMedica.codigo}
+                            </p>
+                          </div>
+
+                          <div className="hidden @md:block min-w-0">
+                            <p className="text-[13.5px] text-fg/90 truncate">
+                              {emp.rol.nombre}
+                            </p>
+                            <p className="font-mono text-[11.5px] text-muted truncate mt-0.5 @lg:hidden">
+                              {emp.comisionMedica.codigo} · {emp.email}
+                            </p>
+                          </div>
+
+                          <div className="hidden @lg:block min-w-0">
+                            <span className="inline-block rounded-[6px] border border-edge bg-raised px-2 py-0.5 font-mono text-[11.5px] font-semibold text-fg">
+                              {emp.comisionMedica.codigo}
+                            </span>
+                          </div>
+
+                          <div className="hidden @lg:block min-w-0">
+                            <p className="font-mono text-[12px] text-muted truncate">
+                              {emp.email}
+                            </p>
+                          </div>
+
+                          <div
+                            className="flex flex-wrap items-center justify-end gap-1 shrink-0"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            Editar
-                          </Button>
-                          {!esPropio ? (
                             <Button
                               type="button"
                               variant="ghost"
                               size="sm"
-                              leftIcon={
-                                <Trash2 className="size-3.5 text-danger-ink" />
-                              }
-                              onClick={() => {
-                                setDeleteError(null);
-                                setDeleteTarget(emp);
-                              }}
-                              className="rounded-full text-danger-ink"
+                              leftIcon={<Pencil className="size-3.5" />}
+                              onClick={() => abrirEditar(emp)}
+                              className="rounded-full"
                             >
-                              Eliminar
+                              Editar
                             </Button>
-                          ) : null}
+                            {!esPropio ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                leftIcon={
+                                  <Trash2 className="size-3.5 text-danger-ink" />
+                                }
+                                onClick={() => {
+                                  setDeleteError(null);
+                                  setDeleteTarget(emp);
+                                }}
+                                className="rounded-full text-danger-ink"
+                              >
+                                Eliminar
+                              </Button>
+                            ) : null}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        }
-        detail={
-          seleccionado ? (
-            <div className="flex flex-col gap-5">
-              <div className="flex items-center gap-3.5">
-                <span className="size-12 shrink-0 rounded-[14px] border border-edge bg-surface grid place-items-center font-mono text-[13px] font-semibold tracking-[0.06em] text-fg">
-                  {inicialesDe(seleccionado.nombre, seleccionado.apellido)}
-                </span>
-                <div className="min-w-0">
-                  <h3 className="font-display text-[19px] font-bold leading-tight text-fg truncate">
-                    {seleccionado.nombre} {seleccionado.apellido}
-                  </h3>
-                  <p className="font-mono text-[12.5px] text-muted truncate mt-0.5">
-                    @{seleccionado.usuario.nombre}
-                  </p>
+              )}
+            </div>
+          }
+          detail={
+            seleccionado ? (
+              <div data-empleado-detail className="flex flex-col gap-5">
+                <div className="flex items-center gap-3.5">
+                  <span className="size-12 shrink-0 rounded-[14px] border border-edge bg-surface grid place-items-center font-mono text-[13px] font-semibold tracking-[0.06em] text-fg">
+                    {inicialesDeEmpleado(
+                      seleccionado.nombre,
+                      seleccionado.apellido,
+                    )}
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="font-display text-[19px] font-bold leading-tight text-fg truncate">
+                      {seleccionado.nombre} {seleccionado.apellido}
+                    </h3>
+                    <p className="font-mono text-[12.5px] text-muted truncate mt-0.5">
+                      @{seleccionado.usuario.nombre}
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <dl className="border-t border-hair divide-y divide-hair">
-                <div className="py-3">
-                  <dt>
-                    <MicroLabel>Email</MicroLabel>
-                  </dt>
-                  <dd className="text-[14px] font-medium text-fg mt-1 break-all">
-                    {seleccionado.email}
-                  </dd>
-                </div>
-                <div className="py-3">
-                  <dt>
-                    <MicroLabel>Rol asignado</MicroLabel>
-                  </dt>
-                  <dd className="text-[14px] font-medium text-fg mt-1">
-                    {seleccionado.rol.nombre}
-                  </dd>
-                </div>
-                <div className="py-3">
-                  <dt>
-                    <MicroLabel>Comisión médica</MicroLabel>
-                  </dt>
-                  <dd className="mt-1 flex items-center gap-2 flex-wrap">
-                    <span className="rounded-[6px] border border-edge bg-surface px-2 py-0.5 font-mono text-[12px] font-semibold text-fg">
-                      {seleccionado.comisionMedica.codigo}
-                    </span>
-                    <span className="text-[14px] text-fg">
-                      {seleccionado.comisionMedica.nombre}
-                    </span>
-                  </dd>
-                </div>
-              </dl>
+                <dl className="border-t border-hair divide-y divide-hair">
+                  <div className="py-3">
+                    <dt>
+                      <MicroLabel>Email</MicroLabel>
+                    </dt>
+                    <dd className="text-[14px] font-medium text-fg mt-1 break-all">
+                      {seleccionado.email}
+                    </dd>
+                  </div>
+                  <div className="py-3">
+                    <dt>
+                      <MicroLabel>Rol asignado</MicroLabel>
+                    </dt>
+                    <dd className="text-[14px] font-medium text-fg mt-1">
+                      {seleccionado.rol.nombre}
+                    </dd>
+                  </div>
+                  <div className="py-3">
+                    <dt>
+                      <MicroLabel>Comisión médica</MicroLabel>
+                    </dt>
+                    <dd className="mt-1 flex items-center gap-2 flex-wrap">
+                      <span className="rounded-[6px] border border-edge bg-surface px-2 py-0.5 font-mono text-[12px] font-semibold text-fg">
+                        {seleccionado.comisionMedica.codigo}
+                      </span>
+                      <span className="text-[14px] text-fg">
+                        {seleccionado.comisionMedica.nombre}
+                      </span>
+                    </dd>
+                  </div>
+                </dl>
 
-              <div className="pt-2 border-t border-hair flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  leftIcon={<Pencil className="size-3.5" />}
-                  onClick={() => abrirEditar(seleccionado)}
-                  className="rounded-full flex-1"
-                >
-                  Editar datos
-                </Button>
-                {seleccionado.id !== empleadoActualId ? (
+                <div className="pt-2 border-t border-hair flex flex-wrap items-center gap-2">
                   <Button
                     type="button"
-                    variant="secondary"
+                    variant="primary"
                     size="sm"
-                    leftIcon={<Trash2 className="size-3.5 text-danger-ink" />}
-                    onClick={() => {
-                      setDeleteError(null);
-                      setDeleteTarget(seleccionado);
-                    }}
-                    className="rounded-full text-danger-ink"
+                    leftIcon={<Pencil className="size-3.5" />}
+                    onClick={() => abrirEditar(seleccionado)}
+                    className="rounded-full flex-1"
                   >
-                    Eliminar
+                    Editar datos
                   </Button>
-                ) : null}
+                  {puedeEliminarEmpleado(seleccionado.id, empleadoActualId) ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      leftIcon={<Trash2 className="size-3.5 text-danger-ink" />}
+                      onClick={() => {
+                        setDeleteError(null);
+                        setDeleteTarget(seleccionado);
+                      }}
+                      className="rounded-full text-danger-ink"
+                    >
+                      Eliminar
+                    </Button>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          ) : null
-        }
-      />
+            ) : null
+          }
+        />
+      </div>
 
       {/* Sheet Crear / Editar */}
       <ResponsiveSheet
@@ -724,7 +866,7 @@ export function EmpleadosView({
           {serverError ? (
             <div
               role="alert"
-              className="flex items-start gap-2 rounded-full border border-danger/25 bg-danger/5 px-4 py-2.5 text-[13px] font-medium text-danger-ink"
+              className="flex items-start gap-2 rounded-[16px] border border-danger/25 bg-danger/5 px-4 py-2.5 text-[13px] font-medium text-danger-ink"
             >
               <AlertTriangle
                 className="size-4 shrink-0 mt-0.5"
@@ -793,7 +935,7 @@ export function EmpleadosView({
           {deleteError ? (
             <div
               role="alert"
-              className="flex items-start gap-2 rounded-full border border-danger/25 bg-danger/5 px-4 py-2.5 text-[13px] font-medium text-danger-ink"
+              className="flex items-start gap-2 rounded-[16px] border border-danger/25 bg-danger/5 px-4 py-2.5 text-[13px] font-medium text-danger-ink"
             >
               <AlertTriangle
                 className="size-4 shrink-0 mt-0.5"

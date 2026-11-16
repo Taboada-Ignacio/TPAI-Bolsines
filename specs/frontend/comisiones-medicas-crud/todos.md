@@ -52,3 +52,8 @@
   - **Archivos:** `tests/pagination.test.ts` (o lógica de paginación), verificación en `TPAI-Bolsines`
   - **Depends on:** `[CM-06]` · **Parallelizable:** `false`
   - **Criterio de salida:** `npm run typecheck`, `npm run lint` y `npm run test:run` pasan sin errores; contraste y bordes verificados en tema claro y oscuro.
+
+- [x] **[CM-08] Conectar CRUD de Comisiones Médicas a la API real**
+  - **Archivos:** `src/components/comisiones-medicas/ComisionesMedicasView.tsx`, `src/app/(app)/comisiones-medicas/page.tsx`
+  - **Depends on:** `[CM-07]` · **Parallelizable:** `false`
+  - **Criterio de salida:** Reemplazado `COMISIONES_MEDICAS_SEED` por lectura de `GET /api/comisiones-medicas`, alta con `POST /api/comisiones-medicas`, edición con `PUT /api/comisiones-medicas/[id]` y baja con `DELETE /api/comisiones-medicas/[id]`; estados `loading` (`Skeleton`), `error` recuperable, `saving`/`deleting` y errores HTTP (`400`, `409`, `404`) mostrados sin cerrar `ResponsiveSheet`, en tema claro/oscuro y voseo rioplatense.

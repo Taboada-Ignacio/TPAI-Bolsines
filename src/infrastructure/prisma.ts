@@ -9,8 +9,10 @@ const globalForPrisma = globalThis as typeof globalThis & {
 let prisma = globalForPrisma.bolsinesPrisma;
 
 export function getPrisma(): PrismaClient {
-  if (prisma) {
-    return prisma;
+  const existing = prisma ?? globalForPrisma.bolsinesPrisma;
+  if (existing) {
+    prisma = existing;
+    return existing;
   }
 
   if (process.env.USE_PG_MEM === "true") {
@@ -25,7 +27,10 @@ export function getPrisma(): PrismaClient {
     prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
   }
 
-  if (process.env.NODE_ENV !== "production") {
+  if (
+    process.env.NODE_ENV !== "production" ||
+    process.env.USE_PG_MEM === "true"
+  ) {
     globalForPrisma.bolsinesPrisma = prisma;
   }
 

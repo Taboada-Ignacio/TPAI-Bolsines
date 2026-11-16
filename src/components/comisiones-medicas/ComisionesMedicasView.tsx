@@ -2,8 +2,16 @@
 
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { Pencil, Plus, Search, Trash2, X } from "lucide-react";
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  AlertCircle,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { PageActions } from "@/components/layout/PageActions";
 import { PageHeading } from "@/components/layout/PageHeading";
 import { Button } from "@/components/ui/actions/Button";
@@ -11,13 +19,13 @@ import { IconButton } from "@/components/ui/actions/IconButton";
 import { Marker } from "@/components/ui/display/Marker";
 import { MicroLabel } from "@/components/ui/display/MicroLabel";
 import { SplitFlap } from "@/components/ui/display/SplitFlap";
+import { Skeleton } from "@/components/ui/feedback/Skeleton";
 import { Field } from "@/components/ui/forms/Field";
 import { Input } from "@/components/ui/forms/Input";
 import { Pagination } from "@/components/ui/navigation/Pagination";
 import { MasterDetailSplit } from "@/components/ui/surfaces/MasterDetailSplit";
 import { ResponsiveSheet } from "@/components/ui/surfaces/ResponsiveSheet";
 import {
-  COMISIONES_MEDICAS_SEED,
   comisionMedicaEntradaSchema,
   type ComisionMedica,
   type ComisionMedicaEntrada,
@@ -40,9 +48,11 @@ const EMPTY_FORM: ComisionMedicaEntrada = {
 };
 
 export function ComisionesMedicasView() {
-  const [comisiones, setComisiones] = useState<ComisionMedica[]>(
-    COMISIONES_MEDICAS_SEED,
-  );
+  const [comisiones, setComisiones] = useState<ComisionMedica[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadTick, setReloadTick] = useState(0);
+
   const [busqueda, setBusqueda] = useState("");
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -51,10 +61,49 @@ export function ComisionesMedicasView() {
   const [editando, setEditando] = useState<ComisionMedica | null>(null);
   const [form, setForm] = useState<ComisionMedicaEntrada>(EMPTY_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [saving, setSaving] = useState(false);
 
   const [eliminando, setEliminando] = useState<ComisionMedica | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function load() {
+      try {
+        const response = await fetch("/api/comisiones-medicas", {
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new Error("No se pudieron cargar las comisiones médicas.");
+        }
+        const data = (await response.json()) as ComisionMedica[];
+        setComisiones(data);
+        setError(null);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError(
+          "No pudimos obtener el listado de comisiones médicas. Verificá la conexión e intentá nuevamente.",
+        );
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
+    return () => controller.abort();
+  }, [reloadTick]);
+
+  function handleReintentar() {
+    setLoading(true);
+    setError(null);
+    setReloadTick((t) => t + 1);
+  }
 
   const filtradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -82,6 +131,7 @@ export function ComisionesMedicasView() {
 
   useGSAP(
     () => {
+      if (loading || paginadas.length === 0) return;
       const root = listRef.current;
       if (!root) return;
       const items = root.querySelectorAll("[data-cm-item]");
@@ -113,7 +163,7 @@ export function ComisionesMedicasView() {
         },
       );
     },
-    { scope: listRef, dependencies: [safePage, busqueda] },
+    { scope: listRef, dependencies: [loading, safePage, busqueda, filtradas.length] },
   );
 
   function handleBusqueda(valor: string) {
@@ -156,8 +206,21 @@ export function ComisionesMedicasView() {
     });
   }
 
-  function handleGuardar(event: FormEvent<HTMLFormElement>) {
+  function abrirEliminar(cm: ComisionMedica) {
+    setDeleteError(null);
+    setEliminando(cm);
+  }
+
+  function cerrarEliminar() {
+    if (deleting) return;
+    setEliminando(null);
+    setDeleteError(null);
+  }
+
+  async function handleGuardar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (saving) return;
+
     const sufijo = form.codigo.replace(/[^a-zA-Z]/g, "").toUpperCase().slice(0, 3);
     const parsed = comisionMedicaEntradaSchema.safeParse({
       ...form,
@@ -178,41 +241,115 @@ export function ComisionesMedicasView() {
     }
 
     const codigoNorm = parsed.data.codigo.toUpperCase();
-    const duplicado = comisiones.some(
-      (cm) =>
-        cm.codigo.toUpperCase() === codigoNorm && cm.id !== editando?.id,
-    );
-
-    if (duplicado) {
-      setErrors({
-        codigo: `Ya existe una comisión con el código ${codigoNorm}.`,
-      });
-      return;
-    }
-
     const datos: ComisionMedicaEntrada = {
       ...parsed.data,
       codigo: codigoNorm,
     };
 
-    if (editando) {
-      setComisiones((prev) =>
-        prev.map((cm) => (cm.id === editando.id ? { ...datos, id: cm.id } : cm)),
-      );
-    } else {
-      const nextId =
-        comisiones.reduce((max, cm) => Math.max(max, cm.id), 0) + 1;
-      setComisiones((prev) => [{ id: nextId, ...datos }, ...prev]);
-      setPage(1);
-    }
+    setSaving(true);
+    setErrors({});
 
-    setFormOpen(false);
+    try {
+      const endpoint = editando
+        ? `/api/comisiones-medicas/${editando.id}`
+        : "/api/comisiones-medicas";
+      const response = await fetch(endpoint, {
+        method: editando ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(datos),
+      });
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+
+        let mensaje = body?.error;
+        if (!mensaje) {
+          if (response.status === 400) {
+            mensaje = "Revisá los datos ingresados e intentá nuevamente.";
+          } else if (response.status === 409) {
+            mensaje = "Ya existe una comisión médica con ese código o nombre.";
+          } else if (response.status === 404) {
+            mensaje = "No encontramos la comisión médica que querés editar.";
+          } else {
+            mensaje = "No pudimos guardar la comisión médica. Intentá de nuevo.";
+          }
+        }
+
+        setErrors({ general: mensaje });
+        return;
+      }
+
+      const guardada = (await response.json()) as ComisionMedica;
+      if (editando) {
+        setComisiones((prev) =>
+          prev.map((cm) => (cm.id === guardada.id ? guardada : cm)),
+        );
+      } else {
+        setComisiones((prev) => [guardada, ...prev]);
+        setPage(1);
+      }
+
+      setFormOpen(false);
+    } catch {
+      setErrors({
+        general:
+          "Error de conexión con el servidor. Verificá tu red e intentá nuevamente.",
+      });
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function confirmarEliminar() {
-    if (!eliminando) return;
-    setComisiones((prev) => prev.filter((cm) => cm.id !== eliminando.id));
-    setEliminando(null);
+  async function confirmarEliminar() {
+    if (!eliminando || deleting) return;
+    setDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const response = await fetch(`/api/comisiones-medicas/${eliminando.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+
+        let mensaje = body?.error;
+        if (!mensaje) {
+          if (response.status === 409) {
+            mensaje =
+              "No podés eliminar esta sede porque tiene usuarios o bolsines asociados.";
+          } else if (response.status === 404) {
+            mensaje = "La comisión médica ya no existe en el servidor.";
+          } else {
+            mensaje = "No pudimos eliminar la comisión médica. Intentá nuevamente.";
+          }
+        }
+
+        setDeleteError(mensaje);
+        return;
+      }
+
+      const idEliminado = eliminando.id;
+      const nextList = comisiones.filter((cm) => cm.id !== idEliminado);
+      setComisiones(nextList);
+      if (selectedId === idEliminado) {
+        setSelectedId(null);
+      }
+      const nextTotalPages = Math.max(1, Math.ceil(nextList.length / PAGE_SIZE));
+      if (safePage > nextTotalPages) {
+        setPage(nextTotalPages);
+      }
+      setEliminando(null);
+      setDeleteError(null);
+    } catch {
+      setDeleteError("Error de conexión con el servidor al intentar eliminar.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -274,15 +411,55 @@ export function ComisionesMedicasView() {
           ) : null}
         </div>
 
-        <MicroLabel className="shrink-0">
-          {filtradas.length === comisiones.length
-            ? `${comisiones.length} sedes`
-            : `${filtradas.length} de ${comisiones.length} sedes`}
+        <MicroLabel aria-live="polite" className="shrink-0">
+          {loading
+            ? "Cargando sedes…"
+            : filtradas.length === comisiones.length
+              ? `${comisiones.length} ${comisiones.length === 1 ? "sede" : "sedes"}`
+              : `${filtradas.length} de ${comisiones.length} sedes`}
         </MicroLabel>
       </div>
 
       <div ref={listRef}>
-        {filtradas.length === 0 ? (
+        {loading ? (
+          <div className="flex flex-col gap-3" aria-busy="true">
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between gap-4 rounded-[18px] border border-edge bg-raised/40 p-4 sm:rounded-none sm:border-x-0 sm:border-t-0 sm:border-b sm:border-hair sm:bg-transparent sm:px-3"
+              >
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-10 w-20 rounded-control" />
+                  <div className="flex flex-col gap-2">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-3 w-36" />
+                  </div>
+                </div>
+                <Skeleton className="h-8 w-20 rounded-full" />
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div
+            role="alert"
+            className="flex flex-col items-start gap-4 rounded-[var(--isle-r)] border border-danger/35 bg-danger/10 p-6"
+          >
+            <div className="flex items-center gap-2.5 text-danger-ink">
+              <AlertCircle className="size-5 shrink-0" aria-hidden="true" />
+              <p className="text-sm font-medium">{error}</p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleReintentar}
+              className="rounded-full"
+            >
+              <RefreshCw className="size-4" aria-hidden="true" />
+              Reintentar
+            </Button>
+          </div>
+        ) : filtradas.length === 0 ? (
           <div className="py-12 px-4 text-center rounded-[18px] border border-edge bg-raised/40">
             <p className="font-display text-lg font-semibold text-fg">
               {busqueda
@@ -355,7 +532,7 @@ export function ComisionesMedicasView() {
                         <IconButton
                           aria-label={`Eliminar ${cm.nombre}`}
                           title="Eliminar"
-                          onClick={() => setEliminando(cm)}
+                          onClick={() => abrirEliminar(cm)}
                           className="rounded-full hover:text-danger-ink"
                         >
                           <Trash2 className="size-4" aria-hidden="true" />
@@ -472,7 +649,7 @@ export function ComisionesMedicasView() {
                             <IconButton
                               aria-label={`Eliminar ${cm.nombre}`}
                               title="Eliminar"
-                              onClick={() => setEliminando(cm)}
+                              onClick={() => abrirEliminar(cm)}
                               className="rounded-full hover:text-danger-ink"
                             >
                               <Trash2 className="size-4" aria-hidden="true" />
@@ -554,7 +731,7 @@ export function ComisionesMedicasView() {
                         leftIcon={
                           <Trash2 className="size-3.5 text-danger-ink" />
                         }
-                        onClick={() => setEliminando(seleccionada)}
+                        onClick={() => abrirEliminar(seleccionada)}
                         className="rounded-full text-danger-ink"
                       >
                         Eliminar
@@ -568,20 +745,24 @@ export function ComisionesMedicasView() {
         )}
       </div>
 
-      <div className="sm:hidden">
-        <Pagination
-          page={safePage}
-          totalPages={totalPages}
-          totalItems={filtradas.length}
-          pageSize={PAGE_SIZE}
-          onPageChange={setPage}
-        />
-      </div>
+      {!loading && !error && filtradas.length > 0 ? (
+        <div className="sm:hidden">
+          <Pagination
+            page={safePage}
+            totalPages={totalPages}
+            totalItems={filtradas.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+          />
+        </div>
+      ) : null}
 
       {/* SideSheet en desktop / BottomSheet en mobile: Crear / Editar */}
       <ResponsiveSheet
         open={formOpen}
-        onClose={() => setFormOpen(false)}
+        onClose={() => {
+          if (!saving) setFormOpen(false);
+        }}
         labelledBy="cm-form-titulo"
       >
         <div className="flex items-center justify-between gap-3 mb-5">
@@ -598,7 +779,10 @@ export function ComisionesMedicasView() {
           </div>
           <IconButton
             aria-label="Cerrar formulario"
-            onClick={() => setFormOpen(false)}
+            onClick={() => {
+              if (!saving) setFormOpen(false);
+            }}
+            disabled={saving}
             className="rounded-full"
           >
             <X className="size-[18px]" aria-hidden="true" />
@@ -692,11 +876,22 @@ export function ComisionesMedicasView() {
             </Field>
           </div>
 
+          {errors.general ? (
+            <div
+              role="alert"
+              className="flex items-start gap-2.5 rounded-control border border-danger/40 bg-danger/10 p-3 text-sm text-danger-ink"
+            >
+              <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <span>{errors.general}</span>
+            </div>
+          ) : null}
+
           <div className="mt-2 flex items-center justify-end gap-2.5">
             <Button
               variant="ghost"
               size="md"
               onClick={() => setFormOpen(false)}
+              disabled={saving}
               className="rounded-full"
             >
               Cancelar
@@ -705,6 +900,7 @@ export function ComisionesMedicasView() {
               type="submit"
               variant="primary"
               size="md"
+              loading={saving}
               className="rounded-full px-5"
             >
               {editando ? "Guardar cambios" : "Crear comisión"}
@@ -716,7 +912,7 @@ export function ComisionesMedicasView() {
       {/* SideSheet en desktop / BottomSheet en mobile: Confirmar Eliminar */}
       <ResponsiveSheet
         open={Boolean(eliminando)}
-        onClose={() => setEliminando(null)}
+        onClose={cerrarEliminar}
         labelledBy="cm-delete-titulo"
       >
         <div className="flex items-start justify-between gap-3">
@@ -731,7 +927,8 @@ export function ComisionesMedicasView() {
           </div>
           <IconButton
             aria-label="Cerrar confirmación"
-            onClick={() => setEliminando(null)}
+            onClick={cerrarEliminar}
+            disabled={deleting}
             className="rounded-full shrink-0"
           >
             <X className="size-[18px]" aria-hidden="true" />
@@ -747,11 +944,22 @@ export function ComisionesMedicasView() {
           impedirá borrarla.
         </p>
 
+        {deleteError ? (
+          <div
+            role="alert"
+            className="mt-4 flex items-start gap-2.5 rounded-control border border-danger/40 bg-danger/10 p-3 text-sm text-danger-ink"
+          >
+            <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <span>{deleteError}</span>
+          </div>
+        ) : null}
+
         <div className="mt-6 flex items-center justify-end gap-2.5">
           <Button
             variant="ghost"
             size="md"
-            onClick={() => setEliminando(null)}
+            onClick={cerrarEliminar}
+            disabled={deleting}
             className="rounded-full"
           >
             Cancelar
@@ -759,6 +967,7 @@ export function ComisionesMedicasView() {
           <Button
             variant="danger"
             size="md"
+            loading={deleting}
             onClick={confirmarEliminar}
             className="rounded-full px-5"
           >

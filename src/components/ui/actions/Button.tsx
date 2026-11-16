@@ -19,7 +19,7 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
     "bg-cobalt text-surface border border-ink/20 shadow-key-cobalt hover:bg-[#025bc7] active:shadow-[0_2px_0_#01397d]",
   lime: "bg-lime text-ink border border-ink shadow-key-lime hover:bg-[#d8ff5e] active:shadow-[0_2px_0_#9ec91e]",
   secondary:
-    "bg-surface text-ink border border-ink shadow-key-ink hover:bg-white active:shadow-[0_2px_0_#0b1220]",
+    "bg-surface text-ink border border-edge shadow-key-ink hover:bg-raised active:shadow-[0_2px_0_#0b1220]",
   ghost:
     "bg-transparent text-ink border border-transparent hover:bg-ink/5 active:bg-ink/10",
   danger:

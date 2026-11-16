@@ -19,7 +19,7 @@ function BolsinMini3DFallback() {
   return (
     <span
       aria-hidden="true"
-      className="flex-none size-[36px] rounded-full ml-0.5 bg-fg/5 border border-edge"
+      className="hidden min-[400px]:block flex-none size-[36px] rounded-full ml-0.5 bg-fg/5 border border-edge"
     />
   );
 }
@@ -99,6 +99,7 @@ export function DockPill({ destinos, sesion }: DockPillProps) {
         className={cn(
           "flex md:hidden fixed z-40 left-1/2 -translate-x-1/2 bottom-[max(10px,env(safe-area-inset-bottom))]",
           "h-[var(--dock-h)] max-w-[calc(100vw-16px)] p-[5px] rounded-full items-center gap-0.5",
+          "overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
           keyboardOpen && "hidden",
         )}
       >
@@ -109,7 +110,7 @@ export function DockPill({ destinos, sesion }: DockPillProps) {
         />
 
         {isClient ? (
-          <BolsinMini3D className="size-[36px] rounded-full ml-0.5" />
+          <BolsinMini3D className="hidden min-[400px]:block flex-none size-[36px] rounded-full ml-0.5" />
         ) : (
           <BolsinMini3DFallback />
         )}
@@ -125,6 +126,7 @@ export function DockPill({ destinos, sesion }: DockPillProps) {
                 itemRefs.current[destino.id] = el;
               }}
               href={destino.href}
+              aria-label={destino.nombre}
               aria-current={isActive ? "page" : undefined}
               onClick={() => {
                 if (isActive) {
@@ -135,20 +137,22 @@ export function DockPill({ destinos, sesion }: DockPillProps) {
                 }
               }}
               className={cn(
-                "relative h-[42px] rounded-full flex items-center gap-1.5 px-3 text-[12.5px] whitespace-nowrap",
+                "relative flex-none h-[42px] rounded-full flex items-center text-[12.5px] whitespace-nowrap",
                 "transition-[color,transform] duration-200 active:scale-95",
                 "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
                 isActive
-                  ? "text-on-lime font-bold"
-                  : "text-muted font-semibold",
+                  ? "px-3 gap-1.5 text-on-lime font-bold"
+                  : "px-2.5 min-[520px]:px-3 min-[520px]:gap-1.5 text-muted font-semibold",
               )}
             >
               <Icon
-                className="size-[17px]"
+                className="flex-none size-[17px]"
                 strokeWidth={2.2}
                 aria-hidden="true"
               />
-              <span>{destino.nombreCorto}</span>
+              <span className={isActive ? "inline" : "hidden min-[520px]:inline"}>
+                {destino.nombreCorto}
+              </span>
             </Link>
           );
         })}
@@ -158,7 +162,7 @@ export function DockPill({ destinos, sesion }: DockPillProps) {
           onClick={() => setMoreOpen(true)}
           aria-expanded={moreOpen}
           className={cn(
-            "relative h-[42px] rounded-full flex items-center gap-1.5 px-2.5 text-[12.5px] whitespace-nowrap cursor-pointer transition-[color,background-color,transform] duration-200 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+            "relative flex-none h-[42px] rounded-full flex items-center gap-1.5 px-2.5 text-[12.5px] whitespace-nowrap cursor-pointer transition-[color,background-color,transform] duration-200 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
             isExtraActivo
               ? "bg-lime text-on-lime font-bold border border-lime-edge"
               : "text-muted font-semibold hover:text-fg",
@@ -174,7 +178,7 @@ export function DockPill({ destinos, sesion }: DockPillProps) {
           onClick={handleLogout}
           aria-label="Cerrar sesión"
           title="Cerrar sesión"
-          className="relative size-[38px] rounded-full grid place-items-center text-danger-ink whitespace-nowrap cursor-pointer transition-[background-color,transform] duration-150 hover:bg-hover active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
+          className="relative flex-none size-[38px] rounded-full grid place-items-center text-danger-ink whitespace-nowrap cursor-pointer transition-[background-color,transform] duration-150 hover:bg-hover active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
         >
           <LogOut
             className="size-[17px]"

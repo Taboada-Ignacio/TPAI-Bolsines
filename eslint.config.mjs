@@ -7,5 +7,5 @@ export default defineConfig([
   ...nextVitals,
   ...nextTypescript,
   prettier,
-  globalIgnores(["prisma/generated/**", "coverage/**"]),
+  globalIgnores(["prisma/generated/**", "coverage/**", "public/maplibre/**"]),
 ]);

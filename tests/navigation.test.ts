@@ -27,9 +27,14 @@ describe("navigation", () => {
     expect(esDestinoActivo("/otra", { href: "/inicio" })).toBe(false);
   });
 
-  it("resuelve getDestinoActivo sobre DESTINOS", () => {
+  it("resuelve getDestinoActivo sobre DESTINOS (incluidas subrutas como /bolsines/[id])", () => {
     expect(getDestinoActivo("/inicio")?.id).toBe("inicio");
     expect(getDestinoActivo("/seguimiento/8420")?.id).toBe("seguimiento");
+    expect(getDestinoActivo("/comisiones-medicas")?.id).toBe(
+      "comisiones-medicas",
+    );
+    expect(getDestinoActivo("/bolsines")?.id).toBe("bolsines");
+    expect(getDestinoActivo("/bolsines/42")?.id).toBe("bolsines");
     expect(getDestinoActivo("/empleados")?.id).toBe("empleados");
     expect(getDestinoActivo("/perfil")?.id).toBe("perfil");
     expect(getDestinoActivo("/inexistente")).toBeUndefined();
@@ -48,6 +53,14 @@ describe("navigation", () => {
 
     const operador = getDestinosVisibles("Operador");
     expect(operador.map((d) => d.id)).toEqual([
+      "inicio",
+      "seguimiento",
+      "comisiones-medicas",
+      "bolsines",
+      "perfil",
+    ]);
+
+    expect(getDestinosVisibles(undefined).map((d) => d.id)).toEqual([
       "inicio",
       "seguimiento",
       "comisiones-medicas",
@@ -105,6 +118,10 @@ describe("navigation", () => {
     expect(getBreadcrumbSegments("/seguimiento/mi-bolsin")).toEqual([
       { href: "/seguimiento", label: "Seguimiento" },
       { href: "/seguimiento/mi-bolsin", label: "mi bolsin" },
+    ]);
+    expect(getBreadcrumbSegments("/bolsines/42")).toEqual([
+      { href: "/bolsines", label: "Bolsines" },
+      { href: "/bolsines/42", label: "42" },
     ]);
     expect(getBreadcrumbSegments("/perfil")).toEqual([
       { href: "/perfil", label: "Perfil" },
