@@ -176,7 +176,7 @@ export function BolsinDetallePanel({
               <MicroLabel>N.º de precinto</MicroLabel>
             </dt>
             <dd className="mt-1 font-mono text-[13px] font-bold text-fg">
-              {String(bolsin.numeroPrecinto)}
+              {bolsin.numeroPrecinto ?? "Sin precinto"}
             </dd>
           </div>
 
@@ -249,17 +249,12 @@ export function BolsinDetallePanel({
         </dl>
 
         {/* Remito asociado (máx. 1 por bolsín) */}
-        <section
-          aria-label="Remito asociado"
-          className="flex flex-col gap-2 border-t border-hair pt-3"
-        >
-          <MicroLabel>Remito asociado</MicroLabel>
-
-          {!bolsin.remito ? (
-            <p className="rounded-[10px] border border-hair bg-surface px-3 py-2.5 text-xs text-muted">
-              Este bolsín no tiene remito asociado.
-            </p>
-          ) : (
+        {bolsin.remito ? (
+          <section
+            aria-label="Remito asociado"
+            className="flex flex-col gap-2 border-t border-hair pt-3"
+          >
+            <MicroLabel>Remito asociado</MicroLabel>
             <div className="flex items-center justify-between gap-2 rounded-[10px] border border-hair bg-surface px-3 py-2">
               <div className="min-w-0">
                 <p className="truncate text-[12.5px] font-semibold text-fg">
@@ -273,8 +268,8 @@ export function BolsinDetallePanel({
                 {bolsin.remito.numero}
               </span>
             </div>
-          )}
-        </section>
+          </section>
+        ) : null}
       </div>
 
       {/* Pie con acción primaria */}

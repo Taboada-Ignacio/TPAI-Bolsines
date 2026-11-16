@@ -144,6 +144,30 @@ describe("filtrarBolsinesSeguimiento", () => {
     );
     expect(sinCoincidencias).toEqual([]);
   });
+
+  it("maneja numeroPrecinto: null sin romper el filtro ni coincidir con 'null'", () => {
+    const conPrecintoNulo: BolsinSeguimiento[] = [
+      ...BOLSINES_FIXTURE,
+      {
+        nroBolsin: 120,
+        numeroPrecinto: null,
+        cmDestino: {
+          codigo: "CM-03",
+          nombre: "CM-03 Buenos Aires",
+          emailGcm: null,
+        },
+        ubicacion: null,
+        remito: null,
+      },
+    ];
+
+    expect(filtrarBolsinesSeguimiento(conPrecintoNulo, "null", "")).toEqual([]);
+    expect(
+      filtrarBolsinesSeguimiento(conPrecintoNulo, "", "CM-03").map(
+        (b) => b.nroBolsin,
+      ),
+    ).toEqual([108, 120]);
+  });
 });
 
 describe("seguimiento-cliente (CU 36 + CU 30/31)", () => {
@@ -300,5 +324,46 @@ describe("seguimiento-cliente (CU 36 + CU 30/31)", () => {
     });
     expect(res.esModoDemo).toBe(true);
     expect(res.enviado).toBe(true);
+  });
+
+  it("obtenerSeguimientoBolsines preserva precinto: null y sinUbicacion (A3) del backend real", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        mockFetchResponse(200, {
+          comision: "Comisión Médica Córdoba",
+          puntos: [
+            {
+              id: 1,
+              numero: 101,
+              precinto: null,
+              destino: "Comisión Médica Rosario",
+              latitud: -32.9468,
+              longitud: -60.6393,
+              actualizado: "2026-11-15T14:22:00.000Z",
+            },
+          ],
+          sinUbicacion: 3,
+        }),
+      )
+      .mockResolvedValueOnce(mockFetchResponse(200, []));
+
+    const res = await obtenerSeguimientoBolsines("XTR-4500L");
+
+    expect(res.esModoDemo).toBe(false);
+    expect(res.sinUbicacion).toBe(3);
+    expect(res.bolsines[0]?.numeroPrecinto).toBeNull();
+  });
+
+  it("notificarUbicacionGerente lanza ErrorSeguimientoCliente si falta emailDestino en backend real", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      mockFetchResponse(200, { aceptada: true }),
+    );
+
+    await expect(
+      notificarUbicacionGerente({
+        nroBolsin: 104,
+        modeloGps: "XTR-4500L",
+      }),
+    ).rejects.toThrow(ErrorSeguimientoCliente);
   });
 });

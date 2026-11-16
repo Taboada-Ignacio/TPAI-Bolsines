@@ -2,7 +2,8 @@
 
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { ListFilter, RefreshCw, Search, X } from "lucide-react";
+import { ArrowLeft, ListFilter, RefreshCw, Search, X } from "lucide-react";
+import Link from "next/link";
 import {
   useCallback,
   useEffect,
@@ -55,7 +56,7 @@ export function filtrarBolsinesSeguimiento(
   return bolsines.filter((bolsin) => {
     const coincidePrecinto =
       query.length === 0 ||
-      String(bolsin.numeroPrecinto).toLowerCase().includes(query);
+      String(bolsin.numeroPrecinto ?? "").toLowerCase().includes(query);
     const coincideDestino =
       destino.length === 0 || bolsin.cmDestino.codigo === destino;
 
@@ -63,7 +64,13 @@ export function filtrarBolsinesSeguimiento(
   });
 }
 
-export function SeguimientoWorkspace() {
+export interface SeguimientoWorkspaceProps {
+  cmOrigenInicial?: CmOrigenSeguimiento | null;
+}
+
+export function SeguimientoWorkspace({
+  cmOrigenInicial = null,
+}: SeguimientoWorkspaceProps) {
   const workspaceRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -74,6 +81,7 @@ export function SeguimientoWorkspace() {
 
   const [modeloGps, setModeloGps] = useState<ModeloGps>(MODELOS_GPS[0]);
   const [bolsines, setBolsines] = useState<BolsinSeguimiento[]>([]);
+  const [sinUbicacion, setSinUbicacion] = useState(0);
   const [cmOrigen, setCmOrigen] = useState<CmOrigenSeguimiento | null>(null);
   const [esModoDemo, setEsModoDemo] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -110,6 +118,7 @@ export function SeguimientoWorkspace() {
         if (controller.signal.aborted) return;
 
         setBolsines(resultado.bolsines);
+        setSinUbicacion(resultado.sinUbicacion ?? 0);
         setCmOrigen(resultado.cmOrigen);
         setEsModoDemo(resultado.esModoDemo);
         setSeleccionadoNro((prev) => {
@@ -251,13 +260,22 @@ export function SeguimientoWorkspace() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isDesktop, bolsinSeleccionado, notificarModalAbierto]);
 
-  const codigoOrigen = cmOrigen?.codigo ?? "CM-01";
+  const cmOrigenResuelto = cmOrigen ?? cmOrigenInicial ?? null;
+  const codigoOrigen = cmOrigenResuelto?.codigo ?? "CM-01";
   const etiquetaContador =
     bolsinesFiltrados.length === 1 ? "bolsín" : "bolsines";
 
   return (
     <div ref={workspaceRef} className="relative h-full w-full overflow-hidden">
       <PageActions>
+        <Link
+          href="/inicio"
+          aria-label="Volver al inicio"
+          className="inline-flex h-10 items-center gap-1.5 rounded-full border border-edge bg-glass px-3.5 text-[13px] font-semibold text-fg backdrop-blur-[16px] transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          <span className="hidden sm:inline">Volver al inicio</span>
+        </Link>
         <IconButton
           aria-label="Actualizar telemetría"
           title="Actualizar telemetría"
@@ -279,7 +297,7 @@ export function SeguimientoWorkspace() {
           hoveredBolsinNro={hoveredBolsinNro}
           onHoverBolsin={setHoveredBolsinNro}
           onSeleccionar={handleSeleccionar}
-          cmOrigen={cmOrigen}
+          cmOrigen={cmOrigenResuelto}
           loading={loading}
           filtroActivo={filtroActivo}
         />
@@ -311,11 +329,11 @@ export function SeguimientoWorkspace() {
               <SplitFlap text={codigoOrigen} size="xs" />
               <div className="min-w-0">
                 <p className="truncate font-display text-[14px] font-bold tracking-[-0.02em] text-fg">
-                  {cmOrigen?.nombre ?? "Cargando comisión..."}
+                  {cmOrigenResuelto?.nombre ?? "Cargando comisión..."}
                 </p>
-                {cmOrigen?.direccion ? (
+                {cmOrigenResuelto?.direccion ? (
                   <p className="truncate text-[11.5px] text-muted">
-                    {cmOrigen.direccion}
+                    {cmOrigenResuelto.direccion}
                   </p>
                 ) : null}
               </div>
@@ -343,6 +361,7 @@ export function SeguimientoWorkspace() {
           <BolsinesTransitoList
             bolsines={bolsinesFiltrados}
             totalGeneral={bolsines.length}
+            sinUbicacion={sinUbicacion}
             loading={loading}
             error={error}
             seleccionadoNro={bolsinSeleccionado?.nroBolsin ?? null}
@@ -369,7 +388,7 @@ export function SeguimientoWorkspace() {
         >
           <BolsinDetallePanel
             bolsin={bolsinSeleccionado}
-            cmOrigen={cmOrigen}
+            cmOrigen={cmOrigenResuelto}
             onNotificarClick={() => setNotificarModalAbierto(true)}
             onCerrar={() => setSeleccionadoNro(null)}
             onAnterior={handleAnterior}
@@ -442,8 +461,7 @@ export function SeguimientoWorkspace() {
         <div className="flex items-center justify-between gap-2 border-b border-hair px-4 pb-3 pt-1">
           <div className="min-w-0">
             <MicroLabel>
-              {cmOrigen?.codigo ?? "CM-01"} ·{" "}
-              {esModoDemo ? "Modo demo" : "En tránsito"}
+              {codigoOrigen} · {esModoDemo ? "Modo demo" : "En tránsito"}
             </MicroLabel>
             <h2
               id={mobileListaTitleId}
@@ -480,6 +498,7 @@ export function SeguimientoWorkspace() {
           <BolsinesTransitoList
             bolsines={bolsinesFiltrados}
             totalGeneral={bolsines.length}
+            sinUbicacion={sinUbicacion}
             loading={loading}
             error={error}
             seleccionadoNro={bolsinSeleccionado?.nroBolsin ?? null}
@@ -509,7 +528,7 @@ export function SeguimientoWorkspace() {
             </h2>
             <BolsinDetallePanel
               bolsin={bolsinSeleccionado}
-              cmOrigen={cmOrigen}
+              cmOrigen={cmOrigenResuelto}
               onNotificarClick={() => setNotificarModalAbierto(true)}
               onVerEnMapa={() => setMobileDetalleMinimizado(true)}
               onCerrar={() => {
@@ -539,11 +558,11 @@ export function SeguimientoWorkspace() {
                 Bolsín #{bolsinSeleccionado.nroBolsin}
               </span>
               <span className="font-mono text-[11px] text-muted">
-                {bolsinSeleccionado.numeroPrecinto}
+                {bolsinSeleccionado.numeroPrecinto ?? "Sin precinto"}
               </span>
             </div>
             <p className="truncate text-xs text-muted">
-              {(cmOrigen ?? bolsinSeleccionado.cmOrigen)?.codigo ?? "CM-01"} →{" "}
+              {(cmOrigenResuelto ?? bolsinSeleccionado.cmOrigen)?.codigo ?? "CM-01"} →{" "}
               {bolsinSeleccionado.cmDestino.nombre}
             </p>
           </div>
@@ -574,7 +593,7 @@ export function SeguimientoWorkspace() {
       <ConfirmarNotificacionModal
         abierto={notificarModalAbierto}
         bolsin={bolsinSeleccionado}
-        cmOrigen={cmOrigen}
+        cmOrigen={cmOrigenResuelto}
         modeloGps={modeloGps}
         onCerrar={() => setNotificarModalAbierto(false)}
       />

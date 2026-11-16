@@ -127,11 +127,14 @@ export function SeguimientoFiltrosBar({
             disabled={disabled}
             className="h-9 border-edge pl-2.5 pr-8 text-[13px] font-medium"
           >
-            {MODELOS_GPS.map((modelo) => (
-              <option key={modelo} value={modelo}>
-                {modelo}
-              </option>
-            ))}
+            {MODELOS_GPS.map((modelo) => {
+              const disponible = modelo === "XTR-4500L";
+              return (
+                <option key={modelo} value={modelo} disabled={!disponible}>
+                  {disponible ? modelo : `${modelo} (próximamente en backend)`}
+                </option>
+              );
+            })}
           </Select>
         </div>
       </div>

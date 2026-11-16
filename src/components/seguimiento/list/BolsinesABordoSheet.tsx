@@ -119,7 +119,7 @@ export function BolsinesABordoSheet({
                           Bolsín #{bolsin.nroBolsin}
                         </span>
                         <span className="font-mono text-[11px] font-medium text-muted">
-                          {String(bolsin.numeroPrecinto)}
+                          {bolsin.numeroPrecinto ?? "Sin precinto"}
                         </span>
                       </div>
 

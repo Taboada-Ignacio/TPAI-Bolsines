@@ -80,7 +80,7 @@ describe("seguimiento-bolsin.dto", () => {
         },
         {
           nroBolsin: 120,
-          numeroPrecinto: "P-9060",
+          numeroPrecinto: null,
           cmDestino: {
             codigo: "CM-05",
             nombre: "CM-05 Tucumán",
@@ -89,6 +89,7 @@ describe("seguimiento-bolsin.dto", () => {
           remito: null,
         },
       ],
+      sinUbicacion: 2,
     });
 
     expect(parsed.success).toBe(true);
@@ -96,7 +97,9 @@ describe("seguimiento-bolsin.dto", () => {
       expect(parsed.data.bolsines[1]?.ubicacion?.estadoCobertura).toBe(
         "sin_cobertura",
       );
+      expect(parsed.data.bolsines[2]?.numeroPrecinto).toBeNull();
       expect(parsed.data.bolsines[2]?.ubicacion).toBeNull();
+      expect(parsed.data.sinUbicacion).toBe(2);
     }
   });
 
@@ -342,6 +345,16 @@ describe("seguimiento-cliente", () => {
   it("notificarUbicacionGerente propaga error amigable en voseo ante 500", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       mockFetchResponse(500, { error: "SMTP caído" }, false),
+    );
+
+    await expect(
+      notificarUbicacionGerente({ nroBolsin: 104, modeloGps: "XTR-4500L" }),
+    ).rejects.toThrow(ErrorSeguimientoCliente);
+  });
+
+  it("notificarUbicacionGerente rechaza si falta emailDestino contra el backend real", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      mockFetchResponse(200, { aceptada: true }),
     );
 
     await expect(

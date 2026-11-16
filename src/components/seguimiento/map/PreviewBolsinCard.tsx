@@ -85,7 +85,9 @@ export function PreviewBolsinCard({
       </div>
 
       <p className="mt-1 font-mono text-[11px] font-medium text-muted">
-        Precinto {String(bolsin.numeroPrecinto)}
+        {bolsin.numeroPrecinto !== null
+          ? `Precinto ${String(bolsin.numeroPrecinto)}`
+          : "Sin precinto"}
       </p>
 
       <div className="mt-1.5 flex items-center gap-1.5 text-[12px] font-semibold text-fg">

@@ -95,6 +95,9 @@ export function ConfirmarNotificacionModal({
 
   const estaEnviando = estado === "enviando";
   const hayBolsin = Boolean(bolsin);
+  const tieneEmailDestino = Boolean(bolsin?.cmDestino.emailGcm);
+  const tieneUbicacion = Boolean(bolsin?.ubicacion);
+  const puedeEnviar = tieneEmailDestino && tieneUbicacion;
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -168,7 +171,7 @@ export function ConfirmarNotificacionModal({
   }, [estaEnviando, onCerrar]);
 
   const handleEnviar = useCallback(async () => {
-    if (!bolsin || estaEnviando) return;
+    if (!bolsin || estaEnviando || !puedeEnviar) return;
 
     abortControllerRef.current?.abort();
     const controller = new AbortController();
@@ -207,7 +210,7 @@ export function ConfirmarNotificacionModal({
         abortControllerRef.current = null;
       }
     }
-  }, [bolsin, estaEnviando, modeloGps, onNotificacionEnviada]);
+  }, [bolsin, estaEnviando, modeloGps, onNotificacionEnviada, puedeEnviar]);
 
   const origenResuelto = cmOrigen ?? bolsin?.cmOrigen ?? null;
   const coordenadas = bolsin ? formatearCoordenadas(bolsin) : null;
@@ -339,14 +342,17 @@ export function ConfirmarNotificacionModal({
                           {bolsin.cmDestino.emailGcm}
                         </p>
                       ) : (
-                        <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-control border border-amber/35 bg-amber/10 px-2.5 py-1 text-xs font-medium text-amber-ink">
+                        <p
+                          role="alert"
+                          className="mt-1.5 inline-flex items-center gap-1.5 rounded-control border border-danger/35 bg-danger/10 px-2.5 py-1 text-xs font-medium text-danger-ink"
+                        >
                           <AlertTriangle
                             className="size-3.5 shrink-0"
                             aria-hidden="true"
                           />
                           <span>
-                            No figura un correo del GCM en los datos locales; el
-                            servidor lo resolverá al enviar.
+                            Falta el correo electrónico del gerente en la CM
+                            destino; no se puede enviar el aviso.
                           </span>
                         </p>
                       )}
@@ -369,7 +375,7 @@ export function ConfirmarNotificacionModal({
                       <MicroLabel className="block">N.º de precinto</MicroLabel>
                     </dt>
                     <dd className="mt-0.5 font-mono text-sm font-semibold text-fg">
-                      {bolsin.numeroPrecinto}
+                      {bolsin.numeroPrecinto ?? "Sin precinto"}
                     </dd>
                   </div>
 
@@ -419,6 +425,22 @@ export function ConfirmarNotificacionModal({
                     </dd>
                   </div>
                 </dl>
+
+                {!tieneUbicacion ? (
+                  <div
+                    role="alert"
+                    className="flex items-start gap-2.5 rounded-[var(--radius-card)] border border-danger/30 bg-danger/10 px-3.5 py-3 text-sm text-danger-ink"
+                  >
+                    <AlertTriangle
+                      className="mt-0.5 size-4 shrink-0"
+                      aria-hidden="true"
+                    />
+                    <p>
+                      Faltan las coordenadas GPS del bolsín; no podés enviar el
+                      aviso sin ubicación registrada.
+                    </p>
+                  </div>
+                ) : null}
 
                 <section aria-label="Detalle del remito incluido">
                   <div className="mb-2 flex items-center justify-between gap-2">
@@ -472,6 +494,7 @@ export function ConfirmarNotificacionModal({
                 <Button
                   variant="primary"
                   loading={estaEnviando}
+                  disabled={!puedeEnviar}
                   leftIcon={<Send className="size-4" />}
                   onClick={handleEnviar}
                 >

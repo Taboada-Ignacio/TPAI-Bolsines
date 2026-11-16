@@ -67,7 +67,7 @@ export function BolsinTransitoRow({
             Bolsín #{bolsin.nroBolsin}
           </span>
           <span className="font-mono text-[11px] font-medium text-muted truncate">
-            {bolsin.numeroPrecinto}
+            {bolsin.numeroPrecinto ?? "Sin precinto"}
           </span>
         </div>
 

@@ -12,6 +12,7 @@ import { BolsinTransitoRow } from "./BolsinTransitoRow";
 export interface BolsinesTransitoListProps {
   bolsines: BolsinSeguimiento[];
   totalGeneral: number;
+  sinUbicacion?: number;
   loading?: boolean;
   error?: string | null;
   seleccionadoNro: number | null;
@@ -28,6 +29,7 @@ const SKELETON_ITEMS = [0, 1, 2, 3];
 export function BolsinesTransitoList({
   bolsines,
   totalGeneral,
+  sinUbicacion = 0,
   loading = false,
   error = null,
   seleccionadoNro,
@@ -130,6 +132,43 @@ export function BolsinesTransitoList({
   }
 
   if (totalGeneral === 0) {
+    if (sinUbicacion > 0) {
+      const etiquetaSinUbi =
+        sinUbicacion === 1
+          ? "Hay 1 bolsín enviado, pero ninguno informó ubicación GPS."
+          : `Hay ${sinUbicacion} bolsines enviados, pero ninguno informó ubicación GPS.`;
+      return (
+        <div
+          aria-live="polite"
+          className={cn(
+            "px-4 py-8 text-center flex flex-col items-center gap-3",
+            className,
+          )}
+        >
+          <div className="size-14 rounded-[18px] border border-amber/40 bg-amber/15 grid place-items-center text-amber-ink">
+            <AlertTriangle
+              aria-hidden="true"
+              className="size-6"
+              strokeWidth={1.8}
+            />
+          </div>
+          <div className="flex flex-col gap-1 max-w-[260px]">
+            <strong className="font-display text-[15px] font-bold tracking-[-0.02em] text-fg">
+              Sin respuesta GPS actual
+            </strong>
+            <p className="text-[12.5px] leading-[1.45] text-muted">
+              {etiquetaSinUbi}
+            </p>
+          </div>
+          {onReintentar ? (
+            <Button variant="secondary" size="sm" onClick={onReintentar}>
+              Actualizar
+            </Button>
+          ) : null}
+        </div>
+      );
+    }
+
     return (
       <div
         aria-live="polite"
@@ -146,7 +185,7 @@ export function BolsinesTransitoList({
             Sin bolsines en viaje
           </strong>
           <p className="text-[12.5px] leading-[1.45] text-muted">
-            No hay bolsines enviados en tránsito desde tu comisión.
+            No hay bolsines enviados para tu comisión.
           </p>
         </div>
         {onReintentar ? (
@@ -188,22 +227,42 @@ export function BolsinesTransitoList({
   }
 
   return (
-    <ul
-      role="list"
-      onKeyDown={handleListKeyDown}
-      className={cn("flex flex-col gap-1 p-2", className)}
-    >
-      {bolsines.map((bolsin) => (
-        <li key={bolsin.nroBolsin}>
-          <BolsinTransitoRow
-            bolsin={bolsin}
-            seleccionado={bolsin.nroBolsin === seleccionadoNro}
-            resaltado={bolsin.nroBolsin === hoveredBolsinNro}
-            onSeleccionar={onSeleccionar}
-            onHoverChange={onHoverBolsin}
+    <div className={cn("flex flex-col gap-1 p-2", className)}>
+      {sinUbicacion > 0 ? (
+        <div
+          role="status"
+          className="mb-1 flex items-start gap-2 rounded-[12px] border border-amber/40 bg-amber/15 px-3 py-2 text-[12px] leading-[1.4] text-amber-ink"
+        >
+          <AlertTriangle
+            aria-hidden="true"
+            className="mt-0.5 size-3.5 shrink-0"
+            strokeWidth={2.2}
           />
-        </li>
-      ))}
-    </ul>
+          <span>
+            {sinUbicacion === 1
+              ? "1 bolsín enviado sin respuesta GPS actual."
+              : `${sinUbicacion} bolsines enviados sin respuesta GPS actual.`}
+          </span>
+        </div>
+      ) : null}
+
+      <ul
+        role="list"
+        onKeyDown={handleListKeyDown}
+        className="flex flex-col gap-1"
+      >
+        {bolsines.map((bolsin) => (
+          <li key={bolsin.nroBolsin}>
+            <BolsinTransitoRow
+              bolsin={bolsin}
+              seleccionado={bolsin.nroBolsin === seleccionadoNro}
+              resaltado={bolsin.nroBolsin === hoveredBolsinNro}
+              onSeleccionar={onSeleccionar}
+              onHoverChange={onHoverBolsin}
+            />
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

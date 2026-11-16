@@ -132,7 +132,7 @@ export function AbanicoBolsines({
               event.stopPropagation();
               onSeleccionarBolsin(bolsin.nroBolsin);
             }}
-            aria-label={`Bolsín #${bolsin.nroBolsin}, precinto ${String(bolsin.numeroPrecinto)}, destino ${bolsin.cmDestino.nombre}, ${enVivo ? "en vivo" : "sin cobertura"}`}
+            aria-label={`Bolsín #${bolsin.nroBolsin}, ${bolsin.numeroPrecinto !== null ? `precinto ${String(bolsin.numeroPrecinto)}` : "sin precinto"}, destino ${bolsin.cmDestino.nombre}, ${enVivo ? "en vivo" : "sin cobertura"}`}
             className={cn(
               "pointer-events-auto absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
               "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 font-mono text-[11px] font-bold tabular-nums",

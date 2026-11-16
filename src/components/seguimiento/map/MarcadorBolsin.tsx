@@ -32,7 +32,11 @@ export function MarcadorBolsin({
   const enVivo = bolsin.ubicacion?.estadoCobertura === "vivo";
   const atenuado = filtroActivo && !coincideFiltro && !seleccionado;
   const estadoTexto = enVivo ? "señal en vivo" : "sin cobertura";
-  const ariaLabel = `Bolsín #${bolsin.nroBolsin}, precinto ${String(bolsin.numeroPrecinto)}, destino ${bolsin.cmDestino.nombre}, ${estadoTexto}`;
+  const precintoTexto =
+    bolsin.numeroPrecinto !== null
+      ? `precinto ${String(bolsin.numeroPrecinto)}`
+      : "sin precinto";
+  const ariaLabel = `Bolsín #${bolsin.nroBolsin}, ${precintoTexto}, destino ${bolsin.cmDestino.nombre}, ${estadoTexto}`;
 
   return (
     <div

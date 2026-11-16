@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DESTINOS,
   ROL_ADMIN,
+  ROL_ENCARGADO_BOLSINES,
   esDestinoActivo,
   getBreadcrumbSegments,
   getDestinoActivo,
@@ -40,21 +41,28 @@ describe("navigation", () => {
     expect(getDestinoActivo("/inexistente")).toBeUndefined();
   });
 
-  it("filtra destinos visibles según rol (incluye Empleados solo para admin)", () => {
+  it("filtra destinos visibles según rol (Empleados solo admin, Seguimiento solo Encargado de Bolsines)", () => {
     const admin = getDestinosVisibles(ROL_ADMIN);
     expect(admin.map((d) => d.id)).toEqual([
       "inicio",
-      "seguimiento",
       "comisiones-medicas",
       "bolsines",
       "empleados",
       "perfil",
     ]);
 
+    const encargado = getDestinosVisibles(ROL_ENCARGADO_BOLSINES);
+    expect(encargado.map((d) => d.id)).toEqual([
+      "inicio",
+      "seguimiento",
+      "comisiones-medicas",
+      "bolsines",
+      "perfil",
+    ]);
+
     const operador = getDestinosVisibles("Operador");
     expect(operador.map((d) => d.id)).toEqual([
       "inicio",
-      "seguimiento",
       "comisiones-medicas",
       "bolsines",
       "perfil",
@@ -62,7 +70,6 @@ describe("navigation", () => {
 
     expect(getDestinosVisibles(undefined).map((d) => d.id)).toEqual([
       "inicio",
-      "seguimiento",
       "comisiones-medicas",
       "bolsines",
       "perfil",

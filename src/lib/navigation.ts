@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 export const ROL_ADMIN = "Parametrizador del sistema";
+export const ROL_ENCARGADO_BOLSINES = "Encargado de Bolsines";
 
 export type Destino = {
   id: string;
@@ -42,6 +43,7 @@ export const DESTINOS: Destino[] = [
     icono: MapPinned,
     cuerpo: "bleed",
     enTablero: true,
+    roles: [ROL_ENCARGADO_BOLSINES],
   },
   {
     id: "comisiones-medicas",
