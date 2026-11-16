@@ -182,6 +182,10 @@ export function ConfirmarNotificacionModal({
         {
           nroBolsin: bolsin.nroBolsin,
           modeloGps,
+          emailDestino: bolsin.cmDestino.emailGcm ?? undefined,
+          latitud: bolsin.ubicacion?.latitud,
+          longitud: bolsin.ubicacion?.longitud,
+          fechaHoraActualizacion: bolsin.ubicacion?.fechaHoraActualizacion,
         },
         controller.signal,
       );

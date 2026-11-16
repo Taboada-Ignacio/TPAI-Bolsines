@@ -227,7 +227,7 @@ describe("seguimiento-cliente", () => {
     const res = await obtenerSeguimientoBolsines("QX-7A", controller.signal);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/seguimiento?modelo=QX-7A",
+      "/api/auth/cu36/seguimiento",
       expect.objectContaining({
         method: "GET",
         signal: controller.signal,
@@ -308,15 +308,25 @@ describe("seguimiento-cliente", () => {
     const okRes = await notificarUbicacionGerente({
       nroBolsin: 104,
       modeloGps: "XTR-4500L",
+      emailDestino: "gcm.rosario@art-bolsines.gob.ar",
+      latitud: -32.9468,
+      longitud: -60.6393,
+      fechaHoraActualizacion: "2026-11-15T15:10:00.000Z",
     });
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      "/api/seguimiento/notificar",
+      "/api/auth/cu31/notificar-ubicacion",
       expect.objectContaining({
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nroBolsin: 104, modeloGps: "XTR-4500L" }),
+        body: JSON.stringify({
+          emailDestino: "gcm.rosario@art-bolsines.gob.ar",
+          nroBolsin: 104,
+          latitud: "-32.9468",
+          longitud: "-60.6393",
+          fechaHoraActualizacion: "2026-11-15T15:10:00.000Z",
+        }),
       }),
     );
     expect(okRes.esModoDemo).toBe(false);

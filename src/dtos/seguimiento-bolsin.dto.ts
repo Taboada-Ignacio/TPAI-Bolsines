@@ -59,9 +59,35 @@ export const seguimientoResponseSchema = z.object({
 });
 export type SeguimientoResponse = z.infer<typeof seguimientoResponseSchema>;
 
+export const cu36PuntoBackendSchema = z.object({
+  id: z.number().int().positive(),
+  numero: z.number().int().positive(),
+  precinto: z.number().int().positive().nullable(),
+  destino: textoObligatorio,
+  latitud: z.number().finite().min(-90).max(90),
+  longitud: z.number().finite().min(-180).max(180),
+  actualizado: z.iso.datetime({ offset: true }),
+});
+export type Cu36PuntoBackend = z.infer<typeof cu36PuntoBackendSchema>;
+
+export const cu36BackendResponseSchema = z.object({
+  comision: textoObligatorio,
+  puntos: z.array(cu36PuntoBackendSchema),
+  sinUbicacion: z.number().int().min(0),
+});
+export type Cu36BackendResponse = z.infer<typeof cu36BackendResponseSchema>;
+
+export const cu31BackendResponseSchema = z.object({
+  aceptada: z.literal(true),
+});
+
 export const notificarUbicacionRequestSchema = z.object({
   nroBolsin: z.number().int().positive(),
   modeloGps: modeloGpsSchema,
+  emailDestino: z.email().optional(),
+  latitud: z.number().finite().min(-90).max(90).optional(),
+  longitud: z.number().finite().min(-180).max(180).optional(),
+  fechaHoraActualizacion: z.iso.datetime({ offset: true }).optional(),
 });
 export type NotificarUbicacionRequest = z.infer<
   typeof notificarUbicacionRequestSchema

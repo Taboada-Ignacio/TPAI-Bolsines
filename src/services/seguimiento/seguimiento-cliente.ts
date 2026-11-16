@@ -1,10 +1,13 @@
 import type { z } from "zod";
 import {
   type BolsinSeguimiento,
+  type Cu36BackendResponse,
   type ModeloGps,
   type NotificarUbicacionRequest,
   type NotificarUbicacionResponse,
   type SeguimientoResponse,
+  cu31BackendResponseSchema,
+  cu36BackendResponseSchema,
   modeloGpsSchema,
   notificarUbicacionRequestSchema,
   notificarUbicacionResponseSchema,
@@ -197,6 +200,20 @@ function mensajePorEstadoHttp(status: number): string {
   return "No pudimos completar la solicitud de seguimiento. Revisá los datos e intentá otra vez.";
 }
 
+async function leerMensajeError(respuesta: Response): Promise<string | null> {
+  const contentType =
+    respuesta.headers?.get?.("content-type")?.toLowerCase() ?? "";
+  if (!contentType.includes("application/json")) return null;
+  try {
+    const body = (await respuesta.json()) as { error?: unknown };
+    return typeof body?.error === "string" && body.error.trim().length > 0
+      ? body.error
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 async function consultarJsonConRespaldo<T>(
   url: string,
   init: RequestInit,
@@ -222,8 +239,9 @@ async function consultarJsonConRespaldo<T>(
   }
 
   if (!respuesta.ok) {
+    const detalle = await leerMensajeError(respuesta);
     throw new ErrorSeguimientoCliente(
-      mensajePorEstadoHttp(respuesta.status),
+      detalle ?? mensajePorEstadoHttp(respuesta.status),
       respuesta.status,
     );
   }
@@ -258,29 +276,122 @@ async function consultarJsonConRespaldo<T>(
   };
 }
 
+type ComisionCatalogo = {
+  codigo: string;
+  nombre: string;
+  direccion: string;
+  email: string;
+};
+
+async function cargarCatalogoComisiones(
+  signal?: AbortSignal,
+): Promise<Map<string, ComisionCatalogo>> {
+  try {
+    const res = await fetch("/api/comisiones-medicas", {
+      method: "GET",
+      signal,
+    });
+    if (!res.ok) return new Map();
+    const ct = res.headers?.get?.("content-type")?.toLowerCase() ?? "";
+    if (!ct.includes("application/json")) return new Map();
+    const data = (await res.json()) as unknown;
+    if (!Array.isArray(data)) return new Map();
+    const mapa = new Map<string, ComisionCatalogo>();
+    for (const item of data) {
+      if (
+        item &&
+        typeof item === "object" &&
+        typeof (item as ComisionCatalogo).nombre === "string"
+      ) {
+        const cm = item as ComisionCatalogo;
+        mapa.set(cm.nombre.trim().toLowerCase(), cm);
+      }
+    }
+    return mapa;
+  } catch {
+    return new Map();
+  }
+}
+
+function adaptarCu36Backend(
+  backend: Cu36BackendResponse,
+  modelo: ModeloGps,
+  comisionesPorNombre: Map<string, ComisionCatalogo>,
+): SeguimientoResponse {
+  const origenCat = comisionesPorNombre.get(
+    backend.comision.trim().toLowerCase(),
+  );
+  const cmOrigen = {
+    codigo: origenCat?.codigo ?? "CM-ORIGEN",
+    nombre: backend.comision,
+    direccion: origenCat?.direccion ?? backend.comision,
+  };
+
+  const bolsines: BolsinSeguimiento[] = backend.puntos.map((punto) => {
+    const destCat = comisionesPorNombre.get(
+      punto.destino.trim().toLowerCase(),
+    );
+    return {
+      nroBolsin: punto.numero,
+      numeroPrecinto: punto.precinto ?? `B-${punto.numero}`,
+      cmOrigen,
+      cmDestino: {
+        codigo: destCat?.codigo ?? punto.destino,
+        nombre: punto.destino,
+        emailGcm: destCat?.email ?? null,
+      },
+      ubicacion: {
+        latitud: punto.latitud,
+        longitud: punto.longitud,
+        fechaHoraActualizacion: punto.actualizado,
+        estadoCobertura: "vivo",
+      },
+      remitos: [],
+    };
+  });
+
+  return seguimientoResponseSchema.parse({
+    cmOrigen,
+    modeloGps: modelo,
+    bolsines,
+  });
+}
+
 /**
- * Consulta la ubicación actual de los bolsines en tránsito para el modelo GPS seleccionado.
- * Si el endpoint aún no existe en backend (404/501), devuelve un respaldo controlado de demostración.
+ * Consulta la ubicación actual de los bolsines en tránsito en el backend real (CU 36).
+ * Si el endpoint no está disponible (404/501), devuelve un respaldo controlado de demostración.
  */
 export async function obtenerSeguimientoBolsines(
   modelo: ModeloGps,
   signal?: AbortSignal,
 ): Promise<SeguimientoResultado> {
   const modeloValidado = modeloGpsSchema.parse(modelo);
-  const url = `/api/seguimiento?modelo=${encodeURIComponent(modeloValidado)}`;
+  const url = "/api/auth/cu36/seguimiento";
 
-  return consultarJsonConRespaldo(
-    url,
-    { method: "GET" },
-    seguimientoResponseSchema,
-    () => construirRespaldoSeguimiento(modeloValidado),
-    signal,
-  );
+  const [seguimientoRes, comisionesPorNombre] = await Promise.all([
+    consultarJsonConRespaldo<SeguimientoResponse | Cu36BackendResponse>(
+      url,
+      { method: "GET" },
+      seguimientoResponseSchema.or(cu36BackendResponseSchema),
+      () => construirRespaldoSeguimiento(modeloValidado),
+      signal,
+    ),
+    cargarCatalogoComisiones(signal),
+  ]);
+
+  if ("bolsines" in seguimientoRes) {
+    return seguimientoRes;
+  }
+
+  return {
+    ...adaptarCu36Backend(seguimientoRes, modeloValidado, comisionesPorNombre),
+    esModoDemo: seguimientoRes.esModoDemo,
+  };
 }
 
 /**
- * Envía el aviso de ubicación al gerente de la comisión médica destino (CU 30/31).
- * Si el endpoint aún no existe en backend (404/501), simula la confirmación con datos de demostración.
+ * Envía el aviso de ubicación al gerente de la comisión médica destino (CU 31).
+ * Conecta con POST /api/auth/cu31/notificar-ubicacion usando el contrato real del backend.
  */
 export async function notificarUbicacionGerente(
   payload: NotificarUbicacionRequest,
@@ -288,15 +399,41 @@ export async function notificarUbicacionGerente(
 ): Promise<NotificarUbicacionResultado> {
   const payloadValidado = notificarUbicacionRequestSchema.parse(payload);
 
-  return consultarJsonConRespaldo(
-    "/api/seguimiento/notificar",
+  const emailDestino =
+    payloadValidado.emailDestino ?? "gcm.destino@art-bolsines.gob.ar";
+  const fechaHoraActualizacion =
+    payloadValidado.fechaHoraActualizacion ?? new Date().toISOString();
+  const bodyBackend = {
+    emailDestino,
+    nroBolsin: payloadValidado.nroBolsin,
+    latitud: String(payloadValidado.latitud ?? 0),
+    longitud: String(payloadValidado.longitud ?? 0),
+    fechaHoraActualizacion,
+  };
+
+  const resultado = await consultarJsonConRespaldo<
+    NotificarUbicacionResponse | { aceptada: true }
+  >(
+    "/api/auth/cu31/notificar-ubicacion",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payloadValidado),
+      body: JSON.stringify(bodyBackend),
     },
-    notificarUbicacionResponseSchema,
+    notificarUbicacionResponseSchema.or(cu31BackendResponseSchema),
     () => construirRespaldoNotificacion(payloadValidado),
     signal,
   );
+
+  if ("enviado" in resultado) {
+    return resultado;
+  }
+
+  return {
+    enviado: true,
+    destinatarioEmail: emailDestino,
+    destinatarioNombre: `Gerente CM destino (Bolsín #${payloadValidado.nroBolsin})`,
+    fechaEnvio: new Date().toISOString(),
+    esModoDemo: resultado.esModoDemo,
+  };
 }

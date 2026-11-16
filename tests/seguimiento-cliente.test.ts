@@ -154,61 +154,91 @@ describe("seguimiento-cliente (CU 36 + CU 30/31)", () => {
   });
 
   it.each<ModeloGps>(MODELOS_GPS)(
-    "obtenerSeguimientoBolsines soporta el modelo %s y preserva estado A3 sin_cobertura",
+    "obtenerSeguimientoBolsines consulta /api/auth/cu36/seguimiento con el modelo %s y adapta la respuesta real del backend",
     async (modelo) => {
       const fetchMock = vi
         .spyOn(globalThis, "fetch")
         .mockResolvedValueOnce(
           mockFetchResponse(200, {
-            cmOrigen: {
-              codigo: "CM-01",
-              nombre: "CM-01 Córdoba",
-              direccion: "Av. Vélez Sarsfield 2311, Córdoba",
-            },
-            modeloGps: modelo,
-            bolsines: BOLSINES_FIXTURE,
+            comision: "Comisión Médica Córdoba",
+            puntos: [
+              {
+                id: 1,
+                numero: 101,
+                precinto: 9001,
+                destino: "Comisión Médica Rosario",
+                latitud: -32.9468,
+                longitud: -60.6393,
+                actualizado: "2026-11-15T14:22:00.000Z",
+              },
+            ],
+            sinUbicacion: 0,
           }),
+        )
+        .mockResolvedValueOnce(
+          mockFetchResponse(200, [
+            {
+              id: 5,
+              codigo: "CM-CBA",
+              nombre: "Comisión Médica Córdoba",
+              direccion: "Córdoba Capital",
+              email: "cm-cordoba@example.com",
+              telefono: "0351-400-0005",
+            },
+            {
+              id: 2,
+              codigo: "CM-ROS",
+              nombre: "Comisión Médica Rosario",
+              direccion: "Rosario",
+              email: "cm-rosario@example.com",
+              telefono: "0341-400-0002",
+            },
+          ]),
         );
 
       const res = await obtenerSeguimientoBolsines(modelo);
 
       expect(fetchMock).toHaveBeenCalledWith(
-        `/api/seguimiento?modelo=${encodeURIComponent(modelo)}`,
+        "/api/auth/cu36/seguimiento",
         expect.objectContaining({ method: "GET" }),
       );
       expect(res.esModoDemo).toBe(false);
       expect(res.modeloGps).toBe(modelo);
-      expect(
-        res.bolsines.find((b) => b.nroBolsin === 112)?.ubicacion?.estadoCobertura,
-      ).toBe("sin_cobertura");
+      expect(res.cmOrigen.codigo).toBe("CM-CBA");
+      expect(res.bolsines).toHaveLength(1);
+      expect(res.bolsines[0]?.cmDestino.codigo).toBe("CM-ROS");
+      expect(res.bolsines[0]?.cmDestino.emailGcm).toBe("cm-rosario@example.com");
     },
   );
 
   it.each<ModeloGps>(MODELOS_GPS)(
-    "notificarUbicacionGerente envía el modelo %s y retorna confirmación",
+    "notificarUbicacionGerente envía al endpoint real /api/auth/cu31/notificar-ubicacion y retorna confirmación",
     async (modelo) => {
       const fetchMock = vi
         .spyOn(globalThis, "fetch")
-        .mockResolvedValueOnce(
-          mockFetchResponse(200, {
-            enviado: true,
-            destinatarioEmail: "gcm.rosario@art-bolsines.gob.ar",
-            destinatarioNombre: "Gerente CM-02 Rosario",
-            fechaEnvio: "2026-11-15T15:30:00.000Z",
-          }),
-        );
+        .mockResolvedValueOnce(mockFetchResponse(200, { aceptada: true }));
 
       const res = await notificarUbicacionGerente({
         nroBolsin: 112,
         modeloGps: modelo,
+        emailDestino: "gcm.rosario@art-bolsines.gob.ar",
+        latitud: -32.8895,
+        longitud: -68.8458,
+        fechaHoraActualizacion: "2026-11-15T11:04:00.000Z",
       });
 
       expect(fetchMock).toHaveBeenCalledWith(
-        "/api/seguimiento/notificar",
+        "/api/auth/cu31/notificar-ubicacion",
         expect.objectContaining({
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ nroBolsin: 112, modeloGps: modelo }),
+          body: JSON.stringify({
+            emailDestino: "gcm.rosario@art-bolsines.gob.ar",
+            nroBolsin: 112,
+            latitud: "-32.8895",
+            longitud: "-68.8458",
+            fechaHoraActualizacion: "2026-11-15T11:04:00.000Z",
+          }),
         }),
       );
       expect(res.esModoDemo).toBe(false);
