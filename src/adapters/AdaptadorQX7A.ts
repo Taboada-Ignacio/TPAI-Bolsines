@@ -6,7 +6,7 @@ import { validarCodigosCM, validarFilaGps } from "./validacionLocalizacionGps";
 export class AdaptadorQX7A implements IAdaptadorLocalizacionBolsines {
   private readonly nrosBolsines: number[];
   private readonly codigosCMDestino: string[];
-  private stringBolsines: string[] = [];
+  private stringBolsines: Array<string | null> = [];
   private datosLocalizacionAdaptado: string[][] = [];
   private solicitudEnCurso?: Promise<void>;
 
@@ -38,24 +38,41 @@ export class AdaptadorQX7A implements IAdaptadorLocalizacionBolsines {
     if (this.stringBolsines.length !== this.nrosBolsines.length) {
       throw new ErrorGPSTracker("RESPUESTA_INVALIDA");
     }
-    this.datosLocalizacionAdaptado = this.stringBolsines.map((respuesta, i) => {
-      const fila = respuesta.split(",").map((campo) => campo.trim());
-      return validarFilaGps(fila, this.nrosBolsines[i]);
-    });
+    this.datosLocalizacionAdaptado = this.stringBolsines.flatMap(
+      (respuesta, i) => {
+        if (respuesta === null) return [];
+        const fila = respuesta.split(",").map((campo) => campo.trim());
+        return [validarFilaGps(fila, this.nrosBolsines[i])];
+      },
+    );
   }
 
   private async solicitarLote(): Promise<void> {
     this.datosLocalizacionAdaptado = [];
     try {
-      const respuestas: string[] = [];
+      const respuestas: Array<string | null> = [];
       for (const [i, numero] of this.nrosBolsines.entries()) {
-        respuestas.push(
-          await this.servicio.retrieveTrackingData(
-            this.apiKey,
-            numero,
-            this.codigosCMDestino[i],
-          ),
-        );
+        try {
+          respuestas.push(
+            await this.servicio.retrieveTrackingData(
+              this.apiKey,
+              numero,
+              this.codigosCMDestino[i],
+            ),
+          );
+        } catch (error) {
+          // A3: un 404 individual significa que ese bolsín no tiene cobertura en el tracker;
+          // no debe abortar el resto del lote.
+          if (
+            error instanceof ErrorGPSTracker &&
+            error.tipo === "HTTP" &&
+            error.estadoHttp === 404
+          ) {
+            respuestas.push(null);
+            continue;
+          }
+          throw error;
+        }
       }
       this.stringBolsines = respuestas;
     } catch (error) {

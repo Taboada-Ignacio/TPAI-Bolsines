@@ -97,8 +97,19 @@ export const cu36BackendResponseSchema = z.union([
 ]);
 export type Cu36BackendResponse = z.infer<typeof cu36BackendResponseSchema>;
 
+export const cu36SeleccionResponseSchema = z.object({
+  seleccionado: z.number().int().positive(),
+  confirmarNotificacion: z.literal(true),
+});
+export type Cu36SeleccionResponse = z.infer<
+  typeof cu36SeleccionResponseSchema
+>;
+
 export const cu31BackendResponseSchema = z.object({
   aceptada: z.literal(true),
+  destinatarioEmail: z.email().optional(),
+  destinatarioNombre: textoObligatorio.optional(),
+  fechaEnvio: z.iso.datetime({ offset: true }).optional(),
 });
 
 export const notificarUbicacionRequestSchema = z.object({

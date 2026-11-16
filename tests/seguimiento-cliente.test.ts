@@ -9,6 +9,7 @@ import {
   ErrorSeguimientoCliente,
   notificarUbicacionGerente,
   obtenerSeguimientoBolsines,
+  seleccionarBolsinSeguimiento,
 } from "@/services/seguimiento/seguimiento-cliente";
 
 const BOLSINES_FIXTURE: BolsinSeguimiento[] = [
@@ -300,5 +301,105 @@ describe("seguimiento-cliente (CU 36 + CU 30/31)", () => {
     });
     expect(res.esModoDemo).toBe(true);
     expect(res.enviado).toBe(true);
+  });
+
+  it("seleccionarBolsinSeguimiento invoca POST /api/auth/cu36/seguimiento/seleccion", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        mockFetchResponse(200, { seleccionado: 7, confirmarNotificacion: true }),
+      );
+
+    const res = await seleccionarBolsinSeguimiento(7);
+    expect(res).toEqual({
+      seleccionado: 7,
+      confirmarNotificacion: true,
+      esModoDemo: false,
+    });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "/api/auth/cu36/seguimiento/seleccion",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ bolsinId: 7 }),
+      }),
+    );
+  });
+
+  it("notificarUbicacionGerente consume la respuesta enriquecida de CU 36", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      mockFetchResponse(200, {
+        aceptada: true,
+        destinatarioEmail: "gcm.sf@example.test",
+        destinatarioNombre: "Carolina Martínez",
+        fechaEnvio: "2026-11-16T12:00:00.000Z",
+      }),
+    );
+
+    const res = await notificarUbicacionGerente({
+      bolsinId: 1,
+      nroBolsin: 101,
+      modeloGps: "XTR-4500L",
+    });
+    expect(res).toEqual({
+      enviado: true,
+      destinatarioEmail: "gcm.sf@example.test",
+      destinatarioNombre: "Carolina Martínez",
+      fechaEnvio: "2026-11-16T12:00:00.000Z",
+      esModoDemo: false,
+    });
+  });
+
+  it("obtenerSeguimientoBolsines adapta pesoKg, emailGcm, estadoCobertura y remito", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        mockFetchResponse(200, {
+          comision: "Comisión Médica Córdoba",
+          mapa: {
+            estilo: "mapbox",
+            puntos: [
+              {
+                id: 1,
+                numero: 101,
+                precinto: 940101,
+                destino: "Comisión Médica Santa Fe",
+                codigoDestino: "CM-SF",
+                emailGcm: "gcm.cm-sf@example.test",
+                pesoKg: 4.2,
+                remito: {
+                  numero: "REM-4101",
+                  asunto: "Dictamen Junta Médica #101",
+                  tipoDocumento: "Expediente médico",
+                },
+                latitud: -31.6,
+                longitud: -60.7,
+                actualizado: "2026-11-16T11:55:00.000Z",
+                estadoCobertura: "sin_cobertura",
+              },
+            ],
+          },
+          sinUbicacion: 0,
+        }),
+      )
+      .mockResolvedValueOnce(mockFetchResponse(200, []));
+
+    const res = await obtenerSeguimientoBolsines("XTR-4500L");
+    expect(res.esModoDemo).toBe(false);
+    expect(res.bolsines[0]).toMatchObject({
+      id: 1,
+      nroBolsin: 101,
+      pesoKg: 4.2,
+      cmDestino: {
+        codigo: "CM-SF",
+        emailGcm: "gcm.cm-sf@example.test",
+      },
+      ubicacion: {
+        estadoCobertura: "sin_cobertura",
+      },
+      remito: {
+        numero: "REM-4101",
+        asunto: "Dictamen Junta Médica #101",
+        tipoDocumento: "Expediente médico",
+      },
+    });
   });
 });

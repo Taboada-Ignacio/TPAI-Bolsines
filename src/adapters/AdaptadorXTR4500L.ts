@@ -7,7 +7,7 @@ import { validarCodigosCM, validarFilaGps } from "./validacionLocalizacionGps";
 export class AdaptadorXTR4500L implements IAdaptadorLocalizacionBolsines {
   private readonly nrosBolsines: number[];
   private readonly codigosCMOrigen: string[];
-  private jsonBolsines: string[] = [];
+  private jsonBolsines: Array<string | null> = [];
   private datosLocalizacionAdaptado: string[][] = [];
   private solicitudEnCurso?: Promise<void>;
 
@@ -39,23 +39,39 @@ export class AdaptadorXTR4500L implements IAdaptadorLocalizacionBolsines {
     if (this.jsonBolsines.length !== this.nrosBolsines.length) {
       throw new ErrorGPSTracker("RESPUESTA_INVALIDA");
     }
-    this.datosLocalizacionAdaptado = this.jsonBolsines.map((respuesta, i) =>
-      validarFilaGps(this.adaptarRespuesta(respuesta), this.nrosBolsines[i]),
+    this.datosLocalizacionAdaptado = this.jsonBolsines.flatMap((respuesta, i) =>
+      respuesta === null
+        ? []
+        : [validarFilaGps(this.adaptarRespuesta(respuesta), this.nrosBolsines[i])],
     );
   }
 
   private async solicitarLote(): Promise<void> {
     this.datosLocalizacionAdaptado = [];
     try {
-      const respuestas: string[] = [];
+      const respuestas: Array<string | null> = [];
       for (const [i, numero] of this.nrosBolsines.entries()) {
-        respuestas.push(
-          await this.servicio.getBolsinLocation(
-            this.apiKey,
-            numero,
-            this.codigosCMOrigen[i],
-          ),
-        );
+        try {
+          respuestas.push(
+            await this.servicio.getBolsinLocation(
+              this.apiKey,
+              numero,
+              this.codigosCMOrigen[i],
+            ),
+          );
+        } catch (error) {
+          // A3: un 404 individual significa que ese bolsín no tiene cobertura en el tracker;
+          // no debe abortar el resto del lote.
+          if (
+            error instanceof ErrorGPSTracker &&
+            error.tipo === "HTTP" &&
+            error.estadoHttp === 404
+          ) {
+            respuestas.push(null);
+            continue;
+          }
+          throw error;
+        }
       }
       this.jsonBolsines = respuestas;
     } catch (error) {

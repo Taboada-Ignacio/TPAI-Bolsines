@@ -149,18 +149,30 @@ describe("CU 36", () => {
     expect(bolsines.listarEnviados).toHaveBeenCalledWith(5);
     expect(gps).toHaveBeenCalledExactlyOnceWith(
       "XTR-4500L",
-      [101, 110],
-      ["CM-CBA-01", "CM-CBA-02"],
+      [101, 110, 36011],
+      ["CM-CBA-01", "CM-CBA-02", "CM-CBA-01"],
       [],
     );
     expect(datos.comision).toBe("Córdoba - Av. Central 1");
-    expect(datos.sinUbicacion).toBe(1);
+    expect(datos.sinUbicacion).toBe(0);
     expect(datos.mapa.estilo).toContain("tiles.openfreemap.org");
     expect(
       datos.mapa.puntos.map(({ numero }: { numero: number }) => numero),
-    ).toEqual([110, 101]);
+    ).toEqual([36011, 110, 101]);
     expect(mapa).toHaveBeenCalledExactlyOnceWith(datos.mapa.puntos);
     expect(correo).not.toHaveBeenCalled();
+  });
+
+  it("reenvía modeloGps QX-7A con codigosCMDestino al tracker", async () => {
+    const { pantalla, gps } = contexto();
+    const respuesta = await pantalla.habilitarPantalla(7, "QX-7A");
+    expect(respuesta.status).toBe(200);
+    expect(gps).toHaveBeenCalledExactlyOnceWith(
+      "QX-7A",
+      [101, 110, 36011],
+      [],
+      ["CM-ROS-02", "CM-ROS-02", "CM-ROS-02"],
+    );
   });
 
   it("omite el GPS cuando la CM no tiene bolsines consultables", async () => {
@@ -186,7 +198,12 @@ describe("CU 36", () => {
       7,
       peticion(),
     );
-    expect(await respuesta.json()).toEqual({ aceptada: true });
+    expect(await respuesta.json()).toMatchObject({
+      aceptada: true,
+      destinatarioEmail: "gcm@example.test",
+      destinatarioNombre: "Juan Pérez",
+      fechaEnvio: expect.any(String),
+    });
     expect(bolsines.buscarParaSeguimiento.mock.calls).toEqual([[1], [1]]);
     expect(empleados.listarDeComision).toHaveBeenCalledExactlyOnceWith("CM-SF");
     expect(gps).toHaveBeenCalledExactlyOnceWith(

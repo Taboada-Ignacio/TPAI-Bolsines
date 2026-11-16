@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ModeloGps } from "@/dtos/seguimiento-bolsin.dto";
 import type {
   MapaConPosiciones,
   SeguimientoBolsines,
@@ -18,14 +19,17 @@ const seleccion = z.strictObject({
 export class PantallaConsultarUbicacionDeBolsines {
   constructor(private readonly gestor: GestorConsultarUbicacionDeBolsin) {}
 
-  habilitarPantalla(idSesion: number) {
-    return this.opcConsultarUbicacionDeBolsines(idSesion);
+  habilitarPantalla(idSesion: number, modeloGps: ModeloGps = "XTR-4500L") {
+    return this.opcConsultarUbicacionDeBolsines(idSesion, modeloGps);
   }
 
-  opcConsultarUbicacionDeBolsines(idSesion: number) {
+  opcConsultarUbicacionDeBolsines(
+    idSesion: number,
+    modeloGps: ModeloGps = "XTR-4500L",
+  ) {
     return this.responder(async () => {
       const { comision, mapa, sinUbicacion } =
-        await this.gestor.opcConsultarUbicacionDeBolsines(idSesion);
+        await this.gestor.opcConsultarUbicacionDeBolsines(idSesion, modeloGps);
       return {
         ...this.mostrarCMDeLogueado(comision),
         ...this.mostrarPosicionDeBolsines(mapa),

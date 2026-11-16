@@ -180,4 +180,16 @@ BEGIN
 END;
 $bolsines$;
 
+-- 6. Remitos ficticios para los bolsines en tránsito (101, 104, 110)
+INSERT INTO public.remito (numero, asunto, tipo_documento, bolsin_id)
+SELECT rem.numero, rem.asunto, rem.tipo_documento, b.id
+FROM (VALUES
+  (101, 'CM-CBA', 'REM-4101', 'Dictamen Junta Médica #101', 'Expediente médico'),
+  (104, 'CM-BA',  'REM-4104', 'Oficio judicial SRT 104/26', 'Nota legal'),
+  (110, 'CM-CBA', 'REM-4110', 'Historia clínica certificada #110', 'Documentación clínica')
+) AS rem(numero_bolsin, origen_codigo, numero, asunto, tipo_documento)
+JOIN public.comision_medica cm ON cm.codigo = rem.origen_codigo
+JOIN public.bolsin b ON b.cm_origen_id = cm.id AND b.numero_bolsin = rem.numero_bolsin
+ON CONFLICT (bolsin_id) DO NOTHING;
+
 COMMIT;

@@ -5,12 +5,12 @@ import { newDb } from "pg-mem";
 import pg from "pg";
 import { PrismaClient } from "../../prisma/generated/client";
 
-function cargarDdlBase(): string {
+function cargarSqlMigracion(nombreCarpeta: string): string {
   const migrationPath = join(
     process.cwd(),
     "prisma",
     "migrations",
-    "20261114202500_init_domain_entities",
+    nombreCarpeta,
     "migration.sql",
   );
   const raw = readFileSync(migrationPath, "utf8");
@@ -18,6 +18,10 @@ function cargarDdlBase(): string {
     .replace(/^\s*BEGIN;\s*/i, "")
     .replace(/\s*COMMIT;\s*$/i, "")
     .replace(/TIMESTAMPTZ\(3\)/gi, "TIMESTAMPTZ");
+}
+
+function cargarDdlBase(): string {
+  return cargarSqlMigracion("20261114202500_init_domain_entities");
 }
 
 const SEED_SQL = `
@@ -81,14 +85,33 @@ INSERT INTO "public"."empleado" ("nombre", "apellido", "email", "usuario_id", "r
   ('Gerente', 'CM-CBA', 'gcm.cm-cba@example.test', 8, 4, 5);
 
 INSERT INTO "public"."bolsin" ("fecha", "numero_bolsin", "numero_precinto", "peso", "cm_origen_id", "cm_destino_id") VALUES
-  ('2026-11-15T10:00:00Z', 101, 940101, 4.2, 5, 20),
-  ('2026-11-15T11:30:00Z', 110, 940110, 5.1, 5, 12),
-  ('2026-11-15T12:45:00Z', 104, 940104, 2.8, 5, 1);
+  ('2026-03-07T12:00:00Z', 101, 940101, 4.2, 5, 20),
+  ('2026-03-07T12:00:00Z', 102, 940102, 3.6, 20, 12),
+  ('2026-03-07T12:00:00Z', 103, 940103, 4.8, 12, 1),
+  ('2026-03-07T12:00:00Z', 104, 940104, 2.8, 1, 5),
+  ('2026-03-07T12:00:00Z', 105, 940105, 3.1, 23, 16),
+  ('2026-03-07T12:00:00Z', 106, 940106, 2.9, 16, 9),
+  ('2026-03-07T12:00:00Z', 107, 940107, 5.4, 14, 1),
+  ('2026-03-07T12:00:00Z', 108, 940108, 4.0, 1, 1),
+  ('2026-03-07T12:00:00Z', 109, 940109, 3.3, 1, 5),
+  ('2026-03-07T12:00:00Z', 110, 940110, 5.1, 5, 20);
 
 INSERT INTO "public"."cambio_estado_bolsin" ("fecha_hora_inicio", "fecha_hora_fin", "bolsin_id", "estado_id", "responsable_ce_id") VALUES
-  ('2026-11-15T10:00:00Z', NULL, 1, 3, 3),
-  ('2026-11-15T11:30:00Z', NULL, 2, 3, 3),
-  ('2026-11-15T12:45:00Z', NULL, 3, 3, 3);
+  ('2026-03-07T12:30:00Z', NULL, 1, 3, 3),
+  ('2026-03-07T12:30:00Z', NULL, 2, 3, 3),
+  ('2026-03-07T12:30:00Z', NULL, 3, 3, 3),
+  ('2026-03-07T12:30:00Z', NULL, 4, 3, 3),
+  ('2026-03-07T12:30:00Z', NULL, 5, 3, 3),
+  ('2026-03-07T12:30:00Z', NULL, 6, 3, 3),
+  ('2026-03-07T12:30:00Z', NULL, 7, 3, 3),
+  ('2026-03-07T12:30:00Z', NULL, 8, 3, 3),
+  ('2026-03-07T12:30:00Z', NULL, 9, 3, 3),
+  ('2026-03-07T12:30:00Z', NULL, 10, 3, 3);
+
+INSERT INTO "public"."remito" ("numero", "asunto", "tipo_documento", "bolsin_id") VALUES
+  ('REM-4101', 'Dictamen Junta Médica #101', 'Expediente médico', 1),
+  ('REM-4104', 'Oficio judicial SRT 104/26', 'Nota legal', 4),
+  ('REM-4110', 'Historia clínica certificada #110', 'Documentación clínica', 10);
 `;
 
 type MemRow = Record<string, unknown>;
@@ -190,6 +213,7 @@ export function crearPrismaEnMemoria(): PrismaClient {
   db.public.none(
     'CREATE UNIQUE INDEX "usuario_nombre_key" ON "public"."usuario"("nombre");',
   );
+  db.public.none(cargarSqlMigracion("20261116120000_remito_y_precinto_nullable"));
   db.public.none(SEED_SQL);
 
   const { Pool } = db.adapters.createPg() as {

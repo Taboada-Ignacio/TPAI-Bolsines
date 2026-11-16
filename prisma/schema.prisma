@@ -73,18 +73,30 @@ model Bolsin {
   id             Int                  @id @default(autoincrement())
   fecha          DateTime             @db.Timestamptz(3)
   numeroBolsin   Int                  @map("numero_bolsin")
-  numeroPrecinto Int                  @map("numero_precinto")
+  numeroPrecinto Int?                 @map("numero_precinto")
   peso           Float
   cmOrigenId     Int                  @map("cm_origen_id")
   cmDestinoId    Int                  @map("cm_destino_id")
   cmOrigen       ComisionMedica       @relation("BolsinOrigen", fields: [cmOrigenId], references: [id], onDelete: Restrict)
   cmDestino      ComisionMedica       @relation("BolsinDestino", fields: [cmDestinoId], references: [id], onDelete: Restrict)
+  remito         Remito?
   // La multiplicidad UML 1..* se validará en las reglas de negocio.
   cambiosEstado  CambioEstadoBolsin[]
 
   @@unique([cmOrigenId, numeroBolsin])
   @@index([cmDestinoId])
   @@map("bolsin")
+}
+
+model Remito {
+  id            Int    @id @default(autoincrement())
+  numero        String
+  asunto        String
+  tipoDocumento String @map("tipo_documento")
+  bolsinId      Int    @unique @map("bolsin_id")
+  bolsin        Bolsin @relation(fields: [bolsinId], references: [id], onDelete: Cascade)
+
+  @@map("remito")
 }
 
 model CambioEstadoBolsin {

@@ -1,6 +1,15 @@
 import type { SolicitudNotificacionUbicacion } from "@/dtos/notificacion-ubicacion.dto";
+import type { RemitoResumen } from "@/dtos/seguimiento-bolsines.dto";
 
-type DatosUbicacion = Omit<SolicitudNotificacionUbicacion, "emailDestino">;
+export type DatosExtraNotificacionUbicacion = {
+  nroPrecinto?: number | string | null;
+  cmOrigen?: string | null;
+  cmDestino?: string | null;
+  remito?: RemitoResumen | null;
+};
+
+type DatosUbicacion = Omit<SolicitudNotificacionUbicacion, "emailDestino"> &
+  DatosExtraNotificacionUbicacion;
 
 function escaparHtml(valor: string) {
   return valor
@@ -16,15 +25,35 @@ export function formatearCorreoUbicacion({
   latitud,
   longitud,
   fechaHoraActualizacion,
+  nroPrecinto,
+  cmOrigen,
+  cmDestino,
+  remito,
 }: DatosUbicacion) {
   const mapa = `https://www.google.com/maps?q=${encodeURIComponent(latitud)},${encodeURIComponent(longitud)}`;
   const saludo = "Estimado/a Gerente de Comisión Médica:";
   const mensaje = "Se informa la última ubicación registrada del bolsín.";
-  const detalles = [
+  const detalles: Array<[string, string]> = [];
+  if (nroPrecinto !== undefined && nroPrecinto !== null && String(nroPrecinto).trim()) {
+    detalles.push(["Número de precinto", String(nroPrecinto)]);
+  }
+  if (cmOrigen?.trim()) {
+    detalles.push(["Comisión Médica origen", cmOrigen.trim()]);
+  }
+  if (cmDestino?.trim()) {
+    detalles.push(["Comisión Médica destino", cmDestino.trim()]);
+  }
+  if (remito) {
+    detalles.push([
+      "Remito",
+      `${remito.numero} — ${remito.asunto} (${remito.tipoDocumento})`,
+    ]);
+  }
+  detalles.push(
     ["Latitud", latitud],
     ["Longitud", longitud],
     ["Fecha y hora de última actualización", fechaHoraActualizacion],
-  ];
+  );
   const texto = [
     saludo,
     "",

@@ -37,7 +37,7 @@ export default async function InicioPage() {
 
         <div data-reveal="" className="border-b border-hair px-2.5 py-4">
           <a
-            href="http://localhost:8025"
+            href={process.env.NEXT_PUBLIC_MAILPIT_URL || "http://localhost:8025"}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex min-h-11 items-center gap-2 rounded-control border border-lime-edge bg-lime px-4 font-display text-sm font-semibold text-on-lime shadow-key-lime transition-transform focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent motion-safe:hover:-translate-y-px motion-safe:active:translate-y-0.5"

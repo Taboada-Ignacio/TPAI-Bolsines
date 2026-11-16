@@ -1,24 +1,27 @@
 import type { CambioEstadoBolsin } from "./CambioEstadoBolsin";
 import type { ComisionMedica } from "./ComisionMedica";
+import type { Remito } from "./Remito";
 
 export class Bolsin {
   private fecha: Date;
   private numeroBolsin: number;
-  private numeroPrecinto: number;
+  private numeroPrecinto: number | null;
   private peso: number;
   private cmOrigen: ComisionMedica;
   private cmDestino: ComisionMedica;
   // La multiplicidad UML es 1..*. Su validación queda para las reglas de negocio.
   private cambiosEstado: CambioEstadoBolsin[];
+  private remitoAsociado: Remito | null;
 
   constructor(
     fecha: Date,
     numeroBolsin: number,
-    numeroPrecinto: number,
+    numeroPrecinto: number | null,
     peso: number,
     cmOrigen: ComisionMedica,
     cmDestino: ComisionMedica,
     cambiosEstado: CambioEstadoBolsin[],
+    remito: Remito | null = null,
   ) {
     this.fecha = fecha;
     this.numeroBolsin = numeroBolsin;
@@ -27,6 +30,7 @@ export class Bolsin {
     this.cmOrigen = cmOrigen;
     this.cmDestino = cmDestino;
     this.cambiosEstado = [...cambiosEstado];
+    this.remitoAsociado = remito;
   }
 
   getFecha(): Date {
@@ -45,11 +49,11 @@ export class Bolsin {
     this.numeroBolsin = numeroBolsin;
   }
 
-  getNumeroPrecinto(): number {
+  getNumeroPrecinto(): number | null {
     return this.numeroPrecinto;
   }
 
-  setNumeroPrecinto(numeroPrecinto: number): void {
+  setNumeroPrecinto(numeroPrecinto: number | null): void {
     this.numeroPrecinto = numeroPrecinto;
   }
 
@@ -107,5 +111,13 @@ export class Bolsin {
 
   setCambiosEstado(cambiosEstado: CambioEstadoBolsin[]): void {
     this.cambiosEstado = [...cambiosEstado];
+  }
+
+  getRemito(): Remito | null {
+    return this.remitoAsociado;
+  }
+
+  setRemito(remito: Remito | null): void {
+    this.remitoAsociado = remito;
   }
 }

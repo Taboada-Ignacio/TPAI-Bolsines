@@ -13,6 +13,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Send,
   Trash2,
   X,
 } from "lucide-react";
@@ -77,6 +78,8 @@ export function BolsinesView() {
     accion: PrecintoAccion;
     bolsin: BolsinListadoItem;
   } | null>(null);
+  const [enviandoId, setEnviandoId] = useState<number | null>(null);
+  const [accionError, setAccionError] = useState<string | null>(null);
 
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -232,6 +235,35 @@ export function BolsinesView() {
     setPage(1);
   }
 
+  async function handleMarcarEnviado(bolsin: BolsinListadoItem) {
+    if (enviandoId !== null) return;
+    setEnviandoId(bolsin.id);
+    setAccionError(null);
+    try {
+      const res = await fetch(`/api/bolsines/${bolsin.id}/enviar`, {
+        method: "POST",
+      });
+      const body = (await res.json().catch(() => null)) as
+        | BolsinListadoItem
+        | { error?: string }
+        | null;
+      if (!res.ok) {
+        setAccionError(
+          (body && "error" in body && body.error) ||
+            "No se pudo marcar el bolsín como enviado.",
+        );
+        return;
+      }
+      handleFormSuccess(body as BolsinListadoItem);
+    } catch {
+      setAccionError(
+        "No pudimos conectarnos con el servidor. Intentá nuevamente.",
+      );
+    } finally {
+      setEnviandoId(null);
+    }
+  }
+
   return (
     <>
       <PageActions>
@@ -341,6 +373,23 @@ export function BolsinesView() {
 
       {/* Contenido principal */}
       <div ref={listRef} className="mt-5">
+        {accionError ? (
+          <div
+            role="alert"
+            className="mb-4 flex items-center justify-between gap-3 rounded-control border border-danger/35 bg-danger/10 px-4 py-3 text-sm text-danger-ink"
+          >
+            <div className="flex items-center gap-2">
+              <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
+              <span>{accionError}</span>
+            </div>
+            <IconButton
+              aria-label="Cerrar error"
+              onClick={() => setAccionError(null)}
+            >
+              <X className="size-4" aria-hidden="true" />
+            </IconButton>
+          </div>
+        ) : null}
         {loading ? (
           <div className="flex flex-col gap-3" aria-busy="true">
             {Array.from({ length: 6 }).map((_, idx) => (
@@ -484,20 +533,36 @@ export function BolsinesView() {
                       </Button>
                     ) : null}
                     {b.estadoActual?.nombre === "Cerrado" ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          setPrecintoSheet({ accion: "reabrir", bolsin: b })
-                        }
-                        leftIcon={
-                          <LockOpen className="size-3.5" aria-hidden="true" />
-                        }
-                        className="rounded-full border border-edge"
-                      >
-                        Abrir de nuevo
-                      </Button>
+                      <>
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="sm"
+                          loading={enviandoId === b.id}
+                          disabled={enviandoId !== null && enviandoId !== b.id}
+                          onClick={() => void handleMarcarEnviado(b)}
+                          leftIcon={
+                            <Send className="size-3.5" aria-hidden="true" />
+                          }
+                          className="rounded-full"
+                        >
+                          Marcar como Enviado
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setPrecintoSheet({ accion: "reabrir", bolsin: b })
+                          }
+                          leftIcon={
+                            <LockOpen className="size-3.5" aria-hidden="true" />
+                          }
+                          className="rounded-full border border-edge"
+                        >
+                          Abrir de nuevo
+                        </Button>
+                      </>
                     ) : null}
                     <Link
                       href={`/bolsines/${b.id}`}
@@ -589,15 +654,25 @@ export function BolsinesView() {
                       </IconButton>
                     ) : null}
                     {b.estadoActual?.nombre === "Cerrado" ? (
-                      <IconButton
-                        aria-label={`Abrir de nuevo el bolsín ${b.numeroBolsin}`}
-                        title="Abrir de nuevo (romper precinto)"
-                        onClick={() =>
-                          setPrecintoSheet({ accion: "reabrir", bolsin: b })
-                        }
-                      >
-                        <LockOpen className="size-4" aria-hidden="true" />
-                      </IconButton>
+                      <>
+                        <IconButton
+                          aria-label={`Marcar como Enviado el bolsín ${b.numeroBolsin}`}
+                          title="Marcar como Enviado"
+                          disabled={enviandoId !== null}
+                          onClick={() => void handleMarcarEnviado(b)}
+                        >
+                          <Send className="size-4" aria-hidden="true" />
+                        </IconButton>
+                        <IconButton
+                          aria-label={`Abrir de nuevo el bolsín ${b.numeroBolsin}`}
+                          title="Abrir de nuevo (romper precinto)"
+                          onClick={() =>
+                            setPrecintoSheet({ accion: "reabrir", bolsin: b })
+                          }
+                        >
+                          <LockOpen className="size-4" aria-hidden="true" />
+                        </IconButton>
+                      </>
                     ) : null}
                     <Link
                       href={`/bolsines/${b.id}`}

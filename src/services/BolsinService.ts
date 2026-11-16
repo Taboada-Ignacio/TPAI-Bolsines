@@ -2,6 +2,7 @@ import { Bolsin } from "@/domain/Bolsin";
 import { CambioEstadoBolsin } from "@/domain/CambioEstadoBolsin";
 import type { Estado } from "@/domain/Estado";
 import type { ComisionMedica } from "@/domain/ComisionMedica";
+import { Remito } from "@/domain/Remito";
 import {
   AmbitoBolsinInvalido,
   mensajeBolsinDuplicado,
@@ -82,6 +83,13 @@ export class BolsinService {
       estado.entidad,
       responsable,
     );
+    const remito = datos.remito
+      ? new Remito(
+          datos.remito.numero,
+          datos.remito.asunto,
+          datos.remito.tipoDocumento,
+        )
+      : null;
     const bolsin = new Bolsin(
       datos.fecha,
       datos.numeroBolsin,
@@ -90,6 +98,7 @@ export class BolsinService {
       origen,
       destino,
       [cambio],
+      remito,
     );
     return this.bolsines.crear(bolsin, cambio, datos);
   }
@@ -113,5 +122,17 @@ export class BolsinService {
 
   eliminar(id: number) {
     return this.bolsines.eliminar(id);
+  }
+
+  cerrar(id: number, numeroPrecinto: number, responsableCEId?: number) {
+    return this.bolsines.cerrar(id, numeroPrecinto, responsableCEId);
+  }
+
+  reabrir(id: number, responsableCEId?: number) {
+    return this.bolsines.reabrir(id, responsableCEId);
+  }
+
+  enviar(id: number, responsableCEId?: number) {
+    return this.bolsines.enviar(id, responsableCEId);
   }
 }

@@ -1,6 +1,9 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import * as coleccion from "@/app/api/bolsines/route";
 import * as recurso from "@/app/api/bolsines/[id]/route";
+import * as cerrarRuta from "@/app/api/bolsines/[id]/cerrar/route";
+import * as reabrirRuta from "@/app/api/bolsines/[id]/reabrir/route";
+import * as enviarRuta from "@/app/api/bolsines/[id]/enviar/route";
 import { Prisma } from "../prisma/generated/client";
 
 const db = vi.hoisted(() => ({
@@ -11,7 +14,14 @@ const db = vi.hoisted(() => ({
     update: vi.fn(),
     delete: vi.fn(),
   },
-  cambioEstadoBolsin: { deleteMany: vi.fn() },
+  cambioEstadoBolsin: {
+    update: vi.fn(),
+    deleteMany: vi.fn(),
+  },
+  remito: {
+    upsert: vi.fn(),
+    deleteMany: vi.fn(),
+  },
   empleado: { findUnique: vi.fn() },
   estado: { findUnique: vi.fn() },
   comisionMedica: { findUnique: vi.fn() },
@@ -308,6 +318,149 @@ it("borra solo el historial del bolsín y el bolsín dentro de una transacción"
   expect(
     db.cambioEstadoBolsin.deleteMany.mock.invocationCallOrder[0],
   ).toBeLessThan(db.bolsin.delete.mock.invocationCallOrder[0]);
+});
+
+it("valida numeroBolsin > 0, numeroPrecinto > 0, peso > 0 y cmOrigenId !== cmDestinoId", async () => {
+  for (const ajuste of [
+    { numeroBolsin: 0 },
+    { numeroBolsin: -5 },
+    { numeroPrecinto: 0 },
+    { numeroPrecinto: -1 },
+    { peso: 0 },
+    { peso: -2.5 },
+    { cmDestinoId: datos.cmOrigenId },
+  ]) {
+    const res = await coleccion.POST(solicitud("POST", { ...alta, ...ajuste }));
+    expect(res.status).toBe(400);
+  }
+});
+
+it("persiste y devuelve remito en POST y PUT /api/bolsines", async () => {
+  const remito = {
+    numero: "REM-9901",
+    asunto: "Expediente médico",
+    tipoDocumento: "Expediente médico",
+  };
+  db.bolsin.create.mockResolvedValue({ ...fila, remito });
+  const postRes = await coleccion.POST(solicitud("POST", { ...alta, remito }));
+  expect(postRes.status).toBe(201);
+  expect((await postRes.json()).remito).toEqual(remito);
+  expect(db.bolsin.create.mock.calls[0][0].data.remito).toEqual({
+    create: remito,
+  });
+
+  db.bolsin.update.mockResolvedValue({ ...fila, remito });
+  const putRes = await recurso.PUT(
+    solicitud("PUT", { ...datos, remito }),
+    contexto(),
+  );
+  expect(putRes.status).toBe(200);
+  expect((await putRes.json()).remito).toEqual(remito);
+  expect(db.remito.upsert).toHaveBeenCalledWith({
+    where: { bolsinId: id },
+    create: { ...remito, bolsinId: id },
+    update: remito,
+  });
+});
+
+it("transiciona Creado -> Cerrado -> Creado -> Enviado en transacción", async () => {
+  db.bolsin.findUnique.mockResolvedValueOnce({
+    id,
+    cambiosEstado: [
+      { id: 10, responsableCEId: 5, estado: { nombre: "Creado" } },
+    ],
+  });
+  db.estado.findUnique.mockResolvedValueOnce({ id: 2 });
+  db.bolsin.update.mockResolvedValueOnce({
+    ...fila,
+    numeroPrecinto: 77777,
+    cambiosEstado: [{ estado: { id: 2, nombre: "Cerrado" } }],
+  });
+
+  const cerrarRes = await cerrarRuta.POST(
+    solicitud("POST", { numeroPrecinto: 77777 }),
+    contexto(),
+  );
+  expect(cerrarRes.status).toBe(200);
+  expect(await cerrarRes.json()).toMatchObject({
+    numeroPrecinto: 77777,
+    estadoActual: { id: 2, nombre: "Cerrado" },
+  });
+  expect(db.cambioEstadoBolsin.update).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: { id: 10 },
+      data: { fechaHoraFin: expect.any(Date) },
+    }),
+  );
+
+  // Cerrado -> Creado (reabrir limpia precinto)
+  db.bolsin.findUnique.mockResolvedValueOnce({
+    id,
+    cambiosEstado: [
+      { id: 11, responsableCEId: 5, estado: { nombre: "Cerrado" } },
+    ],
+  });
+  db.estado.findUnique.mockResolvedValueOnce({ id: 1 });
+  db.bolsin.update.mockResolvedValueOnce({
+    ...fila,
+    numeroPrecinto: null,
+    cambiosEstado: [{ estado: { id: 1, nombre: "Creado" } }],
+  });
+  const reabrirRes = await reabrirRuta.POST(
+    new Request(url, { method: "POST" }),
+    contexto(),
+  );
+  expect(reabrirRes.status).toBe(200);
+  expect(await reabrirRes.json()).toMatchObject({
+    numeroPrecinto: null,
+    estadoActual: { id: 1, nombre: "Creado" },
+  });
+
+  // Cerrado -> Enviado
+  db.bolsin.findUnique.mockResolvedValueOnce({
+    id,
+    cambiosEstado: [
+      { id: 12, responsableCEId: 5, estado: { nombre: "Cerrado" } },
+    ],
+  });
+  db.estado.findUnique.mockResolvedValueOnce({ id: 3 });
+  db.bolsin.update.mockResolvedValueOnce({
+    ...fila,
+    cambiosEstado: [{ estado: { id: 3, nombre: "Enviado" } }],
+  });
+  const enviarRes = await enviarRuta.POST(
+    new Request(url, { method: "POST" }),
+    contexto(),
+  );
+  expect(enviarRes.status).toBe(200);
+  expect(await enviarRes.json()).toMatchObject({
+    estadoActual: { id: 3, nombre: "Enviado" },
+  });
+});
+
+it("rechaza transiciones de estado inválidas con 409", async () => {
+  db.bolsin.findUnique.mockResolvedValue({
+    id,
+    cambiosEstado: [
+      { id: 10, responsableCEId: 5, estado: { nombre: "Enviado" } },
+    ],
+  });
+  expect(
+    (
+      await cerrarRuta.POST(
+        solicitud("POST", { numeroPrecinto: 12345 }),
+        contexto(),
+      )
+    ).status,
+  ).toBe(409);
+  expect(
+    (await reabrirRuta.POST(new Request(url, { method: "POST" }), contexto()))
+      .status,
+  ).toBe(409);
+  expect(
+    (await enviarRuta.POST(new Request(url, { method: "POST" }), contexto()))
+      .status,
+  ).toBe(409);
 });
 
 it.each([

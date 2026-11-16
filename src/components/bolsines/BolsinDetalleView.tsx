@@ -12,6 +12,7 @@ import {
   PackageX,
   Pencil,
   RefreshCw,
+  Send,
   Trash2,
   UserCheck,
 } from "lucide-react";
@@ -72,6 +73,8 @@ export function BolsinDetalleView({ id }: BolsinDetalleViewProps) {
   const [precintoAccion, setPrecintoAccion] = useState<PrecintoAccion | null>(
     null,
   );
+  const [enviando, setEnviando] = useState(false);
+  const [accionError, setAccionError] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -184,6 +187,36 @@ export function BolsinDetalleView({ id }: BolsinDetalleViewProps) {
 
   function handleEditSuccess(actualizado: BolsinListadoItem) {
     setBolsin((prev) => (prev ? { ...prev, ...actualizado } : null));
+    setReloadTick((t) => t + 1);
+  }
+
+  async function handleMarcarEnviado() {
+    if (!bolsin || enviando) return;
+    setEnviando(true);
+    setAccionError(null);
+    try {
+      const res = await fetch(`/api/bolsines/${bolsin.id}/enviar`, {
+        method: "POST",
+      });
+      const body = (await res.json().catch(() => null)) as
+        | BolsinListadoItem
+        | { error?: string }
+        | null;
+      if (!res.ok) {
+        setAccionError(
+          (body && "error" in body && body.error) ||
+            "No se pudo marcar el bolsín como enviado.",
+        );
+        return;
+      }
+      handleEditSuccess(body as BolsinListadoItem);
+    } catch {
+      setAccionError(
+        "No pudimos conectarnos con el servidor. Intentá nuevamente.",
+      );
+    } finally {
+      setEnviando(false);
+    }
   }
 
   function handleDeleted() {
@@ -325,16 +358,30 @@ export function BolsinDetalleView({ id }: BolsinDetalleViewProps) {
           ) : null}
           {(bolsin.estadoActual?.nombre ?? cambioActual?.estado.nombre) ===
           "Cerrado" ? (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => setPrecintoAccion("reabrir")}
-              leftIcon={<LockOpen className="size-4" aria-hidden="true" />}
-              className="rounded-full"
-            >
-              Abrir de nuevo
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                loading={enviando}
+                onClick={() => void handleMarcarEnviado()}
+                leftIcon={<Send className="size-4" aria-hidden="true" />}
+                className="rounded-full"
+              >
+                Marcar como Enviado
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={enviando}
+                onClick={() => setPrecintoAccion("reabrir")}
+                leftIcon={<LockOpen className="size-4" aria-hidden="true" />}
+                className="rounded-full"
+              >
+                Abrir de nuevo
+              </Button>
+            </>
           ) : null}
           <Button
             type="button"
@@ -358,6 +405,16 @@ export function BolsinDetalleView({ id }: BolsinDetalleViewProps) {
           </Button>
         </div>
       </header>
+
+      {accionError ? (
+        <div
+          role="alert"
+          className="flex items-center gap-2.5 rounded-control border border-danger/35 bg-danger/10 px-4 py-3 text-sm text-danger-ink"
+        >
+          <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
+          <span>{accionError}</span>
+        </div>
+      ) : null}
 
       {/* Ficha operativa */}
       <section aria-labelledby="ficha-operativa-title">

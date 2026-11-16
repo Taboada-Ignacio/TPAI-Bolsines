@@ -17,8 +17,11 @@ services:
       NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID: ${NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      NEXT_PUBLIC_MAILPIT_URL: ${NEXT_PUBLIC_MAILPIT_URL:-http://localhost:8025}
     depends_on:
       gps-tracker:
+        condition: service_healthy
+      mailpit:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
@@ -69,6 +72,12 @@ services:
     image: axllent/mailpit:v1.33.1
     ports:
       - "127.0.0.1:8025:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
 
   postgres:
     image: postgres:17.12-bookworm

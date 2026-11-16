@@ -2,12 +2,14 @@ import type { z } from "zod";
 import {
   type BolsinSeguimiento,
   type Cu36BackendResponse,
+  type Cu36SeleccionResponse,
   type ModeloGps,
   type NotificarUbicacionRequest,
   type NotificarUbicacionResponse,
   type SeguimientoResponse,
   cu31BackendResponseSchema,
   cu36BackendResponseSchema,
+  cu36SeleccionResponseSchema,
   modeloGpsSchema,
   notificarUbicacionRequestSchema,
   notificarUbicacionResponseSchema,
@@ -388,6 +390,27 @@ export async function obtenerSeguimientoBolsines(
   };
 }
 
+export async function seleccionarBolsinSeguimiento(
+  bolsinId: number,
+  signal?: AbortSignal,
+): Promise<Cu36SeleccionResponse & { esModoDemo: boolean }> {
+  return consultarJsonConRespaldo<Cu36SeleccionResponse>(
+    "/api/auth/cu36/seguimiento/seleccion",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bolsinId }),
+    },
+    cu36SeleccionResponseSchema,
+    () => ({
+      seleccionado: bolsinId,
+      confirmarNotificacion: true,
+      esModoDemo: true,
+    }),
+    signal,
+  );
+}
+
 /**
  * Envía el aviso de ubicación al gerente de la comisión médica destino (CU 36 -> CU 31).
  * Si recibe `bolsinId`, usa `POST /api/auth/cu36/seguimiento` (el backend resuelve el GCM en BD y consulta GPS).
@@ -419,7 +442,7 @@ export async function notificarUbicacionGerente(
       };
 
   const resultado = await consultarJsonConRespaldo<
-    NotificarUbicacionResponse | { aceptada: true }
+    NotificarUbicacionResponse | z.infer<typeof cu31BackendResponseSchema>
   >(
     endpoint,
     {
@@ -442,11 +465,21 @@ export async function notificarUbicacionGerente(
     return resultado;
   }
 
+  const destinatarioEmail =
+    resultado.destinatarioEmail ?? payloadValidado.emailDestino;
+  if (!destinatarioEmail) {
+    throw new ErrorSeguimientoCliente(
+      "La comisión médica destino no tiene un correo electrónico configurado para recibir la notificación.",
+    );
+  }
+
   return {
     enviado: true,
-    destinatarioEmail: payloadValidado.emailDestino!,
-    destinatarioNombre: `Gerente CM destino (Bolsín #${payloadValidado.nroBolsin})`,
-    fechaEnvio: new Date().toISOString(),
+    destinatarioEmail,
+    destinatarioNombre:
+      resultado.destinatarioNombre ??
+      `Gerente CM destino (Bolsín #${payloadValidado.nroBolsin})`,
+    fechaEnvio: resultado.fechaEnvio ?? new Date().toISOString(),
     esModoDemo: resultado.esModoDemo,
   };
 }

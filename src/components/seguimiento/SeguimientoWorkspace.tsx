@@ -35,6 +35,7 @@ import { cn } from "@/lib/cn";
 import {
   ErrorSeguimientoCliente,
   obtenerSeguimientoBolsines,
+  seleccionarBolsinSeguimiento,
 } from "@/services/seguimiento/seguimiento-cliente";
 
 gsap.registerPlugin(useGSAP);
@@ -226,6 +227,26 @@ export function SeguimientoWorkspace() {
     setCmDestinoCodigo("");
   }, []);
 
+  const handleAbrirNotificacion = useCallback(async () => {
+    if (!bolsinSeleccionado) return;
+    if (!esModoDemo && typeof bolsinSeleccionado.id === "number") {
+      try {
+        const seleccion = await seleccionarBolsinSeguimiento(
+          bolsinSeleccionado.id,
+        );
+        if (!seleccion.confirmarNotificacion) return;
+      } catch (err: unknown) {
+        const mensaje =
+          err instanceof ErrorSeguimientoCliente
+            ? err.message
+            : "No pudimos validar la selección del bolsín para notificar.";
+        setError(mensaje);
+        return;
+      }
+    }
+    setNotificarModalAbierto(true);
+  }, [bolsinSeleccionado, esModoDemo]);
+
   const handleAnterior = useCallback(() => {
     if (!puedeAnterior) return;
     const prev = bolsinesFiltrados[indiceSeleccionado - 1];
@@ -370,7 +391,7 @@ export function SeguimientoWorkspace() {
           <BolsinDetallePanel
             bolsin={bolsinSeleccionado}
             cmOrigen={cmOrigen}
-            onNotificarClick={() => setNotificarModalAbierto(true)}
+            onNotificarClick={() => void handleAbrirNotificacion()}
             onCerrar={() => setSeleccionadoNro(null)}
             onAnterior={handleAnterior}
             onSiguiente={handleSiguiente}
@@ -510,7 +531,7 @@ export function SeguimientoWorkspace() {
             <BolsinDetallePanel
               bolsin={bolsinSeleccionado}
               cmOrigen={cmOrigen}
-              onNotificarClick={() => setNotificarModalAbierto(true)}
+              onNotificarClick={() => void handleAbrirNotificacion()}
               onVerEnMapa={() => setMobileDetalleMinimizado(true)}
               onCerrar={() => {
                 setSeleccionadoNro(null);

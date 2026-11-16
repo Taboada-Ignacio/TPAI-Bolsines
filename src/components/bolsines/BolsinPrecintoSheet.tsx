@@ -16,7 +16,7 @@ export interface BolsinPrecintoSheetProps {
   open: boolean;
   accion: PrecintoAccion | null;
   bolsin: BolsinListadoItem | null;
-  estadosBolsin: CatalogoEstado[];
+  estadosBolsin?: CatalogoEstado[];
   onClose: () => void;
   onSuccess: (actualizado: BolsinListadoItem) => void;
 }
@@ -54,13 +54,12 @@ export function BolsinPrecintoSheet({
 function BolsinPrecintoContent({
   accion,
   bolsin,
-  estadosBolsin,
   onClose,
   onSuccess,
 }: {
   accion: PrecintoAccion;
   bolsin: BolsinListadoItem;
-  estadosBolsin: CatalogoEstado[];
+  estadosBolsin?: CatalogoEstado[];
   onClose: () => void;
   onSuccess: (actualizado: BolsinListadoItem) => void;
 }) {
@@ -69,15 +68,6 @@ function BolsinPrecintoContent({
   const [submitting, setSubmitting] = useState(false);
 
   const esCerrar = accion === "cerrar";
-
-  function buscarEstado(nombre: "Cerrado" | "Creado") {
-    const encontrado = estadosBolsin.find(
-      (e) => e.nombre.toLowerCase() === nombre.toLowerCase(),
-    );
-    return encontrado
-      ? { id: encontrado.id, nombre: encontrado.nombre }
-      : { id: bolsin.estadoActual?.id ?? 1, nombre };
-  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -108,41 +98,6 @@ function BolsinPrecintoContent({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ numeroPrecinto: nro }),
         });
-
-        if (res.status === 404 || res.status === 405) {
-          // Respaldo compatible mientras backend expone /cerrar
-          const putRes = await fetch(`/api/bolsines/${bolsin.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              fecha: new Date(bolsin.fecha).toISOString(),
-              numeroBolsin: bolsin.numeroBolsin,
-              numeroPrecinto: nro,
-              peso: bolsin.peso,
-              cmOrigenId: bolsin.cmOrigen.id,
-              cmDestinoId: bolsin.cmDestino.id,
-            }),
-          });
-          if (!putRes.ok) {
-            const errBody = (await putRes.json().catch(() => null)) as {
-              error?: string;
-            } | null;
-            setError(
-              errBody?.error ?? "No se pudo registrar el precinto del bolsín.",
-            );
-            return;
-          }
-          const actualizado = (await putRes.json()) as BolsinListadoItem;
-          onSuccess({
-            ...actualizado,
-            numeroPrecinto: nro,
-            estadoActual: buscarEstado("Cerrado"),
-            remito: bolsin.remito ?? actualizado.remito ?? null,
-            precintoAnterior: bolsin.precintoAnterior ?? null,
-          });
-          onClose();
-          return;
-        }
 
         const body = (await res.json().catch(() => null)) as
           | BolsinListadoItem
@@ -175,17 +130,6 @@ function BolsinPrecintoContent({
         method: "POST",
       });
 
-      if (res.status === 404 || res.status === 405) {
-        onSuccess({
-          ...bolsin,
-          precintoAnterior: bolsin.numeroPrecinto,
-          numeroPrecinto: null,
-          estadoActual: buscarEstado("Creado"),
-        });
-        onClose();
-        return;
-      }
-
       const body = (await res.json().catch(() => null)) as
         | BolsinListadoItem
         | { error?: string }
@@ -199,7 +143,10 @@ function BolsinPrecintoContent({
         return;
       }
 
-      onSuccess(body as BolsinListadoItem);
+      onSuccess({
+        ...(body as BolsinListadoItem),
+        precintoAnterior: bolsin.numeroPrecinto,
+      });
       onClose();
     } catch {
       setError("No pudimos conectarnos con el servidor. Intentá nuevamente.");
