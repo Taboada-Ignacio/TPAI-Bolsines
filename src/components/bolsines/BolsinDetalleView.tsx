@@ -7,6 +7,8 @@ import {
   ArrowLeft,
   ArrowRight,
   Clock,
+  Lock,
+  LockOpen,
   PackageX,
   Pencil,
   RefreshCw,
@@ -19,6 +21,10 @@ import { useEffect, useRef, useState } from "react";
 import { BolsinDeleteSheet } from "@/components/bolsines/BolsinDeleteSheet";
 import { BolsinEstadoBadge } from "@/components/bolsines/BolsinEstadoBadge";
 import { BolsinFormSheet } from "@/components/bolsines/BolsinFormSheet";
+import {
+  BolsinPrecintoSheet,
+  type PrecintoAccion,
+} from "@/components/bolsines/BolsinPrecintoSheet";
 import { PageActions } from "@/components/layout/PageActions";
 import { PageHeading } from "@/components/layout/PageHeading";
 import { Button } from "@/components/ui/actions/Button";
@@ -63,6 +69,9 @@ export function BolsinDetalleView({ id }: BolsinDetalleViewProps) {
 
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [precintoAccion, setPrecintoAccion] = useState<PrecintoAccion | null>(
+    null,
+  );
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -301,6 +310,32 @@ export function BolsinDetalleView({ id }: BolsinDetalleViewProps) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          {(bolsin.estadoActual?.nombre ?? cambioActual?.estado.nombre) ===
+          "Creado" ? (
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              onClick={() => setPrecintoAccion("cerrar")}
+              leftIcon={<Lock className="size-4" aria-hidden="true" />}
+              className="rounded-full"
+            >
+              Poner precinto
+            </Button>
+          ) : null}
+          {(bolsin.estadoActual?.nombre ?? cambioActual?.estado.nombre) ===
+          "Cerrado" ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setPrecintoAccion("reabrir")}
+              leftIcon={<LockOpen className="size-4" aria-hidden="true" />}
+              className="rounded-full"
+            >
+              Abrir de nuevo
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="ghost"
@@ -361,7 +396,9 @@ export function BolsinDetalleView({ id }: BolsinDetalleViewProps) {
           >
             <MicroLabel className="block">N.º de precinto</MicroLabel>
             <strong className="mt-2 block font-mono text-lg font-semibold text-fg">
-              {bolsin.numeroPrecinto}
+              {bolsin.numeroPrecinto !== null
+                ? bolsin.numeroPrecinto
+                : "Sin precinto"}
             </strong>
           </div>
 
@@ -373,6 +410,35 @@ export function BolsinDetalleView({ id }: BolsinDetalleViewProps) {
             <strong className="mt-2 block font-mono text-lg font-semibold text-fg">
               {formatPesoKg(bolsin.peso)}
             </strong>
+          </div>
+
+          <div
+            data-detalle-card=""
+            className="rounded-[18px] border border-edge bg-surface/85 p-4 sm:col-span-2 lg:col-span-4"
+          >
+            <MicroLabel className="block">
+              Remito y documentación asociada
+            </MicroLabel>
+            {bolsin.remito ? (
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold text-fg">
+                    {bolsin.remito.asunto}
+                  </p>
+                  <p className="text-xs text-muted">
+                    {bolsin.remito.tipoDocumento}
+                  </p>
+                </div>
+                <span className="rounded-full border border-edge bg-raised px-2.5 py-0.5 font-mono text-xs font-semibold text-fg">
+                  {bolsin.remito.numero}
+                </span>
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-muted">
+                Sin remito asociado todavía. Usá «Editar datos» para cargar el
+                remito y su documentación.
+              </p>
+            )}
           </div>
         </div>
       </section>
@@ -494,6 +560,15 @@ export function BolsinDetalleView({ id }: BolsinDetalleViewProps) {
         bolsin={deleteOpen ? bolsin : null}
         onClose={() => setDeleteOpen(false)}
         onDeleted={handleDeleted}
+      />
+
+      <BolsinPrecintoSheet
+        open={precintoAccion !== null}
+        accion={precintoAccion}
+        bolsin={bolsin}
+        estadosBolsin={catalogos.estadosBolsin}
+        onClose={() => setPrecintoAccion(null)}
+        onSuccess={handleEditSuccess}
       />
     </div>
   );

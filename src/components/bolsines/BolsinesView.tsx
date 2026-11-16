@@ -6,6 +6,8 @@ import {
   AlertCircle,
   ArrowRight,
   Eye,
+  Lock,
+  LockOpen,
   Package,
   Pencil,
   Plus,
@@ -19,6 +21,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { BolsinDeleteSheet } from "@/components/bolsines/BolsinDeleteSheet";
 import { BolsinEstadoBadge } from "@/components/bolsines/BolsinEstadoBadge";
 import { BolsinFormSheet } from "@/components/bolsines/BolsinFormSheet";
+import {
+  BolsinPrecintoSheet,
+  type PrecintoAccion,
+} from "@/components/bolsines/BolsinPrecintoSheet";
 import { PageActions } from "@/components/layout/PageActions";
 import { PageHeading } from "@/components/layout/PageHeading";
 import { Button } from "@/components/ui/actions/Button";
@@ -67,6 +73,10 @@ export function BolsinesView() {
 
   const [sheetState, setSheetState] = useState<SheetState>(null);
   const [eliminando, setEliminando] = useState<BolsinListadoItem | null>(null);
+  const [precintoSheet, setPrecintoSheet] = useState<{
+    accion: PrecintoAccion;
+    bolsin: BolsinListadoItem;
+  } | null>(null);
 
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -450,12 +460,45 @@ export function BolsinesView() {
                       </span>
                     </p>
                     <p className="mt-1 font-mono text-xs text-muted">
-                      Precinto {b.numeroPrecinto} · {formatPesoKg(b.peso)} ·{" "}
-                      {formatFechaCorta(b.fecha)}
+                      {b.numeroPrecinto !== null
+                        ? `Precinto ${b.numeroPrecinto}`
+                        : "Sin precinto"}{" "}
+                      · {formatPesoKg(b.peso)} · {formatFechaCorta(b.fecha)}
+                      {b.remito ? ` · ${b.remito.numero}` : ""}
                     </p>
                   </Link>
 
-                  <div className="mt-3 flex items-center justify-end gap-1.5 border-t border-hair pt-2.5">
+                  <div className="mt-3 flex flex-wrap items-center justify-end gap-1.5 border-t border-hair pt-2.5">
+                    {b.estadoActual?.nombre === "Creado" ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() =>
+                          setPrecintoSheet({ accion: "cerrar", bolsin: b })
+                        }
+                        leftIcon={<Lock className="size-3.5" aria-hidden="true" />}
+                        className="rounded-full"
+                      >
+                        Poner precinto
+                      </Button>
+                    ) : null}
+                    {b.estadoActual?.nombre === "Cerrado" ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setPrecintoSheet({ accion: "reabrir", bolsin: b })
+                        }
+                        leftIcon={
+                          <LockOpen className="size-3.5" aria-hidden="true" />
+                        }
+                        className="rounded-full border border-edge"
+                      >
+                        Abrir de nuevo
+                      </Button>
+                    ) : null}
                     <Link
                       href={`/bolsines/${b.id}`}
                       className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-fg hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
@@ -521,14 +564,41 @@ export function BolsinesView() {
                       </span>
                     </p>
                     <p className="mt-0.5 font-mono text-xs text-muted">
-                      Precinto {b.numeroPrecinto} · {formatPesoKg(b.peso)} ·{" "}
-                      {formatFechaCorta(b.fecha)}
+                      {b.numeroPrecinto !== null
+                        ? `Precinto ${b.numeroPrecinto}`
+                        : "Sin precinto"}{" "}
+                      · {formatPesoKg(b.peso)} · {formatFechaCorta(b.fecha)}
+                      {b.remito
+                        ? ` · ${b.remito.numero} (${b.remito.tipoDocumento})`
+                        : ""}
                     </p>
                   </Link>
 
                   <BolsinEstadoBadge nombre={b.estadoActual?.nombre} />
 
                   <div className="flex items-center gap-1">
+                    {b.estadoActual?.nombre === "Creado" ? (
+                      <IconButton
+                        aria-label={`Poner precinto al bolsín ${b.numeroBolsin}`}
+                        title="Poner precinto y cerrar"
+                        onClick={() =>
+                          setPrecintoSheet({ accion: "cerrar", bolsin: b })
+                        }
+                      >
+                        <Lock className="size-4" aria-hidden="true" />
+                      </IconButton>
+                    ) : null}
+                    {b.estadoActual?.nombre === "Cerrado" ? (
+                      <IconButton
+                        aria-label={`Abrir de nuevo el bolsín ${b.numeroBolsin}`}
+                        title="Abrir de nuevo (romper precinto)"
+                        onClick={() =>
+                          setPrecintoSheet({ accion: "reabrir", bolsin: b })
+                        }
+                      >
+                        <LockOpen className="size-4" aria-hidden="true" />
+                      </IconButton>
+                    ) : null}
                     <Link
                       href={`/bolsines/${b.id}`}
                       aria-label={`Ver historial del bolsín ${b.numeroBolsin}`}
@@ -581,6 +651,15 @@ export function BolsinesView() {
         bolsin={eliminando}
         onClose={() => setEliminando(null)}
         onDeleted={handleDeleted}
+      />
+
+      <BolsinPrecintoSheet
+        open={precintoSheet !== null}
+        accion={precintoSheet?.accion ?? null}
+        bolsin={precintoSheet?.bolsin ?? null}
+        estadosBolsin={catalogos.estadosBolsin}
+        onClose={() => setPrecintoSheet(null)}
+        onSuccess={handleFormSuccess}
       />
     </>
   );

@@ -30,7 +30,8 @@ export interface BolsinListadoItem {
   id: number;
   fecha: string;
   numeroBolsin: number;
-  numeroPrecinto: number;
+  numeroPrecinto: number | null;
+  precintoAnterior?: number | null;
   peso: number;
   cmOrigen: CatalogoComision;
   cmDestino: CatalogoComision;
@@ -62,7 +63,56 @@ const enteroPositivo = z
   .positive("Debe ser mayor a 0.")
   .max(2_147_483_647, "El número supera el límite permitido.");
 
-export const bolsinEdicionFormSchema = z
+const remitoOpcional = z.object({
+  remitoNumero: z.string().trim().optional(),
+  remitoAsunto: z.string().trim().optional(),
+  remitoTipoDocumento: z.string().trim().optional(),
+});
+
+function validarRemitoCompleto<
+  T extends {
+    cmOrigenId: number;
+    cmDestinoId: number;
+    remitoNumero?: string;
+    remitoAsunto?: string;
+    remitoTipoDocumento?: string;
+  },
+>(schema: z.ZodType<T>) {
+  return schema
+    .refine((data) => data.cmOrigenId !== data.cmDestinoId, {
+      path: ["cmDestinoId"],
+      message: "La comisión de destino debe ser distinta a la de origen.",
+    })
+    .superRefine((data, ctx) => {
+      const tieneAlguno = Boolean(
+        data.remitoNumero || data.remitoAsunto || data.remitoTipoDocumento,
+      );
+      if (!tieneAlguno) return;
+      if (!data.remitoNumero) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["remitoNumero"],
+          message: "Ingresá el N.º de remito.",
+        });
+      }
+      if (!data.remitoAsunto) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["remitoAsunto"],
+          message: "Ingresá el asunto de la documentación.",
+        });
+      }
+      if (!data.remitoTipoDocumento) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["remitoTipoDocumento"],
+          message: "Seleccioná el tipo de documento.",
+        });
+      }
+    });
+}
+
+const bolsinEdicionBaseSchema = z
   .object({
     fecha: z.string().min(1, "La fecha es obligatoria."),
     numeroBolsin: enteroPositivo,
@@ -74,15 +124,16 @@ export const bolsinEdicionFormSchema = z
     cmOrigenId: enteroPositivo,
     cmDestinoId: enteroPositivo,
   })
-  .refine((data) => data.cmOrigenId !== data.cmDestinoId, {
-    path: ["cmDestinoId"],
-    message: "La comisión de destino debe ser distinta a la de origen.",
-  });
+  .merge(remitoOpcional);
 
-export const bolsinAltaFormSchema = bolsinEdicionFormSchema.extend({
-  estadoId: enteroPositivo,
-  responsableCEId: enteroPositivo,
-});
+export const bolsinEdicionFormSchema = validarRemitoCompleto(bolsinEdicionBaseSchema);
+
+export const bolsinAltaFormSchema = validarRemitoCompleto(
+  bolsinEdicionBaseSchema.extend({
+    estadoId: enteroPositivo,
+    responsableCEId: enteroPositivo,
+  }),
+);
 
 export type BolsinEdicionFormValues = z.infer<typeof bolsinEdicionFormSchema>;
 export type BolsinAltaFormValues = z.infer<typeof bolsinAltaFormSchema>;

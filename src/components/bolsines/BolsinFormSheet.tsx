@@ -26,7 +26,17 @@ interface FormState {
   cmDestinoId: string;
   estadoId: string;
   responsableCEId: string;
+  remitoNumero: string;
+  remitoAsunto: string;
+  remitoTipoDocumento: string;
 }
+
+const TIPOS_DOCUMENTO = [
+  "Expediente médico",
+  "Documentación clínica",
+  "Nota legal",
+  "Remito interno",
+] as const;
 
 type FormErrors = Partial<Record<keyof FormState | "general", string>>;
 
@@ -48,12 +58,16 @@ function buildInitialState(
     return {
       fecha: toLocalDateTimeInput(bolsin.fecha),
       numeroBolsin: String(bolsin.numeroBolsin),
-      numeroPrecinto: String(bolsin.numeroPrecinto),
+      numeroPrecinto:
+        bolsin.numeroPrecinto !== null ? String(bolsin.numeroPrecinto) : "",
       peso: String(bolsin.peso),
       cmOrigenId: String(bolsin.cmOrigen.id),
       cmDestinoId: String(bolsin.cmDestino.id),
       estadoId: "",
       responsableCEId: "",
+      remitoNumero: bolsin.remito?.numero ?? "",
+      remitoAsunto: bolsin.remito?.asunto ?? "",
+      remitoTipoDocumento: bolsin.remito?.tipoDocumento ?? "",
     };
   }
 
@@ -74,6 +88,9 @@ function buildInitialState(
     responsableCEId: catalogos.empleados[0]
       ? String(catalogos.empleados[0].id)
       : "",
+    remitoNumero: "",
+    remitoAsunto: "",
+    remitoTipoDocumento: "",
   };
 }
 
@@ -140,6 +157,9 @@ function BolsinFormContent({
       peso: Number(form.peso),
       cmOrigenId: Number(form.cmOrigenId),
       cmDestinoId: Number(form.cmDestinoId),
+      remitoNumero: form.remitoNumero,
+      remitoAsunto: form.remitoAsunto,
+      remitoTipoDocumento: form.remitoTipoDocumento,
     };
 
     const parsed =
@@ -177,10 +197,25 @@ function BolsinFormContent({
         mode === "crear" ? "/api/bolsines" : `/api/bolsines/${bolsin?.id}`;
       const method = mode === "crear" ? "POST" : "PUT";
 
+      const remitoAdjunto =
+        parsed.data.remitoNumero &&
+        parsed.data.remitoAsunto &&
+        parsed.data.remitoTipoDocumento
+          ? {
+              numero: parsed.data.remitoNumero,
+              asunto: parsed.data.remitoAsunto,
+              tipoDocumento: parsed.data.remitoTipoDocumento,
+            }
+          : null;
+
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...parsed.data, fecha: fechaIso }),
+        body: JSON.stringify({
+          ...parsed.data,
+          fecha: fechaIso,
+          ...(remitoAdjunto ? { remito: remitoAdjunto } : {}),
+        }),
       });
 
       const body = (await response.json().catch(() => null)) as
@@ -198,7 +233,12 @@ function BolsinFormContent({
         return;
       }
 
-      onSuccess(body as BolsinListadoItem);
+      const guardado = body as BolsinListadoItem;
+      onSuccess({
+        ...guardado,
+        remito: guardado.remito ?? remitoAdjunto,
+        precintoAnterior: bolsin?.precintoAnterior ?? null,
+      });
       onClose();
     } catch {
       setErrors({
@@ -431,6 +471,78 @@ function BolsinFormContent({
             </span>
           </div>
         )}
+
+        {/* Remito y documentación asociada */}
+        <fieldset className="flex flex-col gap-3 rounded-[14px] border border-edge bg-raised/40 p-3.5">
+          <legend className="px-1 font-mono text-[10px] font-semibold tracking-wider text-muted uppercase">
+            Remito y documentación asociada
+          </legend>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field
+              id="bolsin-remito-numero"
+              label="N.º de remito"
+              error={errors.remitoNumero}
+            >
+              <Input
+                id="bolsin-remito-numero"
+                type="text"
+                value={form.remitoNumero}
+                invalid={Boolean(errors.remitoNumero)}
+                aria-describedby={
+                  errors.remitoNumero ? "bolsin-remito-numero-error" : undefined
+                }
+                onChange={(e) => updateField("remitoNumero", e.target.value)}
+                placeholder="Ej. REM-4401"
+              />
+            </Field>
+
+            <Field
+              id="bolsin-remito-tipo"
+              label="Tipo de documento"
+              error={errors.remitoTipoDocumento}
+            >
+              <Select
+                id="bolsin-remito-tipo"
+                value={form.remitoTipoDocumento}
+                invalid={Boolean(errors.remitoTipoDocumento)}
+                aria-describedby={
+                  errors.remitoTipoDocumento
+                    ? "bolsin-remito-tipo-error"
+                    : undefined
+                }
+                onChange={(e) =>
+                  updateField("remitoTipoDocumento", e.target.value)
+                }
+              >
+                <option value="">Seleccionar tipo…</option>
+                {TIPOS_DOCUMENTO.map((tipo) => (
+                  <option key={tipo} value={tipo}>
+                    {tipo}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+
+          <Field
+            id="bolsin-remito-asunto"
+            label="Asunto / detalle documental"
+            error={errors.remitoAsunto}
+          >
+            <Input
+              id="bolsin-remito-asunto"
+              type="text"
+              value={form.remitoAsunto}
+              invalid={Boolean(errors.remitoAsunto)}
+              aria-describedby={
+                errors.remitoAsunto ? "bolsin-remito-asunto-error" : undefined
+              }
+              onChange={(e) => updateField("remitoAsunto", e.target.value)}
+              placeholder="Ej. Dictamen Junta Médica #882"
+            />
+          </Field>
+        </fieldset>
 
         <div className="mt-auto flex flex-col-reverse gap-2.5 border-t border-hair pt-4 sm:flex-row sm:justify-end">
           <Button
