@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/actions/Button";
 import { MicroLabel } from "@/components/ui/display/MicroLabel";
 import { Input } from "@/components/ui/forms/Input";
 import { Select } from "@/components/ui/forms/Select";
-import { MODELOS_GPS, type ModeloGps } from "@/dtos/seguimiento-bolsin.dto";
 import { cn } from "@/lib/cn";
 
 export interface SeguimientoFiltrosBarProps {
@@ -15,8 +14,6 @@ export interface SeguimientoFiltrosBarProps {
   cmDestinoCodigo: string;
   onCmDestinoChange: (codigo: string) => void;
   destinosDisponibles: Array<{ codigo: string; nombre: string }>;
-  modeloGps: ModeloGps;
-  onModeloGpsChange: (modelo: ModeloGps) => void;
   totalFiltrados: number;
   totalGeneral: number;
   onLimpiarFiltros: () => void;
@@ -24,15 +21,13 @@ export interface SeguimientoFiltrosBarProps {
   className?: string;
 }
 
-/** Barra de filtros controlados para buscar bolsines por precinto, CM destino y modelo GPS. */
+/** Barra de filtros controlados para buscar bolsines por precinto y CM destino. */
 export function SeguimientoFiltrosBar({
   precintoQuery,
   onPrecintoChange,
   cmDestinoCodigo,
   onCmDestinoChange,
   destinosDisponibles,
-  modeloGps,
-  onModeloGpsChange,
   totalFiltrados,
   totalGeneral,
   onLimpiarFiltros,
@@ -41,7 +36,6 @@ export function SeguimientoFiltrosBar({
 }: SeguimientoFiltrosBarProps) {
   const precintoId = useId();
   const destinoId = useId();
-  const modeloId = useId();
 
   const hayFiltrosActivos =
     precintoQuery.trim().length > 0 || cmDestinoCodigo !== "";
@@ -93,7 +87,7 @@ export function SeguimientoFiltrosBar({
           </div>
         </div>
 
-        <div className="flex flex-col gap-1">
+        <div className="col-span-2 flex flex-col gap-1">
           <label htmlFor={destinoId} className="inline-flex items-center">
             <MicroLabel>CM destino</MicroLabel>
           </label>
@@ -108,28 +102,6 @@ export function SeguimientoFiltrosBar({
             {destinosDisponibles.map((destino) => (
               <option key={destino.codigo} value={destino.codigo}>
                 {destino.nombre}
-              </option>
-            ))}
-          </Select>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label htmlFor={modeloId} className="inline-flex items-center">
-            <MicroLabel>Modelo GPS</MicroLabel>
-          </label>
-          <Select
-            id={modeloId}
-            variant="mono"
-            value={modeloGps}
-            onChange={(event) =>
-              onModeloGpsChange(event.target.value as ModeloGps)
-            }
-            disabled={disabled}
-            className="h-9 border-edge pl-2.5 pr-8 text-[13px] font-medium"
-          >
-            {MODELOS_GPS.map((modelo) => (
-              <option key={modelo} value={modelo}>
-                {modelo}
               </option>
             ))}
           </Select>

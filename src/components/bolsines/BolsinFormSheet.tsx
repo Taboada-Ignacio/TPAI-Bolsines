@@ -16,6 +16,7 @@ import {
   type BolsinListadoItem,
   type CatalogosBolsin,
 } from "@/lib/bolsines";
+import { cn } from "@/lib/cn";
 
 interface FormState {
   fecha: string;
@@ -478,7 +479,7 @@ function BolsinFormContent({
             Remito y documentación asociada
           </legend>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3">
             <Field
               id="bolsin-remito-numero"
               label="N.º de remito"
@@ -499,29 +500,57 @@ function BolsinFormContent({
 
             <Field
               id="bolsin-remito-tipo"
-              label="Tipo de documento"
+              label="Tipos de documentación (podés elegir más de uno)"
               error={errors.remitoTipoDocumento}
             >
-              <Select
+              <div
                 id="bolsin-remito-tipo"
-                value={form.remitoTipoDocumento}
-                invalid={Boolean(errors.remitoTipoDocumento)}
+                role="group"
+                aria-label="Tipos de documentación"
                 aria-describedby={
                   errors.remitoTipoDocumento
                     ? "bolsin-remito-tipo-error"
                     : undefined
                 }
-                onChange={(e) =>
-                  updateField("remitoTipoDocumento", e.target.value)
-                }
+                className="grid grid-cols-1 gap-2 sm:grid-cols-2"
               >
-                <option value="">Seleccionar tipo…</option>
-                {TIPOS_DOCUMENTO.map((tipo) => (
-                  <option key={tipo} value={tipo}>
-                    {tipo}
-                  </option>
-                ))}
-              </Select>
+                {TIPOS_DOCUMENTO.map((tipo) => {
+                  const seleccionados = form.remitoTipoDocumento
+                    .split(",")
+                    .map((item) => item.trim())
+                    .filter(Boolean);
+                  const activo = seleccionados.includes(tipo);
+                  return (
+                    <label
+                      key={tipo}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-2 rounded-[10px] border px-3 py-2 text-xs font-medium transition-colors",
+                        activo
+                          ? "border-accent bg-accent/15 text-fg"
+                          : errors.remitoTipoDocumento
+                            ? "border-danger/60 bg-surface text-muted hover:text-fg"
+                            : "border-edge bg-surface text-muted hover:border-fg/30 hover:text-fg",
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={activo}
+                        onChange={() => {
+                          const siguientes = activo
+                            ? seleccionados.filter((item) => item !== tipo)
+                            : [...seleccionados, tipo];
+                          updateField(
+                            "remitoTipoDocumento",
+                            siguientes.join(", "),
+                          );
+                        }}
+                        className="size-3.5 accent-[var(--accent)]"
+                      />
+                      <span>{tipo}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </Field>
           </div>
 

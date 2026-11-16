@@ -158,7 +158,7 @@ describe("CU 36", () => {
     expect(datos.mapa.estilo).toContain("tiles.openfreemap.org");
     expect(
       datos.mapa.puntos.map(({ numero }: { numero: number }) => numero),
-    ).toEqual([36011, 110, 101]);
+    ).toEqual([101, 110, 36011]);
     expect(mapa).toHaveBeenCalledExactlyOnceWith(datos.mapa.puntos);
     expect(correo).not.toHaveBeenCalled();
   });

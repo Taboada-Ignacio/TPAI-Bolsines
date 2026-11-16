@@ -351,8 +351,6 @@ export function SeguimientoWorkspace() {
             cmDestinoCodigo={cmDestinoCodigo}
             onCmDestinoChange={setCmDestinoCodigo}
             destinosDisponibles={destinosDisponibles}
-            modeloGps={modeloGps}
-            onModeloGpsChange={handleModeloGpsChange}
             totalFiltrados={bolsinesFiltrados.length}
             totalGeneral={bolsines.length}
             onLimpiarFiltros={handleLimpiarFiltros}
@@ -488,8 +486,6 @@ export function SeguimientoWorkspace() {
             cmDestinoCodigo={cmDestinoCodigo}
             onCmDestinoChange={setCmDestinoCodigo}
             destinosDisponibles={destinosDisponibles}
-            modeloGps={modeloGps}
-            onModeloGpsChange={handleModeloGpsChange}
             totalFiltrados={bolsinesFiltrados.length}
             totalGeneral={bolsines.length}
             onLimpiarFiltros={handleLimpiarFiltros}

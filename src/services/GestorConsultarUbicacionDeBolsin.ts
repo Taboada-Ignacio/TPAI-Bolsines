@@ -145,7 +145,9 @@ export class GestorConsultarUbicacionDeBolsin {
     return {
       comision: descripcion,
       mapa: this.solicitarMapaConPosicionDeBolsines(puntos),
-      sinUbicacion: enviados.length - puntos.length,
+      sinUbicacion: puntos.filter(
+        (punto) => punto.estadoCobertura === "sin_cobertura",
+      ).length,
     };
   }
 
@@ -229,6 +231,7 @@ export class GestorConsultarUbicacionDeBolsin {
     longitud: number,
     actualizado: string,
     emailsGcmPorDestino?: Map<string, string | null>,
+    estadoCobertura: "vivo" | "sin_cobertura" = "vivo",
   ): PuntoBolsin {
     const destino = this.obtenerCMDestino(registro.bolsin);
     const codigoDestino = destino.getCodigo();
@@ -245,7 +248,7 @@ export class GestorConsultarUbicacionDeBolsin {
       actualizado,
       ...(Number.isFinite(peso) && peso > 0 ? { pesoKg: peso } : {}),
       emailGcm: emailsGcmPorDestino?.get(codigoDestino) ?? null,
-      estadoCobertura: "vivo",
+      estadoCobertura,
       ...(remito !== undefined ? { remito } : {}),
     };
   }
@@ -254,6 +257,7 @@ export class GestorConsultarUbicacionDeBolsin {
     registros: RegistroBolsin[],
     modeloGps: ModeloGPSTracker = "XTR-4500L",
     emailsGcmPorDestino?: Map<string, string | null>,
+    incluirSinCobertura = true,
   ): Promise<PuntoBolsin[]> {
     const consultables = this.obtenerDatosConsultaGps(registros);
     if (!consultables.length) return [];
@@ -288,19 +292,42 @@ export class GestorConsultarUbicacionDeBolsin {
         );
       });
     }
-    const porNumero = new Map(
-      consultables.map((registro) => [String(registro.numero), registro]),
+    const ubicacionesPorNumero = new Map(
+      ubicaciones.map(([numero, latitud, longitud, actualizado]) => [
+        numero,
+        { latitud, longitud, actualizado },
+      ]),
     );
-    return ubicaciones.flatMap(([numero, latitud, longitud, actualizado]) => {
-      const registro = porNumero.get(numero);
-      if (!registro) return [];
+    return consultables.flatMap((registro) => {
+      const vivo = ubicacionesPorNumero.get(String(registro.numero));
+      if (vivo) {
+        return [
+          this.construirPuntoBolsin(
+            registro,
+            Number(vivo.latitud),
+            Number(vivo.longitud),
+            vivo.actualizado,
+            emailsGcmPorDestino,
+            "vivo",
+          ),
+        ];
+      }
+      if (!incluirSinCobertura) return [];
+      // Flujo Alternativo A3: si el tracker no reporta el bolsín (ej. 404 para bolsines nuevos),
+      // se muestra en el mapa con su última posición estimada de tránsito y advertencia visual.
+      const origenCoord = obtenerCoordenadaCm(
+        registro.bolsin.obtenerCodCMOrigen(),
+      );
+      const destino = this.obtenerCMDestino(registro.bolsin);
+      const destinoCoord = obtenerCoordenadaCm(destino.getCodigo());
       return [
         this.construirPuntoBolsin(
           registro,
-          Number(latitud),
-          Number(longitud),
-          actualizado,
+          (origenCoord.lat + destinoCoord.lat) / 2,
+          (origenCoord.lng + destinoCoord.lng) / 2,
+          registro.bolsin.getFecha().toISOString(),
           emailsGcmPorDestino,
+          "sin_cobertura",
         ),
       ];
     });
@@ -344,6 +371,7 @@ export class GestorConsultarUbicacionDeBolsin {
       [registro],
       "XTR-4500L",
       new Map([[destino.getCodigo(), email]]),
+      false,
     );
     if (!punto)
       throw new ErrorSeguimientoBolsines(
