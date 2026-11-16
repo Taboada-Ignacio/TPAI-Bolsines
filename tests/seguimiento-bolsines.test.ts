@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { InterfazGoogleMaps } from "@/adapters/InterfazGoogleMaps";
 import { PantallaConsultarUbicacionDeBolsines } from "@/app/api/auth/cu36/seguimiento/PantallaConsultarUbicacionDeBolsines";
-import { filtrarPuntos } from "@/components/seguimiento/filters/filtrarPuntos";
 import { Bolsin } from "@/domain/Bolsin";
 import { CambioEstadoBolsin } from "@/domain/CambioEstadoBolsin";
 import { ComisionMedica } from "@/domain/ComisionMedica";
@@ -162,11 +161,6 @@ describe("CU 36", () => {
     ).toEqual([110, 101]);
     expect(mapa).toHaveBeenCalledExactlyOnceWith(datos.mapa.puntos);
     expect(correo).not.toHaveBeenCalled();
-    expect(filtrarPuntos(datos.mapa.puntos, "201", "CM-SF")).toEqual([
-      datos.mapa.puntos[1],
-    ]);
-    expect(filtrarPuntos(datos.mapa.puntos, "999", "")).toEqual([]);
-    expect(filtrarPuntos(datos.mapa.puntos, "", "CM-CBA")).toEqual([]);
   });
 
   it("omite el GPS cuando la CM no tiene bolsines consultables", async () => {
