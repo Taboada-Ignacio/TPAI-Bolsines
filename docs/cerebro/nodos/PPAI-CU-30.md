@@ -48,3 +48,7 @@ Se implementa a través de la interfaz **`IServidorCorreo`** y el adaptador **`M
 `PantNotificarUbicacionBolsin` («Boundary») delega en `GestorNotificarUbicacionBolsin` («Control»). El gestor depende del contrato `ServicioCorreo`. `ServicioCorreoSMTP` realiza esa interfaz y entrega los mensajes a Mailpit mediante Nodemailer. El CU 31 recibe los datos preparados como `SolicitudNotificacionUbicacion` y preserva la fecha del GPS. El endpoint de prueba `POST /api/auth/cu31/notificar-ubicacion` autentica con la sesión existente.
 
 El simulador local implementa el alcance del CU 31 aprobado para esta etapa. La integración con el gestor del CU 36 y la conexión de producción descrita en el RNF 5 quedan pendientes.
+
+### [NACHO] Correo con la identidad visual de Bolsines
+
+Al notificar desde el CU 36 o desde el endpoint de prueba del CU 31, `GestorNotificarUbicacionBolsin` valida el mismo DTO y delega la presentación en `formatearCorreoUbicacion`. El correo usa la paleta del frontend, un bloque monoespaciado para el número de bolsín y un botón para abrir Google Maps. Ambas versiones incluyen las coordenadas y la fecha original del GPS. `ServicioCorreo.enviarCorreo` conserva los argumentos existentes y admite un cuerpo HTML opcional. `ServicioCorreoSMTP` entrega HTML y texto plano en un solo mensaje mediante Nodemailer.

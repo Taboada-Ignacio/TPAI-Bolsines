@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vista previa v2 — Núcleo en islas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&family=JetBrains+Mono:wght@500;600&family=Plus+Jakarta+Sans:wght@500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;padding:14px;background:var(--background,#fff);color:var(--foreground,#171717);font-family:var(--font-sans,system-ui,sans-serif);font-size:13px}
+  .bar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-bottom:12px}
+  .grp{display:flex;align-items:center;gap:8px}
+  .grp>span{color:var(--muted-foreground,#666);font-size:12px}
+  .seg{display:inline-flex;border:1px solid var(--border,#ddd);border-radius:8px;overflow:hidden}
+  .seg button,.replay{font:inherit;font-size:12px;padding:6px 11px;border:0;background:var(--card,#fff);color:var(--card-foreground,#171717);cursor:pointer}
+  .seg button+button{border-left:1px solid var(--border,#ddd)}
+  .seg button[aria-pressed="true"]{background:var(--primary,#171717);color:var(--primary-foreground,#fff)}
+  .replay{border:1px solid var(--border,#ddd);border-radius:8px}
+  .seg button:focus-visible,.replay:focus-visible{outline:2px solid var(--ring,#2563eb);outline-offset:2px}
+  .stagewrap{display:flex;justify-content:center;background:var(--muted,#f4f4f5);border:1px solid var(--border,#ddd);border-radius:12px;padding:16px;overflow-x:auto}
+  .note{margin:10px 2px 0;color:var(--muted-foreground,#666);font-size:12px;line-height:1.5}
+
+  /* ===== Maqueta: paleta del manual, aislada en .mk ===== */
+  .mk{
+    --canvas:#C7D1DD;--surface:#EEF2F6;--raised:#E1E8F0;--fg:#0B1220;--muted:#475569;
+    --edge:rgba(11,18,32,.16);--hair:rgba(11,18,32,.09);--hover:rgba(11,18,32,.05);
+    --link:#0251B0;--lime:#D1FF42;--on-lime:#0B1220;--lime-edge:#0B1220;--mark:#D1FF42;
+    --mech:#161E2E;--mech-fg:#EEF2F6;--amber:#F59E0B;
+    --land:#D3DCE6;--road:#EEF2F6;--water:#B4C4D6;--glass:rgba(238,242,246,.9);
+    --expo:cubic-bezier(.16,1,.3,1);
+    position:relative;width:100%;max-width:1040px;height:580px;border-radius:18px;overflow:hidden;
+    background:var(--canvas);color:var(--fg);font-family:"Plus Jakarta Sans",system-ui,sans-serif;font-size:14px;font-weight:500;
+    transition:background-color .25s,color .25s;
+  }
+  .mk[data-theme="dark"]{
+    --canvas:#0A0F1A;--surface:#121927;--raised:#1B2433;--fg:#EEF2F6;--muted:#94A3B8;
+    --edge:rgba(238,242,246,.14);--hair:rgba(238,242,246,.08);--hover:rgba(238,242,246,.05);
+    --link:#7FB2FF;--lime-edge:transparent;
+    --land:#0F1623;--road:#1B2433;--water:#070B13;--glass:rgba(18,25,39,.9);
+  }
+  .mk[data-device="tablet"]{max-width:780px}
+  .mk[data-device="mobile"]{width:372px;max-width:372px;height:700px;border-radius:30px}
+  .mk button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
+  .mk svg{display:block}
+  .mk::after{content:"";position:absolute;inset:-4px;pointer-events:none;z-index:70;opacity:.045;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");animation:grain .9s steps(6) infinite}
+  @keyframes grain{0%,100%{transform:translate(0,0)}20%{transform:translate(-2px,2px)}40%{transform:translate(2px,-1px)}60%{transform:translate(-1px,-2px)}80%{transform:translate(2px,1px)}}
+  .micro{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .isle{background:var(--glass);border:1px solid var(--edge);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);transition:background-color .25s,border-color .25s}
+  :is(.it,.act,.bn,.row,.av):focus-visible{outline:2px solid var(--link);outline-offset:2px}
+
+  /* --- Isla lateral --- */
+  .side{position:absolute;z-index:40;left:8px;top:8px;bottom:8px;width:60px;border-radius:24px;padding:8px;display:flex;flex-direction:column;overflow:hidden;transition:width .32s var(--expo),background-color .25s,border-color .25s}
+  .mk[data-device="mobile"] .side{display:none}
+  .mk[data-device="desktop"] .side:hover,.mk .side.open{width:206px}
+  .keyb{flex:none;width:42px;height:42px;border-radius:13px;background:#0251B0;color:#EEF2F6;display:grid;place-items:center;font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:20px;box-shadow:0 3px 0 #01397D}
+  .brand{display:flex;align-items:center;gap:11px;margin-bottom:18px;white-space:nowrap}
+  .brand b{font-family:"Space Grotesk",sans-serif;font-size:14px;letter-spacing:-.02em;line-height:1.1;display:block}
+  .brand i{font-family:"Instrument Serif",serif;font-size:13.5px;color:var(--muted)}
+  .lbl{opacity:0;transform:translateX(-6px);transition:opacity .16s,transform .28s var(--expo);white-space:nowrap}
+  .mk[data-device="desktop"] .side:hover .lbl,.side.open .lbl{opacity:1;transform:none;transition-delay:.05s}
+  .items{position:relative;display:flex;flex-direction:column;gap:6px;flex:1}
+  .blob{position:absolute;left:0;top:0;width:100%;height:42px;border-radius:14px;background:var(--lime);border:1px solid var(--lime-edge);transition:transform .42s var(--expo)}
+  .blob.move{animation:squish .42s var(--expo)}
+  @keyframes squish{0%{scale:1 1}35%{scale:.94 1.28}100%{scale:1 1}}
+  .it{position:relative;height:42px;border-radius:14px;display:flex;align-items:center;gap:13px;padding-left:10px;color:var(--muted);font-weight:600;font-size:14px;transition:color .2s}
+  .it svg{flex:none}
+  .it:not([aria-current]):hover{background:var(--hover);color:var(--fg)}
+  .it[aria-current="page"]{color:var(--on-lime)}
+  .foot{display:flex;flex-direction:column;gap:6px}
+  .av{flex:none;width:42px;height:42px;border-radius:14px;border:1px solid var(--edge);display:grid;place-items:center;font-family:"JetBrains Mono",monospace;font-size:11px;font-weight:600;letter-spacing:.06em}
+  .who{display:flex;align-items:center;gap:11px;white-space:nowrap}
+  .who strong{display:block;font-size:13px;font-weight:600;line-height:1.15}
+
+  /* --- Islas superiores --- */
+  .top{position:absolute;z-index:30;top:8px;left:76px;right:8px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;pointer-events:none}
+  .mk[data-device="mobile"] .top{left:8px}
+  .top>*{pointer-events:auto}
+  .idp{height:50px;border-radius:18px;display:flex;align-items:center;gap:12px;padding:0 16px 0 8px;min-width:0}
+  .flap{display:inline-flex;gap:3px}
+  .flap span{position:relative;display:grid;place-items:center;width:23px;height:34px;border-radius:5px;background:var(--mech);color:var(--mech-fg);font-family:"JetBrains Mono",monospace;font-weight:600;font-size:15px;overflow:hidden}
+  .flap span::after{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(0,0,0,.6)}
+  .flap span.fl{color:#D1FF42}
+  .idp .t{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .idp .t b{font-family:"Space Grotesk",sans-serif;font-size:16px;letter-spacing:-.03em;line-height:1;white-space:nowrap}
+  .acts{height:50px;border-radius:18px;display:flex;align-items:center;gap:2px;padding:0 5px}
+  .act{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;color:var(--fg);transition:background-color .1s,scale .12s}
+  .act:hover{background:var(--hover)}
+  .act:active{scale:.9}
+  .acts .av{width:38px;height:38px;border-radius:12px;display:none;margin-left:3px}
+  .mk[data-device="mobile"] .acts .av{display:grid}
+
+  /* --- Contenido --- */
+  .body{position:absolute;inset:0;overflow:hidden}
+  .page{position:absolute;inset:0;display:none;overflow:auto}
+  .page.on{display:block;animation:curtain .5s var(--expo) both}
+  @keyframes curtain{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+  .pad{padding:92px 28px 40px 104px;max-width:940px}
+  .mk[data-device="mobile"] .pad{padding:84px 16px 110px}
+  h1.big{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:64px;line-height:.94;letter-spacing:-.05em;margin:10px 0 0}
+  .mk[data-device="tablet"] h1.big{font-size:52px}
+  .mk[data-device="mobile"] h1.big{font-size:40px}
+  .mark{background:linear-gradient(var(--mark),var(--mark)) no-repeat 0 62%/100% 74%;color:#0B1220;padding:0 .08em;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+  .sub{font-family:"Instrument Serif",serif;font-style:italic;font-size:21px;color:var(--muted);margin:10px 0 26px}
+  .board{border-top:1px solid var(--hair)}
+  .row{width:100%;display:grid;grid-template-columns:54px 1fr auto;align-items:center;gap:14px;padding:15px 10px;border-bottom:1px solid var(--hair);text-align:left;transition:background-color .12s}
+  .row:hover{background:var(--hover)}
+  .row:active .go{translate:4px 0}
+  .row .n{font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:600;color:var(--muted)}
+  .row b{font-family:"Space Grotesk",sans-serif;font-size:22px;letter-spacing:-.035em;display:block;line-height:1.1}
+  .row small{font-size:13px;color:var(--muted)}
+  .go{width:38px;height:38px;border-radius:12px;background:var(--lime);border:1px solid var(--lime-edge);color:#0B1220;display:grid;place-items:center;transition:translate .2s var(--expo)}
+  .row:hover .go{translate:3px 0}
+  .cells{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--hair)}
+  .cells div{padding:14px 10px}
+  .cells div+div{border-left:1px solid var(--hair)}
+  .cells b{display:block;margin-top:5px;font-family:"JetBrains Mono",monospace;font-size:14px;font-weight:600}
+  .page.on .row,.page.on .cells{animation:curtain .5s var(--expo) both}
+  .page.on .row{animation-delay:.12s}.page.on .cells{animation-delay:.22s}
+
+  .map{position:absolute;inset:0}
+  .map svg{width:100%;height:100%}
+  .chip{position:absolute;z-index:5;left:76px;bottom:16px;border-radius:18px;padding:12px 16px;max-width:310px}
+  .mk[data-device="mobile"] .chip{left:8px;right:8px;bottom:84px;max-width:none}
+  .chip b{font-family:"Space Grotesk",sans-serif;font-size:16px;letter-spacing:-.025em;display:block;margin:5px 0 3px}
+  .chip p{margin:0;color:var(--muted);font-size:13px;line-height:1.4}
+  .pulse{transform-origin:center;transform-box:fill-box;animation:pulse 2.4s ease-out infinite}
+  @keyframes pulse{from{transform:scale(1);opacity:.55}to{transform:scale(2.6);opacity:0}}
+
+  /* --- Píldora inferior (celular) --- */
+  .dock{position:absolute;z-index:40;left:50%;bottom:10px;translate:-50% 0;display:none;padding:5px;border-radius:999px;gap:2px}
+  .mk[data-device="mobile"] .dock{display:flex}
+  .dblob{position:absolute;left:5px;top:5px;height:42px;border-radius:999px;background:var(--lime);border:1px solid var(--lime-edge);transition:transform .42s var(--expo),width .42s var(--expo)}
+  .dblob.move{animation:squishx .42s var(--expo)}
+  @keyframes squishx{0%{scale:1 1}35%{scale:1.14 .9}100%{scale:1 1}}
+  .bn{position:relative;height:42px;border-radius:999px;display:flex;align-items:center;gap:7px;padding:0 15px;color:var(--muted);font-size:12.5px;font-weight:600;white-space:nowrap;transition:color .2s,scale .12s}
+  .bn:active{scale:.95}
+  .bn[aria-current="page"]{color:#0B1220;font-weight:700}
+
+  /* --- Entrada desde el login --- */
+  .ink{position:absolute;inset:0;z-index:80;background:#0B1220;clip-path:inset(0 0 100% 0);pointer-events:none}
+  .mk.enter .ink{animation:lift .6s var(--expo) both}
+  @keyframes lift{from{clip-path:inset(0 0 0 0)}to{clip-path:inset(0 0 100% 0)}}
+  .mk.enter .side{animation:inL .5s var(--expo) .12s both}
+  .mk.enter .top{animation:inT .5s var(--expo) .2s both}
+  .mk.enter .dock{animation:inB .5s var(--expo) .2s both}
+  @keyframes inL{from{opacity:0;transform:translateX(-18px)}}
+  @keyframes inT{from{opacity:0;transform:translateY(-14px)}}
+  @keyframes inB{from{opacity:0;transform:translateY(18px)}}
+
+  @media (prefers-reduced-motion:reduce){
+    .mk *,.mk::after,.mk *::before{animation:none!important;transition-duration:0s!important}
+  }
+</style>
+</head>
+<body>
+<div class="bar">
+  <div class="grp"><span>Pantalla</span>
+    <div class="seg" id="segDevice">
+      <button data-v="desktop" aria-pressed="true">Escritorio</button>
+      <button data-v="tablet" aria-pressed="false">Tablet</button>
+      <button data-v="mobile" aria-pressed="false">Celular</button>
+    </div>
+  </div>
+  <div class="grp"><span>Tema</span>
+    <div class="seg" id="segTheme">
+      <button data-v="light" aria-pressed="false">Claro</button>
+      <button data-v="dark" aria-pressed="true">Oscuro</button>
+    </div>
+  </div>
+  <button class="replay" id="replay">Repetir entrada desde el login</button>
+</div>
+
+<div class="stagewrap">
+  <div class="mk" id="mk" data-theme="dark" data-device="desktop">
+    <main class="body">
+      <!-- Inicio -->
+      <section class="page on" data-page="inicio">
+        <div class="pad">
+          <span class="micro">Encargado de bolsines · turno mañana</span>
+          <h1 class="big">Buen turno,<br><span class="mark">Marcelo.</span></h1>
+          <p class="sub">sistema de bolsines</p>
+          <div class="board">
+            <button class="row" data-go="seguimiento">
+              <span class="n">01</span>
+              <span><b>Seguimiento</b><small>Dónde está cada bolsín que salió de tu comisión</small></span>
+              <span class="go"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
+            </button>
+            <div class="cells">
+              <div><span class="micro">Comisión</span><b>CM-01 Córdoba</b></div>
+              <div><span class="micro">Usuario</span><b>mgomez</b></div>
+              <div><span class="micro">Ingreso</span><b>08:02</b></div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- Seguimiento -->
+      <section class="page" data-page="seguimiento">
+        <div class="map" aria-hidden="true">
+          <svg viewBox="0 0 900 520" preserveAspectRatio="xMidYMid slice">
+            <rect width="900" height="520" fill="var(--land)"/>
+            <path d="M-20 400 C160 340 260 470 430 410 S720 330 930 420 V540 H-20Z" fill="var(--water)"/>
+            <g stroke="var(--road)" stroke-width="13" fill="none" stroke-linecap="round">
+              <path d="M-20 150 H930"/><path d="M-20 290 H930"/><path d="M230 -20 V540"/><path d="M500 -20 V540"/><path d="M740 -20 V540"/><path d="M-20 40 L930 370" stroke-width="8"/>
+            </g>
+            <path d="M260 340 C340 310 370 230 470 240 S590 170 680 150 S780 110 820 90" fill="none" stroke="var(--link)" stroke-width="4" stroke-linecap="round" stroke-dasharray="1 9"/>
+            <path d="M260 340 C340 310 370 230 470 240 S550 195 590 180" fill="none" stroke="var(--link)" stroke-width="4" stroke-linecap="round"/>
+            <circle cx="260" cy="340" r="7" fill="var(--link)" stroke="var(--land)" stroke-width="3"/>
+            <circle cx="590" cy="180" r="10" fill="#D1FF42" class="pulse"/>
+            <circle cx="590" cy="180" r="9" fill="#D1FF42" stroke="#0B1220" stroke-width="2.5"/>
+            <circle cx="380" cy="430" r="8" fill="#F59E0B" stroke="#0B1220" stroke-width="2.5"/>
+            <circle cx="820" cy="90" r="7" fill="var(--land)" stroke="var(--link)" stroke-width="3"/>
+          </svg>
+        </div>
+        <div class="chip isle">
+          <span class="micro">Pantalla a sangre</span>
+          <b>Acá va el mapa del CU 36</b>
+          <p>Las islas flotan sobre el mapa; la lista y el detalle se suman como islas nuevas.</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- Isla lateral -->
+    <nav class="side isle" id="side" aria-label="Navegación principal">
+      <div class="brand"><div class="keyb" aria-hidden="true">B</div><div class="lbl"><b>Sistema de Bolsines</b><i>sistema de bolsines</i></div></div>
+      <div class="items">
+        <div class="blob" id="blob"></div>
+        <button class="it" data-route="inicio" aria-current="page" aria-label="Inicio">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h5v-6h4v6h5V9.5"/></svg><span class="lbl">Inicio</span>
+        </button>
+        <button class="it" data-route="seguimiento" aria-label="Seguimiento">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8c0 4.5-6 9-6 9s-6-4.5-6-9a6 6 0 0 1 12 0Z"/><circle cx="12" cy="8" r="2"/><path d="M8.7 15.5 4 17v4l5-1.5 6 1.5 5-1.5v-4l-4.7-1.5"/></svg><span class="lbl">Seguimiento</span>
+        </button>
+      </div>
+      <div class="foot">
+        <button class="it" id="pin" aria-label="Fijar navegación abierta" style="padding-left:11px">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="4"/><path d="M9 4v16"/></svg><span class="lbl">Fijar abierta</span>
+        </button>
+        <div class="who"><div class="av">MG</div><div class="lbl"><strong>Marcelo Gómez</strong><span class="micro">CM Córdoba</span></div></div>
+      </div>
+    </nav>
+
+    <!-- Islas superiores -->
+    <div class="top">
+      <div class="idp isle">
+        <span class="flap" id="flap" aria-label="COR"><span>C</span><span>O</span><span>R</span></span>
+        <div class="t"><span class="micro">CM origen · Córdoba</span><b id="ttl">Inicio</b></div>
+      </div>
+      <div class="acts isle">
+        <button class="act" id="refresh" aria-label="Actualizar" hidden>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/></svg>
+        </button>
+        <button class="act" id="themeBtn" aria-label="Cambiar tema">
+          <svg id="icoMoon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" hidden><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
+          <svg id="icoSun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        </button>
+        <div class="av">MG</div>
+      </div>
+    </div>
+
+    <!-- Píldora inferior -->
+    <nav class="dock isle" id="dock" aria-label="Navegación principal">
+      <div class="dblob" id="dblob"></div>
+      <button class="bn" data-route="inicio" aria-current="page">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h5v-6h4v6h5V9.5"/></svg>Inicio
+      </button>
+      <button class="bn" data-route="seguimiento">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8c0 4.5-6 9-6 9s-6-4.5-6-9a6 6 0 0 1 12 0Z"/><circle cx="12" cy="8" r="2"/><path d="M8.7 15.5 4 17v4l5-1.5 6 1.5 5-1.5v-4l-4.7-1.5"/></svg>Seguimiento
+      </button>
+      <button class="bn" id="more">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>Más
+      </button>
+    </nav>
+
+    <div class="ink"></div>
+  </div>
+</div>
+<p class="note">Maqueta para aprobar la estética, no es el código final. En Escritorio pasá el mouse por la isla lateral para que se abra; en Tablet usá el botón «Fijar» al pie de la isla. Cambiá de destino para ver la gota lima, la cortina del contenido y el tablero de letras.</p>
+
+<script>
+(function(){
+  var mk=document.getElementById('mk'),blob=document.getElementById('blob'),dblob=document.getElementById('dblob');
+  var ttl=document.getElementById('ttl'),flap=document.getElementById('flap'),cur='inicio';
+  var titles={inicio:'Inicio',seguimiento:'Seguimiento'};
+  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function kick(el,c){el.classList.remove(c);void el.offsetWidth;el.classList.add(c)}
+  function place(anim){
+    var a=mk.querySelector('.it[data-route="'+cur+'"]');
+    blob.style.transform='translateY('+a.offsetTop+'px)';
+    var b=mk.querySelector('.bn[data-route="'+cur+'"]');
+    if(b.offsetWidth){dblob.style.width=b.offsetWidth+'px';dblob.style.transform='translateX('+(b.offsetLeft-5)+'px)'}
+    if(anim){kick(blob,'move');kick(dblob,'move')}
+  }
+  function flip(){
+    if(reduce)return;
+    var abc='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',fin=['C','O','R'];
+    flap.querySelectorAll('span').forEach(function(s,i){
+      var n=0,max=5+i*2;s.classList.add('fl');
+      var t=setInterval(function(){n++;if(n>=max){s.textContent=fin[i];s.classList.remove('fl');clearInterval(t)}else s.textContent=abc[Math.floor(Math.random()*abc.length)]},45);
+    });
+  }
+  function go(route){
+    if(route===cur){mk.querySelector('.page.on').scrollTop=0;return}
+    cur=route;
+    mk.querySelectorAll('[data-route]').forEach(function(b){if(b.dataset.route===route)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});
+    mk.querySelectorAll('.page').forEach(function(p){p.classList.toggle('on',p.dataset.page===route)});
+    ttl.textContent=titles[route];document.getElementById('refresh').hidden=route!=='seguimiento';
+    place(true);flip();
+  }
+  function press(seg,v){seg.querySelectorAll('button').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.v===v))})}
+  function setTheme(t){
+    mk.dataset.theme=t;press(document.getElementById('segTheme'),t);
+    document.getElementById('icoMoon').toggleAttribute('hidden',t==='dark');
+    document.getElementById('icoSun').toggleAttribute('hidden',t!=='dark');
+  }
+  mk.addEventListener('click',function(e){
+    var r=e.target.closest('[data-route]');if(r){go(r.dataset.route);return}
+    var g=e.target.closest('[data-go]');if(g){go(g.dataset.go);return}
+    if(e.target.closest('#pin')){document.getElementById('side').classList.toggle('open');return}
+    if(e.target.closest('#themeBtn'))setTheme(mk.dataset.theme==='dark'?'light':'dark');
+  });
+  document.getElementById('segTheme').addEventListener('click',function(e){var b=e.target.closest('button');if(b)setTheme(b.dataset.v)});
+  document.getElementById('segDevice').addEventListener('click',function(e){
+    var b=e.target.closest('button');if(!b)return;mk.dataset.device=b.dataset.v;press(this,b.dataset.v);
+    document.getElementById('side').classList.remove('open');requestAnimationFrame(function(){place(false)});
+  });
+  document.getElementById('replay').addEventListener('click',function(){
+    if(cur!=='inicio')go('inicio');kick(mk,'enter');kick(mk.querySelector('.page.on'),'on');flip();
+    setTimeout(function(){mk.classList.remove('enter')},1000);
+  });
+  place(false);
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){place(false)});
+})();
+</script>
+</body>
+</html>

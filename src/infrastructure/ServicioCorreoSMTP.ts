@@ -10,6 +10,7 @@ export class ServicioCorreoSMTP implements ServicioCorreo {
     destinatario: string,
     asunto: string,
     contenido: string,
+    html?: string,
   ): Promise<void> {
     const host = process.env.SMTP_HOST ?? "mailpit";
     const port = Number(process.env.SMTP_PORT ?? "1025");
@@ -40,6 +41,7 @@ export class ServicioCorreoSMTP implements ServicioCorreo {
         to: destinatario,
         subject: asunto,
         text: contenido,
+        ...(html !== undefined ? { html } : {}),
       });
       if (resultado.accepted.length !== 1 || resultado.rejected.length !== 0) {
         throw new ErrorEnvioCorreo(
