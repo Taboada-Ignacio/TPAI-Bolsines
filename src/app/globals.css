@@ -287,6 +287,23 @@ body::before {
   }
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  [data-page-curtain] [data-reveal] {
+    animation: page-row-reveal 0.5s var(--ease-expo) 0.12s backwards;
+    animation-delay: calc(0.12s + (sibling-index() - 1) * 0.1s);
+  }
+
+  @keyframes page-row-reveal {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+
+    to {
+      clip-path: inset(0 0% 0 0);
+    }
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --dur-instant: 0ms;

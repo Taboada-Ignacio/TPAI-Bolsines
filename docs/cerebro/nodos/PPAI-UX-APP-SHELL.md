@@ -115,3 +115,13 @@ El manual [`docs/brand-guidelines.md`](../../brand-guidelines.md) está en v2.0 
 ### [NACHO] Accesos rápidos del tablero de Inicio
 
 El acceso «Seguimiento» mantiene su ruta `/seguimiento` y muestra «Consultar ubicación de bolsines». En `/inicio`, **Abrir Mailpit** usa el estilo de botón lima y abre `http://localhost:8025` en otra pestaña para consultar las notificaciones del entorno local.
+
+### [NACHO] Hidratación del tablero de inicio
+
+El template conserva la cortina de página con GSAP sobre su propio contenedor.
+Las filas `data-reveal` usan keyframes CSS con la entrada escalonada del tablero.
+Así, la animación evita escribir estilos inline sobre los descendientes durante
+la hidratación. CSS respeta la preferencia de movimiento reducido. En navegadores
+sin `sibling-index()`, las filas conservan la animación con un retraso común.
+
+La comprobación en navegador queda pendiente en este entorno.
