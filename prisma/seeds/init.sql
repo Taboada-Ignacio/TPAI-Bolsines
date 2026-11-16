@@ -125,7 +125,8 @@ BEGIN
       TIMESTAMPTZ '2026-11-01 09:00:00-03' + serie * INTERVAL '11 hours' AS fecha,
       (ARRAY['CM-CBA', 'CM-SF', 'CM-CABA', 'CM-MZA', 'CM-BA'])[(serie - 1) % 5 + 1] AS origen,
       (ARRAY['CM-SF', 'CM-CABA', 'CM-MZA', 'CM-BA', 'CM-CBA'])[(serie - 1) % 5 + 1] AS destino,
-      (ARRAY['Creado', 'Cerrado', 'Enviado', 'RecibidoEnCMDestino', 'DeBaja'])[(serie - 1) / 7 + 1] AS estado,
+      -- Los originales no tienen ubicacion en el GPS oficial; solo 101-110 se siembran Enviados para el CU 36.
+      (ARRAY['Creado', 'Cerrado', 'Cerrado', 'RecibidoEnCMDestino', 'DeBaja'])[(serie - 1) / 7 + 1] AS estado,
       (ARRAY[
         'parametrizador.demo@example.com',
         'documentacion.demo@example.com',
