@@ -310,7 +310,9 @@ function adaptarCu36Backend(
     direccion: origenCat?.direccion ?? backend.comision,
   };
 
-  const bolsines: BolsinSeguimiento[] = backend.puntos.map((punto) => {
+  const puntos = "mapa" in backend ? backend.mapa.puntos : backend.puntos;
+
+  const bolsines: BolsinSeguimiento[] = puntos.map((punto) => {
     const destCat = comisionesPorNombre.get(
       punto.destino.trim().toLowerCase(),
     );
@@ -319,11 +321,16 @@ function adaptarCu36Backend(
       punto.longitud !== null &&
       punto.actualizado !== null;
     return {
+      id: punto.id,
       nroBolsin: punto.numero,
       numeroPrecinto: punto.precinto,
       cmOrigen,
       cmDestino: {
-        codigo: punto.destinoCodigo ?? destCat?.codigo ?? punto.destino,
+        codigo:
+          punto.codigoDestino ??
+          punto.destinoCodigo ??
+          destCat?.codigo ??
+          punto.destino,
         nombre: punto.destino,
         emailGcm: punto.emailGcm ?? destCat?.email ?? null,
       },
@@ -381,8 +388,9 @@ export async function obtenerSeguimientoBolsines(
 }
 
 /**
- * Envía el aviso de ubicación al gerente de la comisión médica destino (CU 31).
- * Conecta con POST /api/auth/cu31/notificar-ubicacion usando el contrato real del backend.
+ * Envía el aviso de ubicación al gerente de la comisión médica destino (CU 36 -> CU 31).
+ * Si recibe `bolsinId`, usa `POST /api/auth/cu36/seguimiento` (el backend resuelve el GCM en BD y consulta GPS).
+ * Caso contrario (demo o compatibilidad directa), usa `POST /api/auth/cu31/notificar-ubicacion`.
  */
 export async function notificarUbicacionGerente(
   payload: NotificarUbicacionRequest,
@@ -390,22 +398,29 @@ export async function notificarUbicacionGerente(
 ): Promise<NotificarUbicacionResultado> {
   const payloadValidado = notificarUbicacionRequestSchema.parse(payload);
 
+  const usaCu36 = typeof payloadValidado.bolsinId === "number";
+  const endpoint = usaCu36
+    ? "/api/auth/cu36/seguimiento"
+    : "/api/auth/cu31/notificar-ubicacion";
+
   const fechaHoraActualizacion =
     payloadValidado.fechaHoraActualizacion ?? new Date().toISOString();
-  const bodyBackend = {
-    ...(payloadValidado.emailDestino
-      ? { emailDestino: payloadValidado.emailDestino }
-      : {}),
-    nroBolsin: payloadValidado.nroBolsin,
-    latitud: String(payloadValidado.latitud ?? 0),
-    longitud: String(payloadValidado.longitud ?? 0),
-    fechaHoraActualizacion,
-  };
+  const bodyBackend = usaCu36
+    ? { bolsinId: payloadValidado.bolsinId }
+    : {
+        ...(payloadValidado.emailDestino
+          ? { emailDestino: payloadValidado.emailDestino }
+          : {}),
+        nroBolsin: payloadValidado.nroBolsin,
+        latitud: String(payloadValidado.latitud ?? 0),
+        longitud: String(payloadValidado.longitud ?? 0),
+        fechaHoraActualizacion,
+      };
 
   const resultado = await consultarJsonConRespaldo<
     NotificarUbicacionResponse | { aceptada: true }
   >(
-    "/api/auth/cu31/notificar-ubicacion",
+    endpoint,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -416,7 +431,7 @@ export async function notificarUbicacionGerente(
     signal,
   );
 
-  if (!resultado.esModoDemo && !payloadValidado.emailDestino) {
+  if (!resultado.esModoDemo && !usaCu36 && !payloadValidado.emailDestino) {
     throw new ErrorSeguimientoCliente(
       "La comisión médica destino no tiene un correo electrónico configurado para recibir la notificación.",
     );

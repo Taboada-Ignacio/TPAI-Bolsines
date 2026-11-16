@@ -1,8 +1,6 @@
 import type { RepositorioSesion } from "@/domain/RepositorioSesion";
 import { Usuario } from "@/domain/Usuario";
-import { Empleado } from "@/domain/Empleado";
-import { Rol } from "@/domain/Rol";
-import { ComisionMedica } from "@/domain/ComisionMedica";
+import { asociacionesEmpleado, hidratarEmpleado } from "./hidratarDominio";
 import { Sesion } from "@/domain/Sesion";
 import { getPrisma } from "./prisma";
 
@@ -17,33 +15,16 @@ export class SesionRepositoryPrisma implements RepositorioSesion {
   async buscarEmpleado(usuarioId: number) {
     const fila = await getPrisma().empleado.findUnique({
       where: { usuarioId },
-      include: {
-        usuario: { select: { nombre: true } },
-        rol: true,
-        comisionMedica: true,
-      },
+      include: asociacionesEmpleado,
     });
-    if (!fila) return null;
-    const cm = fila.comisionMedica;
-    return {
-      id: fila.id,
-      rolId: fila.rolId,
-      comisionMedicaId: fila.comisionMedicaId,
-      empleado: new Empleado(
-        fila.nombre,
-        fila.apellido,
-        fila.email,
-        new Usuario(fila.usuario.nombre, ""),
-        new Rol(fila.rol.nombre, fila.rol.descripcion),
-        new ComisionMedica(
-          cm.codigo,
-          cm.direccion,
-          cm.email,
-          cm.nombre,
-          cm.telefono,
-        ),
-      ),
-    };
+    return (
+      fila && {
+        id: fila.id,
+        rolId: fila.rolId,
+        comisionMedicaId: fila.comisionMedicaId,
+        empleado: hidratarEmpleado(fila),
+      }
+    );
   }
 
   async crear(usuarioId: number, sesion: Sesion) {

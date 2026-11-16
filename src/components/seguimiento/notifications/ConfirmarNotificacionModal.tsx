@@ -180,6 +180,7 @@ export function ConfirmarNotificacionModal({
     try {
       const respuesta = await notificarUbicacionGerente(
         {
+          bolsinId: bolsin.id,
           nroBolsin: bolsin.nroBolsin,
           modeloGps,
           emailDestino: bolsin.cmDestino.emailGcm ?? undefined,

@@ -5,5 +5,6 @@ export interface ServicioCorreo {
     destinatario: string,
     asunto: string,
     contenido: string,
+    html?: string,
   ): Promise<void>;
 }

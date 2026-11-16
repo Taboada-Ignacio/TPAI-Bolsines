@@ -1,3 +1,4 @@
+import { asociacionesEmpleado, hidratarEmpleado } from "./hidratarDominio";
 import type { Empleado } from "@/domain/Empleado";
 import {
   mensajeUsuarioDuplicado,
@@ -64,6 +65,14 @@ export class EmpleadoRepositoryPrisma implements RepositorioEmpleado {
         }),
       mensajeUsuarioDuplicado,
     );
+  }
+
+  async listarDeComision(codigo: string) {
+    const filas = await getPrisma().empleado.findMany({
+      where: { comisionMedica: { codigo } },
+      include: asociacionesEmpleado,
+    });
+    return filas.map(hidratarEmpleado);
   }
 
   listar() {

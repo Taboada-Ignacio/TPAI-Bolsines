@@ -42,6 +42,7 @@ export const remitoSeguimientoSchema = z.object({
 export type RemitoSeguimiento = z.infer<typeof remitoSeguimientoSchema>;
 
 export const bolsinSeguimientoSchema = z.object({
+  id: z.number().int().positive().optional(),
   nroBolsin: z.number().int().positive(),
   numeroPrecinto: z
     .union([textoObligatorio, z.number().int().positive()])
@@ -67,6 +68,7 @@ export const cu36PuntoBackendSchema = z.object({
   numero: z.number().int().positive(),
   precinto: z.union([textoObligatorio, z.number().int().positive()]).nullable(),
   destino: textoObligatorio,
+  codigoDestino: textoObligatorio.optional(),
   destinoCodigo: textoObligatorio.optional(),
   emailGcm: z.email().nullable().optional(),
   pesoKg: z.number().finite().positive().optional(),
@@ -78,11 +80,21 @@ export const cu36PuntoBackendSchema = z.object({
 });
 export type Cu36PuntoBackend = z.infer<typeof cu36PuntoBackendSchema>;
 
-export const cu36BackendResponseSchema = z.object({
-  comision: textoObligatorio,
-  puntos: z.array(cu36PuntoBackendSchema),
-  sinUbicacion: z.number().int().min(0),
-});
+export const cu36BackendResponseSchema = z.union([
+  z.object({
+    comision: textoObligatorio,
+    puntos: z.array(cu36PuntoBackendSchema),
+    sinUbicacion: z.number().int().min(0),
+  }),
+  z.object({
+    comision: textoObligatorio,
+    mapa: z.object({
+      estilo: z.string().optional(),
+      puntos: z.array(cu36PuntoBackendSchema),
+    }),
+    sinUbicacion: z.number().int().min(0),
+  }),
+]);
 export type Cu36BackendResponse = z.infer<typeof cu36BackendResponseSchema>;
 
 export const cu31BackendResponseSchema = z.object({
@@ -90,6 +102,7 @@ export const cu31BackendResponseSchema = z.object({
 });
 
 export const notificarUbicacionRequestSchema = z.object({
+  bolsinId: z.number().int().positive().optional(),
   nroBolsin: z.number().int().positive(),
   modeloGps: modeloGpsSchema,
   emailDestino: z.email().optional(),
