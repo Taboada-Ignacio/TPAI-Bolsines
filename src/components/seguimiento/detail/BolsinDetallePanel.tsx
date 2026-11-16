@@ -248,18 +248,13 @@ export function BolsinDetallePanel({
           ) : null}
         </dl>
 
-        {/* Remito asociado (máx. 1 por bolsín) */}
-        <section
-          aria-label="Remito asociado"
-          className="flex flex-col gap-2 border-t border-hair pt-3"
-        >
-          <MicroLabel>Remito asociado</MicroLabel>
-
-          {!bolsin.remito ? (
-            <p className="rounded-[10px] border border-hair bg-surface px-3 py-2.5 text-xs text-muted">
-              Este bolsín no tiene remito asociado.
-            </p>
-          ) : (
+        {/* Remito asociado (máx. 1 por bolsín; oculto si no hay remito en CU 36) */}
+        {bolsin.remito ? (
+          <section
+            aria-label="Remito asociado"
+            className="flex flex-col gap-2 border-t border-hair pt-3"
+          >
+            <MicroLabel>Remito asociado</MicroLabel>
             <div className="flex items-center justify-between gap-2 rounded-[10px] border border-hair bg-surface px-3 py-2">
               <div className="min-w-0">
                 <p className="truncate text-[12.5px] font-semibold text-fg">
@@ -273,8 +268,8 @@ export function BolsinDetallePanel({
                 {bolsin.remito.numero}
               </span>
             </div>
-          )}
-        </section>
+          </section>
+        ) : null}
       </div>
 
       {/* Pie con acción primaria */}

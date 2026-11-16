@@ -19,13 +19,39 @@ export interface RutaEnvioResuelta {
   fuente: "directions" | "osrm" | "geodesica";
 }
 
-/** Coordenadas de referencia de las Comisiones Médicas argentinas. */
+/** Coordenadas de referencia de las Comisiones Médicas argentinas (códigos reales + demo). */
 export const COORDENADAS_CM_ARGENTINA: Record<string, LatLngLiteral> = {
+  // Códigos de demo
   "CM-01": { lat: -31.4201, lng: -64.1888 }, // Córdoba
   "CM-02": { lat: -32.9468, lng: -60.6393 }, // Rosario
   "CM-03": { lat: -34.6037, lng: -58.3816 }, // Buenos Aires
   "CM-04": { lat: -32.8895, lng: -68.8458 }, // Mendoza
   "CM-05": { lat: -26.8083, lng: -65.2176 }, // Tucumán
+  // Códigos oficiales del catálogo en BD (24 Comisiones Médicas)
+  "CM-BA": { lat: -34.9214, lng: -57.9545 }, // La Plata, Buenos Aires
+  "CM-CABA": { lat: -34.6037, lng: -58.3816 }, // CABA
+  "CM-CAT": { lat: -28.4696, lng: -65.7852 }, // San Fernando del Valle de Catamarca
+  "CM-CBA": { lat: -31.4201, lng: -64.1888 }, // Córdoba Capital
+  "CM-CHA": { lat: -27.4514, lng: -58.9867 }, // Resistencia, Chaco
+  "CM-CHU": { lat: -43.3002, lng: -65.1023 }, // Rawson, Chubut
+  "CM-COR": { lat: -27.4692, lng: -58.8306 }, // Corrientes Capital
+  "CM-ER": { lat: -31.732, lng: -60.5238 }, // Paraná, Entre Ríos
+  "CM-FOR": { lat: -26.1849, lng: -58.1731 }, // Formosa Capital
+  "CM-JUJ": { lat: -24.1858, lng: -65.2995 }, // San Salvador de Jujuy
+  "CM-LP": { lat: -36.6167, lng: -64.2833 }, // Santa Rosa, La Pampa
+  "CM-LR": { lat: -29.4131, lng: -66.8558 }, // La Rioja Capital
+  "CM-MIS": { lat: -27.3671, lng: -55.8961 }, // Posadas, Misiones
+  "CM-MZA": { lat: -32.8895, lng: -68.8458 }, // Mendoza Capital
+  "CM-NEU": { lat: -38.9516, lng: -68.0591 }, // Neuquén Capital
+  "CM-RN": { lat: -40.8135, lng: -62.9967 }, // Viedma, Río Negro
+  "CM-SAL": { lat: -24.7821, lng: -65.4232 }, // Salta Capital
+  "CM-SC": { lat: -51.6226, lng: -69.2181 }, // Río Gallegos, Santa Cruz
+  "CM-SDE": { lat: -27.7834, lng: -64.2642 }, // Santiago del Estero
+  "CM-SF": { lat: -31.6107, lng: -60.6973 }, // Santa Fe Capital
+  "CM-SJ": { lat: -31.5375, lng: -68.5364 }, // San Juan Capital
+  "CM-SL": { lat: -33.3017, lng: -66.3378 }, // San Luis Capital
+  "CM-TDF": { lat: -54.8019, lng: -68.303 }, // Ushuaia, Tierra del Fuego
+  "CM-TUC": { lat: -26.8083, lng: -65.2176 }, // San Miguel de Tucumán
 };
 
 const CENTRO_ARGENTINA_DEFAULT: LatLngLiteral = { lat: -32.2, lng: -63.8 };
@@ -113,6 +139,23 @@ const TRAMO_RN9_RN60_CORDOBA_TUCUMAN: LatLngLiteral[] = [
   { lat: -26.8083, lng: -65.2176 }, // San Miguel de Tucumán
 ];
 
+const TRAMO_RN19_CORDOBA_SANTAFE: LatLngLiteral[] = [
+  { lat: -31.4201, lng: -64.1888 }, // Córdoba Capital
+  { lat: -31.4167, lng: -64.0833 }, // Malvinas Argentinas
+  { lat: -31.3667, lng: -63.8833 }, // Monte Cristo
+  { lat: -31.3001, lng: -63.6167 }, // Río Primero
+  { lat: -31.3519, lng: -63.3636 }, // Santiago Temple
+  { lat: -31.4178, lng: -63.0489 }, // Arroyito
+  { lat: -31.4042, lng: -62.7858 }, // La Francia
+  { lat: -31.4167, lng: -62.45 }, // Devoto
+  { lat: -31.428, lng: -62.0828 }, // San Francisco
+  { lat: -31.5036, lng: -61.8122 }, // Angélica (RN19)
+  { lat: -31.5867, lng: -61.3667 }, // Sa Pereira
+  { lat: -31.6083, lng: -61.0333 }, // Franck / San Agustín
+  { lat: -31.6333, lng: -60.8167 }, // Santo Tomé
+  { lat: -31.6107, lng: -60.6973 }, // Santa Fe Capital
+];
+
 const RUTAS_VIALES_POR_PAR: Record<string, LatLngLiteral[]> = {
   "CM-01->CM-02": TRAMO_RN9_CORDOBA_ROSARIO,
   "CM-02->CM-01": [...TRAMO_RN9_CORDOBA_ROSARIO].reverse(),
@@ -130,6 +173,21 @@ const RUTAS_VIALES_POR_PAR: Record<string, LatLngLiteral[]> = {
   "CM-04->CM-01": [...TRAMO_RN8_RN7_CORDOBA_MENDOZA].reverse(),
   "CM-01->CM-05": TRAMO_RN9_RN60_CORDOBA_TUCUMAN,
   "CM-05->CM-01": [...TRAMO_RN9_RN60_CORDOBA_TUCUMAN].reverse(),
+  // Pares oficiales de BD
+  "CM-CBA->CM-SF": TRAMO_RN19_CORDOBA_SANTAFE,
+  "CM-SF->CM-CBA": [...TRAMO_RN19_CORDOBA_SANTAFE].reverse(),
+  "CM-CBA->CM-CABA": [
+    ...TRAMO_RN9_CORDOBA_ROSARIO,
+    ...TRAMO_RN9_ROSARIO_BA.slice(1),
+  ],
+  "CM-CABA->CM-CBA": [
+    ...TRAMO_RN9_CORDOBA_ROSARIO,
+    ...TRAMO_RN9_ROSARIO_BA.slice(1),
+  ].reverse(),
+  "CM-CBA->CM-MZA": TRAMO_RN8_RN7_CORDOBA_MENDOZA,
+  "CM-MZA->CM-CBA": [...TRAMO_RN8_RN7_CORDOBA_MENDOZA].reverse(),
+  "CM-CBA->CM-TUC": TRAMO_RN9_RN60_CORDOBA_TUCUMAN,
+  "CM-TUC->CM-CBA": [...TRAMO_RN9_RN60_CORDOBA_TUCUMAN].reverse(),
 };
 
 const OSRM_BASE_URL = "https://router.project-osrm.org/route/v1/driving";

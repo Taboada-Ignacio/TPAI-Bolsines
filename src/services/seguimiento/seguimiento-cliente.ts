@@ -301,12 +301,13 @@ function adaptarCu36Backend(
   modelo: ModeloGps,
   comisionesPorNombre: Map<string, ComisionCatalogo>,
 ): SeguimientoResponse {
-  const origenCat = comisionesPorNombre.get(
-    backend.comision.trim().toLowerCase(),
-  );
+  const nombreOrigenBase = backend.comision.split(" - ")[0]?.trim().toLowerCase() ?? "";
+  const origenCat =
+    comisionesPorNombre.get(backend.comision.trim().toLowerCase()) ??
+    comisionesPorNombre.get(nombreOrigenBase);
   const cmOrigen = {
     codigo: origenCat?.codigo ?? "CM-ORIGEN",
-    nombre: backend.comision,
+    nombre: origenCat?.nombre ?? backend.comision,
     direccion: origenCat?.direccion ?? backend.comision,
   };
 
