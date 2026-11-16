@@ -227,3 +227,11 @@ ESLint pasó. El typecheck estándar detectó referencias generadas obsoletas ba
 La pantalla de seguimiento delega la consulta, la selección y la confirmación en `PantallaConsultarUbicacionDeBolsines` y `GestorConsultarUbicacionDeBolsin`. Se reusan la sesión persistida y el envío del CU 31. Los repositorios hidratan entidades para aplicar las reglas de origen, estado y rol en el dominio. El [nodo del CU 36](PPAI-CU-36.md#nacho-consulta-selección-y-aviso-al-gcm) registra la correspondencia UML, los contratos y las diferencias entre vistas.
 
 Verificaciones de esta entrega: Vitest pasó 269 pruebas con un worker y omitió las seis pruebas HTTP del GPS. ESLint, Prisma y la validación de Compose pasaron. El typecheck estándar tropieza con referencias obsoletas de `.next/dev`; la comprobación que excluye esa salida generada obtuvo cero diagnósticos. El build con Webpack quedó bloqueado por DNS de Google Fonts y por permisos en `.next`. El acceso denegado a Docker impidió comprobar el mapa con GPS real y la recepción en Mailpit.
+
+### [NACHO] Formato del correo de ubicación
+
+`ServicioCorreoSMTP` acepta el HTML opcional del CU 31 y conserva el cuerpo en texto plano. El [nodo de notificación](PPAI-CU-30.md#nacho-correo-con-la-identidad-visual-de-bolsines) detalla la presentación. Vitest pasó 270 pruebas y omitió seis HTTP contra el GPS. ESLint y la configuración de Compose pasaron. Una prueba con el transporte en memoria de Nodemailer confirmó las dos alternativas MIME. El typecheck estándar encontró referencias obsoletas en `.next/dev`; al excluir esa caché, TypeScript obtuvo cero diagnósticos. El build con Webpack quedó bloqueado por DNS de Google Fonts y por permisos de escritura bajo `.next`. La entrega visual en Mailpit quedó pendiente por acceso denegado al motor de Docker y falta de conexión a la bandeja local.
+
+### [NACHO] Integración cartográfica efectiva
+
+El backend devuelve el estilo de OpenFreeMap y los puntos normalizados por el Adapter XTR. MapLibre GL JS renderiza `/seguimiento` en el navegador. Las referencias anteriores a Google Maps describen el UML o decisiones históricas. El mapa implementado prescinde de su API y SDK. El [nodo del CU 36](PPAI-CU-36.md#nacho-tecnologías-cartográficas-del-cu-36) registra la elección estética y distingue el enlace público del correo.

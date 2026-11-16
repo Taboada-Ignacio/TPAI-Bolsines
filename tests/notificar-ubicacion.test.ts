@@ -36,7 +36,7 @@ afterEach(() => {
 });
 
 describe("GestorNotificarUbicacionBolsin", () => {
-  it("envía una sola vez el asunto, la ubicación y la fecha originales", async () => {
+  it("envía en HTML y texto la ubicación y la fecha originales", async () => {
     const enviarCorreo = vi.fn<ServicioCorreo["enviarCorreo"]>(async () => {});
     await new GestorNotificarUbicacionBolsin({
       enviarCorreo,
@@ -47,10 +47,15 @@ describe("GestorNotificarUbicacionBolsin", () => {
       expect.stringContaining(
         "https://www.google.com/maps?q=-31.4201,-64.1888",
       ),
+      expect.stringContaining(
+        'href="https://www.google.com/maps?q=-31.4201,-64.1888"',
+      ),
     );
-    expect(enviarCorreo.mock.calls[0][2]).toContain(
-      datos.fechaHoraActualizacion,
-    );
+    const [, , texto, html] = enviarCorreo.mock.calls[0];
+    expect(texto).toContain(datos.fechaHoraActualizacion);
+    expect(html).toContain(datos.fechaHoraActualizacion);
+    expect(html).toContain(String(datos.nroBolsin));
+    expect(html).toContain("Ver ubicación en Google Maps");
     expect(getPrisma).not.toHaveBeenCalled();
     expect(createTransport).not.toHaveBeenCalled();
   });
@@ -84,6 +89,16 @@ describe("GestorNotificarUbicacionBolsin", () => {
       }).notificarUbicacionDeBolsin(datos),
     ).rejects.toBe(error);
     expect(enviarCorreo).toHaveBeenCalledTimes(1);
+  });
+
+  it("conserva el signo positivo de las coordenadas en el enlace", async () => {
+    const enviarCorreo = vi.fn<ServicioCorreo["enviarCorreo"]>(async () => {});
+    await new GestorNotificarUbicacionBolsin({
+      enviarCorreo,
+    }).notificarUbicacionDeBolsin({ ...datos, latitud: "+31.4201" });
+    const [, , texto, html] = enviarCorreo.mock.calls[0];
+    expect(texto).toContain("maps?q=%2B31.4201,-64.1888");
+    expect(html).toContain("maps?q=%2B31.4201,-64.1888");
   });
 });
 
@@ -177,6 +192,12 @@ describe("POST /api/auth/cu31/notificar-ubicacion", () => {
     const exitosa = await POST(solicitud(JSON.stringify(datos), cookie));
     expect(exitosa.status).toBe(200);
     await expect(exitosa.json()).resolves.toEqual({ aceptada: true });
+    expect(sendMail).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        text: expect.stringContaining(datos.fechaHoraActualizacion),
+        html: expect.stringContaining("Ver ubicación en Google Maps"),
+      }),
+    );
     expect((await POST(solicitud("{", cookie))).status).toBe(400);
     expect((await POST(solicitud("{}", cookie))).status).toBe(400);
     expect(sendMail).toHaveBeenCalledTimes(1);

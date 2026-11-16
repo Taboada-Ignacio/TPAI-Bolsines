@@ -741,12 +741,12 @@ npm.cmd run test:run -- tests/gps-adapter-http.test.ts
 | Participante                            | Operación                                                                              | Responsabilidad                                                                |
 | --------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | `PantNotificarUbicacionBolsin`          | `atender(request: Request): Promise<Response>`                                         | Lee el JSON, llama al gestor y traduce su resultado a HTTP.                    |
-| `GestorNotificarUbicacionBolsin`        | `notificarUbicacionDeBolsin(solicitud: SolicitudNotificacionUbicacion): Promise<void>` | Valida el DTO, prepara el mensaje en texto plano y delega en `ServicioCorreo`. |
-| `ServicioCorreo` y `ServicioCorreoSMTP` | `enviarCorreo(destinatario: string, asunto: string, contenido: string): Promise<void>` | La implementación usa Nodemailer y espera la aceptación SMTP.                  |
+| `GestorNotificarUbicacionBolsin`        | `notificarUbicacionDeBolsin(solicitud: SolicitudNotificacionUbicacion): Promise<void>` | Valida el DTO, prepara el mensaje en HTML y texto plano y delega en `ServicioCorreo`. |
+| `ServicioCorreo` y `ServicioCorreoSMTP` | `enviarCorreo(destinatario: string, asunto: string, contenido: string, html?: string): Promise<void>` | La implementación usa Nodemailer y espera la aceptación SMTP.                  |
 
-El Route Handler autentica antes de llamar a la pantalla. El gestor recibe el correo del GCM y la última ubicación por DTO, incluida la fecha original del GPS. Al integrar el CU 36, su gestor deberá resolver esos datos antes de invocar este flujo.
+El Route Handler autentica antes de llamar a la pantalla. El gestor recibe el correo del GCM y la última ubicación por DTO, incluida la fecha original del GPS. El gestor del CU 36 resuelve esos datos antes de invocar este flujo. El correo HTML usa la identidad de Bolsines y un botón para abrir las coordenadas en Google Maps. La misma notificación incluye una versión en texto plano.
 
-Compose configura `SMTP_HOST=mailpit`, `SMTP_PORT=1025` y `SMTP_FROM=notificaciones@bolsines.test`. `SMTP_FROM` se puede configurar desde `.env`. El SMTP queda dentro de la red de Compose y la bandeja de Mailpit se publica en [http://localhost:8025](http://localhost:8025).
+Compose configura `SMTP_HOST=mailpit`, `SMTP_PORT=1025` y `SMTP_FROM=notificaciones@bolsines.test`. `SMTP_FROM` se puede configurar desde `.env`. El SMTP queda dentro de la red de Compose y la bandeja de Mailpit se publica en [http://localhost:8025](http://localhost:8025). En `/inicio`, **Abrir Mailpit** abre la bandeja en otra pestaña y **Seguimiento** muestra la descripción «Consultar ubicación de bolsines».
 
 ### Prueba manual desde PowerShell
 
@@ -829,3 +829,21 @@ Filtrá por precinto o comisión de destino. Al seleccionar un bolsín, elegí *
 | `POST /api/auth/cu36/seguimiento` | Recibe `{ bolsinId }`. Vuelve a validar sesión, rol, origen y estado, obtiene el GCM y el GPS, e invoca al CU 31. Devuelve `{ aceptada: true }` si el SMTP aceptó el envío. |
 
 La confirmación requiere exactamente un GCM para la CM destino. Si el GPS o el correo fallan, se informa el error. La matriz de correspondencia UML y las diferencias entre las vistas están en [el nodo del CU 36](docs/cerebro/nodos/PPAI-CU-36.md#nacho-consulta-selección-y-aviso-al-gcm).
+
+### Tecnologías cartográficas utilizadas en el CU 36
+
+El mapa interactivo de `/seguimiento` no utiliza la API ni el SDK de Google Maps. El equipo eligió MapLibre GL JS y el estilo **Bright** de OpenFreeMap por la estética buscada para la pantalla de seguimiento.
+
+| Componente | Responsabilidad |
+| --- | --- |
+| API GPS oficial de la cátedra | Proporciona las coordenadas y la fecha de actualización de los bolsines. |
+| `AdaptadorXTR4500L` | Interpreta, valida y normaliza la respuesta JSON de XTR-4500L en `adaptarLocalizacionBolsines()`. |
+| `GestorConsultarUbicacionDeBolsin` | Recibe la matriz normalizada de `InterfazGPSTracker`, asocia las ubicaciones a los bolsines y prepara los puntos para la pantalla. |
+| `InterfazGoogleMaps` | Frontera cartográfica definida en el UML. `obtenerMapaConPosicionDeBolsines()` delega en `ServidorGoogleMaps`. |
+| `ServidorGoogleMaps` | `getMapaLocation()` devuelve los puntos y la URL del estilo de OpenFreeMap. |
+| MapLibre GL JS | Renderiza el mapa y los marcadores y controla la interacción en el navegador mediante `MapaBolsines.tsx`. |
+| OpenFreeMap | Proporciona el mapa base y los recursos cartográficos que carga MapLibre. |
+
+Los nombres y las operaciones de `InterfazGoogleMaps` y `ServidorGoogleMaps` proceden del diseño original y se conservan para demostrar ante la cátedra la correspondencia entre el UML aprobado y las clases implementadas, incluida la relación de delegación entre ellas. El análisis del JSON del GPS ocurre en el adaptador XTR; el gestor trabaja con las ubicaciones ya normalizadas.
+
+El botón **Ver ubicación en Google Maps** del correo del CU 31 abre una URL pública con las coordenadas. Ese enlace es independiente del mapa interactivo de `/seguimiento`.

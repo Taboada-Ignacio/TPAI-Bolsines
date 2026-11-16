@@ -169,3 +169,9 @@ La ruta `/seguimiento` conserva el App Shell. Precinto y código de CM destino f
 ### [NACHO] Adaptación del JSON de XTR
 
 Se retira la operación `procesarJSONConDatosBolsines()` del gestor. En el rediseño, `AdaptadorXTR4500L.adaptarLocalizacionBolsines()` interpreta y valida el JSON de XTR. `solicitarDatosDeLocalizacionDeBolsines()` recibe la matriz normalizada de `InterfazGPSTracker` y asocia las ubicaciones con los datos de cada bolsín para construir el DTO.
+
+### [NACHO] Tecnologías cartográficas del CU 36
+
+El mapa de `/seguimiento` no usa la API ni el SDK de Google Maps. Por la estética elegida para el seguimiento, `MapaBolsines.tsx` renderiza con MapLibre GL JS y carga el estilo **Bright** y los recursos cartográficos de OpenFreeMap. Las coordenadas y su fecha provienen del GPS oficial: `AdaptadorXTR4500L.adaptarLocalizacionBolsines()` interpreta y normaliza la respuesta XTR y el gestor asocia los puntos normalizados con los bolsines.
+
+`InterfazGoogleMaps.obtenerMapaConPosicionDeBolsines()` delega en `ServidorGoogleMaps.getMapaLocation()`, que entrega los puntos y la URL del estilo. Los nombres, las operaciones y la delegación se conservan para demostrar la correspondencia con el UML aprobado. El botón **Ver ubicación en Google Maps** del correo del CU 31 abre una URL pública independiente.

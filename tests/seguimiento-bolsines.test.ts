@@ -205,6 +205,7 @@ describe("CU 36", () => {
       "gcm@example.test",
       expect.stringContaining("101"),
       expect.stringContaining(fecha.toISOString()),
+      expect.stringContaining(fecha.toISOString()),
     );
     expect(correo.mock.calls[0][2]).toContain("Latitud: -31.42");
     expect(correo.mock.calls[0][2]).toContain("Longitud: -64.18");
