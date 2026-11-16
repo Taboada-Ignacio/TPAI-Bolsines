@@ -12,6 +12,15 @@ export class ServicioCorreoSMTP implements ServicioCorreo {
     contenido: string,
     html?: string,
   ): Promise<void> {
+    if (process.env.USE_PG_MEM === "true" && !process.env.SMTP_HOST) {
+      console.info("[SMTP dev-mem] Correo simulado:", {
+        destinatario,
+        asunto,
+        contenido,
+      });
+      return;
+    }
+
     const host = process.env.SMTP_HOST ?? "mailpit";
     const port = Number(process.env.SMTP_PORT ?? "1025");
     const from = process.env.SMTP_FROM ?? "notificaciones@bolsines.test";
