@@ -94,7 +94,6 @@ export function MapaGoogleSeguimiento({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapStageRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
-  const directionsServiceRef = useRef<google.maps.DirectionsService | null>(null);
   const polylinesRef = useRef<google.maps.Polyline[]>([]);
   const rutasCacheRef = useRef<Map<string, RutaEnvioResuelta>>(new Map());
   const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -166,11 +165,8 @@ export function MapaGoogleSeguimiento({
       googleOptionsConfiguradas = true;
     }
 
-    Promise.all([
-      importLibrary("maps"),
-      apiKey ? importLibrary("routes").catch(() => null) : Promise.resolve(null),
-    ])
-      .then(([mapsLib, routesLib]) => {
+    importLibrary("maps")
+      .then((mapsLib) => {
         if (cancelado || !mapStageRef.current) return;
 
         const centroInicial =
@@ -191,10 +187,6 @@ export function MapaGoogleSeguimiento({
 
         const map = new mapsLib.Map(mapStageRef.current, mapOptions);
         mapRef.current = map;
-
-        if (routesLib?.DirectionsService) {
-          directionsServiceRef.current = new routesLib.DirectionsService();
-        }
 
         setErrorMapa(false);
         setMapInstancia(map);
@@ -262,11 +254,7 @@ export function MapaGoogleSeguimiento({
       await Promise.all(
         pendientes.map(async (bolsin) => {
           const cacheKey = `${bolsin.nroBolsin}:${bolsin.ubicacion?.latitud ?? "none"}:${bolsin.ubicacion?.longitud ?? "none"}:${bolsin.cmDestino.codigo}`;
-          const ruta = await resolverRutaEnvio(
-            bolsin,
-            cmOrigen,
-            directionsServiceRef.current,
-          );
+          const ruta = await resolverRutaEnvio(bolsin, cmOrigen);
           rutasCacheRef.current.set(cacheKey, ruta);
           resueltas.set(bolsin.nroBolsin, ruta);
         }),
