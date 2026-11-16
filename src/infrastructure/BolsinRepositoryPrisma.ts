@@ -175,19 +175,20 @@ export class BolsinRepositoryPrisma implements RepositorioBolsin {
 
   async listarEnviados(cmOrigenId: number) {
     const filas = await getPrisma().bolsin.findMany({
-      where: {
-        cmOrigenId,
-        cambiosEstado: {
-          some: {
-            fechaHoraFin: null,
-            estado: { nombre: "Enviado", ambito: "BOLSIN" },
-          },
-        },
-      },
+      where: { cmOrigenId },
       orderBy: { numeroBolsin: "asc" },
       include: asociacionesSeguimiento,
     });
-    return filas.map(hidratarBolsin);
+    return filas
+      .filter((fila) =>
+        fila.cambiosEstado.some(
+          (c) =>
+            c.fechaHoraFin === null &&
+            c.estado.nombre === "Enviado" &&
+            c.estado.ambito === "BOLSIN",
+        ),
+      )
+      .map(hidratarBolsin);
   }
 
   async buscarParaSeguimiento(id: number) {
