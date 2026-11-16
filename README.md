@@ -809,3 +809,9 @@ npm.cmd run format:check
 npm.cmd run test:run
 npm.cmd run build
 ```
+
+## Seguimiento de bolsines en el mapa (CU 36)
+
+Abrí [Seguimiento de bolsines](http://localhost:3000/seguimiento) e iniciá sesión con el usuario Encargado de Bolsines de la base de demostración. Para usar los fixtures 101 y 110 de Córdoba se requiere una base que ya los contenga. El seed aplica a bases nuevas y no agrega esas filas a una base inicializada.
+
+`GET /api/auth/cu36/seguimiento` consulta los bolsines Enviados de la comisión de la sesión y obtiene sus ubicaciones mediante el adaptador XTR. Para los fixtures traduce el par comisión local y número de bolsín al código oficial de sede. El mapa de OpenFreeMap usa MapLibre GL JS 5.6.1 y requiere acceso a jsDelivr y `tiles.openfreemap.org`. Al entrar, el zoom se calcula para incluir todos los puntos recibidos con margen. Se puede seleccionar desde un marcador o la lista y recuperar el encuadre con **Ver todos los puntos**.

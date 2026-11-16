@@ -148,6 +148,27 @@ export class BolsinRepositoryPrisma implements RepositorioBolsin {
     return filas.map(resumir);
   }
 
+  listarEnviados(cmOrigenId: number) {
+    return getPrisma().bolsin.findMany({
+      where: {
+        cmOrigenId,
+        cambiosEstado: {
+          some: {
+            fechaHoraFin: null,
+            estado: { nombre: "Enviado", ambito: "BOLSIN" },
+          },
+        },
+      },
+      orderBy: { numeroBolsin: "asc" },
+      select: {
+        id: true,
+        numeroBolsin: true,
+        numeroPrecinto: true,
+        cmDestino: { select: { nombre: true } },
+      },
+    });
+  }
+
   async buscarPorId(id: number) {
     const fila = await getPrisma().bolsin.findUnique({
       where: { id },

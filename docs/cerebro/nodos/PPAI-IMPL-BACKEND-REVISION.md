@@ -175,3 +175,9 @@ Pasaron TypeScript, ESLint, el build con Webpack y la validación de Compose. Vi
 ### [NACHO] Configuración de claves en InterfazGPSTracker
 
 Compose comparte las claves por modelo entre el backend y el GPS oficial mediante las variables de Spring correspondientes. La frontera valida las tres claves al construirse y conserva la selección por modelo documentada en [el nodo del Adapter](PPAI-PAT-ADAPTER-GPS.md#nacho-validación-de-apiskeys-en-la-frontera-gps). Vitest pasó 223 pruebas y omitió seis de integración HTTP que requieren el GPS oficial.
+
+### [NACHO] Primera pantalla de consulta del CU 36
+
+El endpoint autenticado de seguimiento conecta una consulta de bolsines Enviados por CM origen con `GestorConsultarUbicacionDeBolsin` y el Adapter XTR. La asignación de sede oficial está limitada a los diez fixtures del seed. La pantalla proyecta todas las posiciones recibidas y comparte la selección entre mapa y lista. La prueba de gestor cubre las dos sedes de Córdoba en un mismo lote y la consulta vacía. La prueba en vivo del mapa y los contenedores quedó pendiente por acceso local restringido.
+
+Pasaron TypeScript, ESLint y 225 pruebas de Vitest. Se omitieron las seis pruebas HTTP que requieren el GPS oficial. El build con Webpack falló con EPERM al crear un directorio bajo .next/static.
