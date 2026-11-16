@@ -48,19 +48,6 @@ export function MarcadorBolsin({
         if (isDesktop) onHoverChange(false);
       }}
     >
-      <span
-        aria-hidden="true"
-        className={cn(
-          "pointer-events-none absolute inset-0 rounded-full",
-          enVivo && !seleccionado && "animate-[ping_2.4s_cubic-bezier(0,0,0.2,1)_infinite] motion-reduce:animate-none",
-          seleccionado
-            ? "bg-primary/35"
-            : enVivo
-              ? "bg-lime/45"
-              : "bg-amber/35",
-        )}
-      />
-
       <button
         type="button"
         aria-label={ariaLabel}
@@ -77,7 +64,7 @@ export function MarcadorBolsin({
           onSeleccionar(bolsin.nroBolsin);
         }}
         className={cn(
-          "relative inline-flex min-h-12 min-w-12 md:min-h-9 md:min-w-0 items-center justify-center gap-1.5 rounded-full border-[1.5px] px-3 py-1.5",
+          "relative inline-flex min-h-12 min-w-12 md:min-h-9 md:min-w-0 items-center justify-center rounded-full border-[1.5px] px-3 py-1.5",
           "font-mono text-xs font-bold leading-none tabular-nums whitespace-nowrap cursor-pointer",
           "transition-transform duration-[var(--dur-fast)] ease-[var(--ease-expo)] motion-reduce:transition-none",
           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
@@ -90,22 +77,7 @@ export function MarcadorBolsin({
                 : "z-10 border-amber/70 bg-surface text-amber-ink hover:-translate-y-0.5 hover:scale-105",
         )}
       >
-        <svg
-          aria-hidden="true"
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="shrink-0"
-        >
-          <path d="M6 7h12l1 13H5L6 7Z" />
-          <path d="M9 7V5a3 3 0 0 1 6 0v2" />
-        </svg>
-        <span>#{bolsin.nroBolsin}</span>
+        <span>{bolsin.nroBolsin}</span>
       </button>
 
       {isDesktop && hovered && !seleccionado && (
