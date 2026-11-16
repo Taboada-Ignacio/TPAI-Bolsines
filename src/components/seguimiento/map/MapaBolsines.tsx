@@ -43,10 +43,12 @@ const cdn = "https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.1/dist/";
 
 export function MapaBolsines({
   puntos,
+  estilo,
   seleccionado,
   seleccionar,
 }: {
   puntos: PuntoBolsin[];
+  estilo: string;
   seleccionado: number | null;
   seleccionar: (id: number) => void;
 }) {
@@ -71,7 +73,7 @@ export function MapaBolsines({
           if (!biblioteca) throw new Error("MapLibre no está disponible.");
           const mapa = new biblioteca.Map({
             container: nodo,
-            style: "https://tiles.openfreemap.org/styles/bright",
+            style: estilo,
             renderWorldCopies: false,
             pitch: 0,
             bearing: 0,
@@ -105,7 +107,7 @@ export function MapaBolsines({
         if (actual) actual.mapa.remove();
       },
     );
-  }, [listo]);
+  }, [estilo, listo]);
 
   const botones = useRef(new Map<number, HTMLButtonElement>());
   const seleccionarRef = useRef(seleccionar);
@@ -191,7 +193,7 @@ export function MapaBolsines({
         <Button
           size="sm"
           className={estilos.reencuadrar}
-          disabled={!mapaActivo}
+          disabled={!mapaActivo || puntos.length === 0}
           onClick={() => encuadrar.current?.()}
         >
           Ver todos los puntos

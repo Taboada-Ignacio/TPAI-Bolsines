@@ -22,9 +22,12 @@ export class SesionService {
   }
 
   async consultar(id: number) {
-    const registro = await this.repositorio.buscarAbierta(id);
-    if (!registro) throw new SesionInvalida();
-    const perfil = await this.perfil(registro.usuarioId, registro.sesion);
+    const registro = await this.buscarEmpleadoLogueado(id);
+    const perfil = this.datosPerfil(
+      registro.usuarioId,
+      registro.sesion,
+      registro,
+    );
     return {
       ...perfil,
       sesion: { id, fechaHoraInicio: registro.sesion.getFechaHoraInicio() },
@@ -36,11 +39,39 @@ export class SesionService {
       throw new SesionInvalida();
   }
 
-  private async perfil(usuarioId: number, sesion: Sesion) {
-    const usuario = sesion.getUsuario();
+  async buscarEmpleadoLogueado(id: number) {
+    const registro = await this.repositorio.buscarAbierta(id);
+    if (!registro) throw new SesionInvalida();
+    const empleado = await this.identificarEmpleado(
+      registro.usuarioId,
+      registro.sesion,
+    );
+    return { ...registro, ...empleado };
+  }
+
+  private async identificarEmpleado(usuarioId: number, sesion: Sesion) {
     const registro = await this.repositorio.buscarEmpleado(usuarioId);
-    if (!registro || !registro.empleado.esTuUsuario(usuario))
+    if (!registro || !registro.empleado.esTuUsuario(sesion.getUsuario()))
       throw new SesionInvalida();
+    return registro;
+  }
+
+  private async perfil(usuarioId: number, sesion: Sesion) {
+    return this.datosPerfil(
+      usuarioId,
+      sesion,
+      await this.identificarEmpleado(usuarioId, sesion),
+    );
+  }
+
+  private datosPerfil(
+    usuarioId: number,
+    sesion: Sesion,
+    registro: NonNullable<
+      Awaited<ReturnType<RepositorioSesion["buscarEmpleado"]>>
+    >,
+  ) {
+    const usuario = sesion.getUsuario();
     const { empleado } = registro;
     const comision = empleado.getComisionMedica();
     return {

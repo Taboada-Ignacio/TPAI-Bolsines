@@ -221,3 +221,9 @@ ESLint, Prisma validate y Compose config pasaron. Vitest registró 250 pruebas a
 La corrección se limita al ciclo de vida de la pantalla y de MapLibre (ver nodo CU 36). La suite local registró 260 pruebas aprobadas y seis HTTP contra el GPS omitidas. El motor de Docker denegó acceso.
 
 ESLint pasó. El typecheck estándar detectó referencias generadas obsoletas bajo `.next/dev/types`. El build con Webpack quedó bloqueado por DNS de Google Fonts y por permisos de escritura bajo `.next`.
+
+### [NACHO] CU 36 y delegación al CU 31
+
+La pantalla de seguimiento delega la consulta, la selección y la confirmación en `PantallaConsultarUbicacionDeBolsines` y `GestorConsultarUbicacionDeBolsin`. Se reusan la sesión persistida y el envío del CU 31. Los repositorios hidratan entidades para aplicar las reglas de origen, estado y rol en el dominio. El [nodo del CU 36](PPAI-CU-36.md#nacho-consulta-selección-y-aviso-al-gcm) registra la correspondencia UML, los contratos y las diferencias entre vistas.
+
+Verificaciones de esta entrega: Vitest pasó 269 pruebas con un worker y omitió las seis pruebas HTTP del GPS. ESLint, Prisma y la validación de Compose pasaron. El typecheck estándar tropieza con referencias obsoletas de `.next/dev`; la comprobación que excluye esa salida generada obtuvo cero diagnósticos. El build con Webpack quedó bloqueado por DNS de Google Fonts y por permisos en `.next`. El acceso denegado a Docker impidió comprobar el mapa con GPS real y la recepción en Mailpit.

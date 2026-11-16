@@ -817,3 +817,15 @@ El servicio `backend` de Compose sirve la interfaz y los endpoints en una sola a
 Abrí [Seguimiento de bolsines](http://localhost:3000/seguimiento) e iniciá sesión con el usuario Encargado de Bolsines de la base de demostración. Para usar los fixtures 101 y 110 de Córdoba se requiere una base que ya los contenga. El seed aplica a bases nuevas y no agrega esas filas a una base inicializada.
 
 `GET /api/auth/cu36/seguimiento` consulta los bolsines Enviados de la comisión de la sesión y obtiene sus ubicaciones mediante el adaptador XTR. Para los fixtures traduce el par comisión local y número de bolsín al código oficial de sede. El mapa de OpenFreeMap usa MapLibre GL JS 5.6.1 y requiere acceso a jsDelivr y `tiles.openfreemap.org`. Al entrar, el zoom se calcula para incluir todos los puntos recibidos con margen. Se puede seleccionar desde un marcador o la lista y recuperar el encuadre con **Ver todos los puntos**.
+
+La Boundary `PantallaConsultarUbicacionDeBolsines` delega en `GestorConsultarUbicacionDeBolsin`. `InterfazGoogleMaps.obtenerMapaConPosicionDeBolsines()` llama a `ServidorGoogleMaps.getMapaLocation()` para preparar el estilo OpenFreeMap y las posiciones que consume MapLibre. Los nombres de ambas clases corresponden al UML.
+
+Filtrá por precinto o comisión de destino. Al seleccionar un bolsín, elegí **Confirmar notificación** o **No enviar correo**. Para verificar el envío en desarrollo, abrí [Mailpit](http://localhost:8025) y comprobá el destinatario, el número de bolsín, las coordenadas y la fecha GPS.
+
+| Operación | Contrato |
+| --- | --- |
+| `GET /api/auth/cu36/seguimiento` | Devuelve `{ comision, mapa: { estilo, puntos }, sinUbicacion }`. |
+| `POST /api/auth/cu36/seguimiento/seleccion` | Recibe `{ bolsinId }`, valida origen y estado, y devuelve la selección habilitada para confirmar. |
+| `POST /api/auth/cu36/seguimiento` | Recibe `{ bolsinId }`. Vuelve a validar sesión, rol, origen y estado, obtiene el GCM y el GPS, e invoca al CU 31. Devuelve `{ aceptada: true }` si el SMTP aceptó el envío. |
+
+La confirmación requiere exactamente un GCM para la CM destino. Si el GPS o el correo fallan, se informa el error. La matriz de correspondencia UML y las diferencias entre las vistas están en [el nodo del CU 36](docs/cerebro/nodos/PPAI-CU-36.md#nacho-consulta-selección-y-aviso-al-gcm).

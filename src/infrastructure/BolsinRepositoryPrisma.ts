@@ -1,9 +1,11 @@
-import type { Bolsin } from "@/domain/Bolsin";
-import type { CambioEstadoBolsin } from "@/domain/CambioEstadoBolsin";
-import { ComisionMedica } from "@/domain/ComisionMedica";
-import { Empleado } from "@/domain/Empleado";
-import { Rol } from "@/domain/Rol";
-import { Usuario } from "@/domain/Usuario";
+import { Bolsin } from "@/domain/Bolsin";
+import { CambioEstadoBolsin } from "@/domain/CambioEstadoBolsin";
+import { Estado } from "@/domain/Estado";
+import {
+  hidratarComision,
+  hidratarEmpleado,
+  asociacionesEmpleado,
+} from "./hidratarDominio";
 import {
   mensajeBolsinDuplicado,
   type DatosBolsin,
@@ -70,28 +72,51 @@ function asociar({
   };
 }
 
+const asociacionesSeguimiento = {
+  cmOrigen: true,
+  cmDestino: true,
+  cambiosEstado: {
+    where: { fechaHoraFin: null },
+    include: { estado: true, responsableCE: { include: asociacionesEmpleado } },
+  },
+} satisfies Prisma.BolsinInclude;
+
+function hidratarBolsin(
+  fila: Prisma.BolsinGetPayload<{ include: typeof asociacionesSeguimiento }>,
+) {
+  return {
+    id: fila.id,
+    bolsin: new Bolsin(
+      fila.fecha,
+      fila.numeroBolsin,
+      fila.numeroPrecinto,
+      Number(fila.peso),
+      hidratarComision(fila.cmOrigen),
+      hidratarComision(fila.cmDestino),
+      fila.cambiosEstado.map(
+        (cambio) =>
+          new CambioEstadoBolsin(
+            cambio.fechaHoraInicio,
+            cambio.fechaHoraFin,
+            new Estado(
+              cambio.estado.nombre,
+              cambio.estado.descripcion,
+              cambio.estado.ambito,
+            ),
+            hidratarEmpleado(cambio.responsableCE),
+          ),
+      ),
+    ),
+  };
+}
+
 export class BolsinRepositoryPrisma implements RepositorioBolsin {
   async buscarResponsable(id: number) {
     const fila = await getPrisma().empleado.findUnique({
       where: { id },
-      include: { usuario: true, rol: true, comisionMedica: true },
+      include: asociacionesEmpleado,
     });
-    if (!fila) return null;
-    const { usuario, rol, comisionMedica: cm } = fila;
-    return new Empleado(
-      fila.nombre,
-      fila.apellido,
-      fila.email,
-      new Usuario(usuario.nombre, usuario.contrasena),
-      new Rol(rol.nombre, rol.descripcion),
-      new ComisionMedica(
-        cm.codigo,
-        cm.direccion,
-        cm.email,
-        cm.nombre,
-        cm.telefono,
-      ),
-    );
+    return fila ? hidratarEmpleado(fila) : null;
   }
 
   async buscarIdPorOrigenYNumero(cmOrigenId: number, numeroBolsin: number) {
@@ -148,8 +173,8 @@ export class BolsinRepositoryPrisma implements RepositorioBolsin {
     return filas.map(resumir);
   }
 
-  listarEnviados(cmOrigenId: number) {
-    return getPrisma().bolsin.findMany({
+  async listarEnviados(cmOrigenId: number) {
+    const filas = await getPrisma().bolsin.findMany({
       where: {
         cmOrigenId,
         cambiosEstado: {
@@ -160,13 +185,17 @@ export class BolsinRepositoryPrisma implements RepositorioBolsin {
         },
       },
       orderBy: { numeroBolsin: "asc" },
-      select: {
-        id: true,
-        numeroBolsin: true,
-        numeroPrecinto: true,
-        cmDestino: { select: { nombre: true } },
-      },
+      include: asociacionesSeguimiento,
     });
+    return filas.map(hidratarBolsin);
+  }
+
+  async buscarParaSeguimiento(id: number) {
+    const fila = await getPrisma().bolsin.findUnique({
+      where: { id },
+      include: asociacionesSeguimiento,
+    });
+    return fila ? hidratarBolsin(fila) : null;
   }
 
   async buscarPorId(id: number) {
