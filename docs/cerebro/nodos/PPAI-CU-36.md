@@ -223,3 +223,9 @@ La implementación es por solicitud, sin guardar estado compartido entre usuario
 ### [NACHO] Sedes oficiales desde init.sql
 
 El seed asigna los códigos de sede oficiales a las asociaciones de origen y destino de los bolsines 101 a 110. El gestor pasa directamente el código de CM origen. El usuario bolsines.demo pertenece a CM-CBA-01 y ve el 101. El 110 pertenece a CM-CBA-02.
+
+### [NACHO] Variante del CU 36 con selección de GPS
+
+La ruta `/seguimiento/con-opcion-a-elegir` reutiliza el workspace, mapa y confirmación. El GET de la variante sin modelo identifica la CM y cuenta los bolsines enviados autorizados antes de habilitar el selector. El GET con modelo vuelve a validar la sesión y el lote, y cada solicitud crea un gestor independiente. La selección del bolsín y la confirmación usan endpoints de la variante. Para confirmar se vuelve a consultar la posición con el modelo elegido y se delega el correo al CU 31 existente.
+
+InterfazGPSTracker selecciona el adaptador concreto. El nuevo gestor pasa CM origen a XTR, CM destino a QX y solo los números a MTR. La normalización queda en los adaptadores. Un 404 de ubicación permite recuperar el resto del lote. El gestor original y los handlers del CU 36 con XTR fijo se conservan.

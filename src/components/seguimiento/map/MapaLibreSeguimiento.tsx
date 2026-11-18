@@ -286,7 +286,11 @@ export function MapaLibreSeguimiento({
         if (source) {
           source.setData(data);
           for (const [propiedad, valor] of Object.entries(paint ?? {})) {
-            map.setPaintProperty(id, propiedad, valor);
+            map.setPaintProperty(
+              id,
+              propiedad as keyof NonNullable<LineLayerSpecification["paint"]>,
+              valor,
+            );
           }
         } else {
           map.addSource(id, { type: "geojson", data });

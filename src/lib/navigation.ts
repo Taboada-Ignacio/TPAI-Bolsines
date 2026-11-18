@@ -64,6 +64,17 @@ export const DESTINOS: Destino[] = [
     enTablero: true,
   },
   {
+    id: "seguimiento-con-seleccion",
+    href: "/seguimiento/con-opcion-a-elegir",
+    nombre: "Seguimiento con selección de GPS",
+    nombreCorto: "Elegir GPS",
+    detalle: "Consultar bolsines con el modelo GPS que elijas",
+    icono: MapPinned,
+    cuerpo: "bleed",
+    enTablero: true,
+    roles: ["Encargado de Bolsines"],
+  },
+  {
     id: "empleados",
     href: "/empleados",
     nombre: "Empleados",
@@ -109,7 +120,10 @@ export function getDestinoActivo(
   pathname: string,
   destinos: readonly Destino[] = DESTINOS,
 ): Destino | undefined {
-  return destinos.find((destino) => esDestinoActivo(pathname, destino));
+  return (
+    destinos.find((destino) => pathname === destino.href) ??
+    destinos.find((destino) => esDestinoActivo(pathname, destino))
+  );
 }
 
 export function repartirDestinosPildora(

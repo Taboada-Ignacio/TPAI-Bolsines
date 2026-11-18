@@ -38,6 +38,7 @@ export interface ConfirmarNotificacionModalProps {
   bolsin: BolsinSeguimiento | null;
   cmOrigen?: CmOrigenSeguimiento | null;
   modeloGps: ModeloGps;
+  conSeleccion?: boolean;
   onCerrar: () => void;
   onNotificacionEnviada?: (resultado: NotificarUbicacionResultado) => void;
 }
@@ -77,6 +78,7 @@ export function ConfirmarNotificacionModal({
   bolsin,
   cmOrigen,
   modeloGps,
+  conSeleccion = false,
   onCerrar,
   onNotificacionEnviada,
 }: ConfirmarNotificacionModalProps) {
@@ -188,6 +190,7 @@ export function ConfirmarNotificacionModal({
           fechaHoraActualizacion: bolsin.ubicacion?.fechaHoraActualizacion,
         },
         controller.signal,
+        conSeleccion,
       );
 
       if (controller.signal.aborted) return;
@@ -207,7 +210,7 @@ export function ConfirmarNotificacionModal({
         abortControllerRef.current = null;
       }
     }
-  }, [bolsin, estaEnviando, modeloGps, onNotificacionEnviada]);
+  }, [bolsin, estaEnviando, modeloGps, conSeleccion, onNotificacionEnviada]);
 
   const origenResuelto = cmOrigen ?? bolsin?.cmOrigen ?? null;
   const coordenadas = bolsin ? formatearCoordenadas(bolsin) : null;

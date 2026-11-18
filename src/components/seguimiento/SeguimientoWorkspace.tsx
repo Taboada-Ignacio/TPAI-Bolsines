@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/actions/Button";
 import { IconButton } from "@/components/ui/actions/IconButton";
 import { MicroLabel } from "@/components/ui/display/MicroLabel";
 import { SplitFlap } from "@/components/ui/display/SplitFlap";
+import { Select } from "@/components/ui/forms/Select";
 import { Input } from "@/components/ui/forms/Input";
 import { Island } from "@/components/ui/surfaces/Island";
 import { ResponsiveSheet } from "@/components/ui/surfaces/ResponsiveSheet";
@@ -36,6 +37,7 @@ import {
   ErrorSeguimientoCliente,
   obtenerSeguimientoBolsines,
   seleccionarBolsinSeguimiento,
+  solicitarTipoTracker,
 } from "@/services/seguimiento/seguimiento-cliente";
 
 gsap.registerPlugin(useGSAP);
@@ -64,7 +66,11 @@ export function filtrarBolsinesSeguimiento(
   });
 }
 
-export function SeguimientoWorkspace() {
+export function SeguimientoWorkspace({
+  conSeleccion = false,
+}: {
+  conSeleccion?: boolean;
+}) {
   const workspaceRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -73,7 +79,9 @@ export function SeguimientoWorkspace() {
   const mobileListaTitleId = useId();
   const mobileDetalleTitleId = useId();
 
-  const [modeloGps, setModeloGps] = useState<ModeloGps>(MODELOS_GPS[0]);
+  const [modeloGps, setModeloGps] = useState<ModeloGps | null>(
+    conSeleccion ? null : MODELOS_GPS[0],
+  );
   const [bolsines, setBolsines] = useState<BolsinSeguimiento[]>([]);
   const [estiloMapa, setEstiloMapa] = useState<string>();
   const [cmOrigen, setCmOrigen] = useState<CmOrigenSeguimiento | null>(null);
@@ -96,18 +104,33 @@ export function SeguimientoWorkspace() {
     setRefreshTick((prev) => prev + 1);
   }, []);
 
-  const handleModeloGpsChange = useCallback((nuevoModelo: ModeloGps) => {
+  function tomarTipoTracker(valor: string) {
+    const modelo = MODELOS_GPS.find((opcion) => opcion === valor);
+    if (!modelo || modelo === modeloGps) return;
     setLoading(true);
     setError(null);
-    setModeloGps(nuevoModelo);
-  }, []);
+    setBolsines([]);
+    setSeleccionadoNro(null);
+    setHoveredBolsinNro(null);
+    setNotificarModalAbierto(false);
+    setModeloGps(modelo);
+  }
 
   useEffect(() => {
     abortControllerRef.current?.abort();
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    obtenerSeguimientoBolsines(modeloGps, controller.signal)
+    const consulta = modeloGps
+      ? obtenerSeguimientoBolsines(modeloGps, controller.signal, conSeleccion)
+      : solicitarTipoTracker(controller.signal).then((cm) => ({
+          bolsines: [],
+          cmOrigen: cm,
+          estiloMapa: undefined,
+          esModoDemo: false,
+        }));
+
+    consulta
       .then((resultado) => {
         if (controller.signal.aborted) return;
 
@@ -140,7 +163,7 @@ export function SeguimientoWorkspace() {
     return () => {
       controller.abort();
     };
-  }, [modeloGps, refreshTick]);
+  }, [modeloGps, refreshTick, conSeleccion]);
 
   useGSAP(
     () => {
@@ -235,6 +258,8 @@ export function SeguimientoWorkspace() {
       try {
         const seleccion = await seleccionarBolsinSeguimiento(
           bolsinSeleccionado.id,
+          undefined,
+          conSeleccion,
         );
         if (!seleccion.confirmarNotificacion) return;
       } catch (err: unknown) {
@@ -247,7 +272,7 @@ export function SeguimientoWorkspace() {
       }
     }
     setNotificarModalAbierto(true);
-  }, [bolsinSeleccionado, esModoDemo]);
+  }, [bolsinSeleccionado, esModoDemo, conSeleccion]);
 
   const handleAnterior = useCallback(() => {
     if (!puedeAnterior) return;
@@ -277,6 +302,28 @@ export function SeguimientoWorkspace() {
   const codigoOrigen = cmOrigen?.codigo ?? "CM-01";
   const etiquetaContador =
     bolsinesFiltrados.length === 1 ? "bolsín" : "bolsines";
+
+  function mostrarSelectorTracker() {
+    if (!conSeleccion || !cmOrigen) return null;
+    return (
+      <label className="mb-3 grid gap-1.5">
+        <MicroLabel>Modelo de GPS Tracker</MicroLabel>
+        <Select
+          value={modeloGps ?? ""}
+          onChange={(evento) => tomarTipoTracker(evento.target.value)}
+        >
+          <option value="" disabled>
+            Elegí un modelo
+          </option>
+          {MODELOS_GPS.map((modelo) => (
+            <option key={modelo} value={modelo}>
+              {modelo}
+            </option>
+          ))}
+        </Select>
+      </label>
+    );
+  }
 
   return (
     <div
@@ -354,6 +401,7 @@ export function SeguimientoWorkspace() {
         </header>
 
         <div className="border-b border-hair px-4 py-3">
+          {mostrarSelectorTracker()}
           <SeguimientoFiltrosBar
             precintoQuery={precintoQuery}
             onPrecintoChange={setPrecintoQuery}
@@ -368,18 +416,20 @@ export function SeguimientoWorkspace() {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <BolsinesTransitoList
-            bolsines={bolsinesFiltrados}
-            totalGeneral={bolsines.length}
-            loading={loading}
-            error={error}
-            seleccionadoNro={bolsinSeleccionado?.nroBolsin ?? null}
-            hoveredBolsinNro={hoveredBolsinNro}
-            onSeleccionar={handleSeleccionar}
-            onHoverBolsin={setHoveredBolsinNro}
-            onReintentar={solicitarRecarga}
-            onLimpiarFiltros={handleLimpiarFiltros}
-          />
+          {conSeleccion && !modeloGps && !loading && !error ? null : (
+            <BolsinesTransitoList
+              bolsines={bolsinesFiltrados}
+              totalGeneral={bolsines.length}
+              loading={loading}
+              error={error}
+              seleccionadoNro={bolsinSeleccionado?.nroBolsin ?? null}
+              hoveredBolsinNro={hoveredBolsinNro}
+              onSeleccionar={handleSeleccionar}
+              onHoverBolsin={setHoveredBolsinNro}
+              onReintentar={solicitarRecarga}
+              onLimpiarFiltros={handleLimpiarFiltros}
+            />
+          )}
         </div>
       </Island>
 
@@ -458,7 +508,7 @@ export function SeguimientoWorkspace() {
           leftIcon={<ListFilter className="size-3.5" />}
           className="shrink-0"
         >
-          Lista
+          {conSeleccion && !modeloGps ? "Elegir GPS" : "Lista"}
         </Button>
       </Island>
 
@@ -491,6 +541,7 @@ export function SeguimientoWorkspace() {
         </div>
 
         <div className="border-b border-hair px-4 py-3">
+          {mostrarSelectorTracker()}
           <SeguimientoFiltrosBar
             precintoQuery={precintoQuery}
             onPrecintoChange={setPrecintoQuery}
@@ -505,18 +556,20 @@ export function SeguimientoWorkspace() {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <BolsinesTransitoList
-            bolsines={bolsinesFiltrados}
-            totalGeneral={bolsines.length}
-            loading={loading}
-            error={error}
-            seleccionadoNro={bolsinSeleccionado?.nroBolsin ?? null}
-            hoveredBolsinNro={hoveredBolsinNro}
-            onSeleccionar={handleSeleccionar}
-            onHoverBolsin={setHoveredBolsinNro}
-            onReintentar={solicitarRecarga}
-            onLimpiarFiltros={handleLimpiarFiltros}
-          />
+          {conSeleccion && !modeloGps && !loading && !error ? null : (
+            <BolsinesTransitoList
+              bolsines={bolsinesFiltrados}
+              totalGeneral={bolsines.length}
+              loading={loading}
+              error={error}
+              seleccionadoNro={bolsinSeleccionado?.nroBolsin ?? null}
+              hoveredBolsinNro={hoveredBolsinNro}
+              onSeleccionar={handleSeleccionar}
+              onHoverBolsin={setHoveredBolsinNro}
+              onReintentar={solicitarRecarga}
+              onLimpiarFiltros={handleLimpiarFiltros}
+            />
+          )}
         </div>
       </ResponsiveSheet>
 
@@ -606,7 +659,8 @@ export function SeguimientoWorkspace() {
         abierto={notificarModalAbierto}
         bolsin={bolsinSeleccionado}
         cmOrigen={cmOrigen}
-        modeloGps={modeloGps}
+        modeloGps={modeloGps ?? MODELOS_GPS[0]}
+        conSeleccion={conSeleccion}
         onCerrar={() => setNotificarModalAbierto(false)}
       />
     </div>

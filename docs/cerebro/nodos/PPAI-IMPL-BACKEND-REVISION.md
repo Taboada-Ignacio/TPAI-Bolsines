@@ -328,3 +328,9 @@ Los bolsines 101–110 de init.sql coinciden por número, CM origen y CM destino
 ### [NACHO] Catálogo inicial limitado a las sedes GPS
 
 Una base nueva carga solo las 11 sedes de la API GPS oficial. Los usuarios de demostración y los 35 bolsines ficticios usan esas sedes. Los diez pares de origen y destino oficiales se conservan, y run-init.mjs exige un gerente con usuario y correo por cada una de las 11 comisiones.
+
+### [NACHO] Integración de la variante con selección de GPS
+
+El nuevo gestor GestorConsultarUbicacionesDeBolsinConSeleccion aplica los mismos filtros del CU 36 y usa una instancia por solicitud para conservar el modelo sin compartirlo entre usuarios. Ver el flujo en PPAI-CU-36.
+
+Verificación local. Pasaron 300 pruebas, el chequeo de tipos y ESLint y Prettier para los archivos de código de la tarea. El lint global señaló problemas previos en MarcadorMapa y LoginForm. Las compilaciones con Turbopack y Webpack quedaron bloqueadas por permisos de escritura en .next.

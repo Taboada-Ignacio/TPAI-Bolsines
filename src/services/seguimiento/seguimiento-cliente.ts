@@ -1,4 +1,4 @@
-import type { z } from "zod";
+import { z } from "zod";
 import {
   type BolsinSeguimiento,
   type Cu36BackendResponse,
@@ -370,12 +370,35 @@ function adaptarCu36Backend(
  * Consulta la ubicación actual de los bolsines en tránsito en el backend real (CU 36).
  * Si el endpoint no está disponible (404/501), devuelve un respaldo controlado de demostración.
  */
+const ENDPOINT_SEGUIMIENTO = "/api/auth/cu36/seguimiento";
+const ENDPOINT_CON_SELECCION = `${ENDPOINT_SEGUIMIENTO}/con-opcion-a-elegir`;
+
+export async function solicitarTipoTracker(signal?: AbortSignal) {
+  const respuesta = await consultarJsonConRespaldo(
+    ENDPOINT_CON_SELECCION,
+    { method: "GET" },
+    z.object({
+      cmOrigen: z.object({
+        codigo: z.string(),
+        nombre: z.string(),
+        direccion: z.string(),
+      }),
+      cantidadBolsines: z.number().int().nonnegative(),
+    }),
+    undefined,
+    signal,
+  );
+  return respuesta.cmOrigen;
+}
+
 export async function obtenerSeguimientoBolsines(
   modelo: ModeloGps,
   signal?: AbortSignal,
+  conSeleccion = false,
 ): Promise<SeguimientoResultado> {
   const modeloValidado = modeloGpsSchema.parse(modelo);
-  const url = `/api/auth/cu36/seguimiento?modeloGps=${encodeURIComponent(modeloValidado)}`;
+  const endpoint = conSeleccion ? ENDPOINT_CON_SELECCION : ENDPOINT_SEGUIMIENTO;
+  const url = `${endpoint}?modeloGps=${encodeURIComponent(modeloValidado)}`;
 
   const seguimientoRes = await consultarJsonConRespaldo<
     SeguimientoResponse | Cu36BackendResponse
@@ -383,7 +406,9 @@ export async function obtenerSeguimientoBolsines(
     url,
     { method: "GET" },
     seguimientoResponseSchema.or(cu36BackendResponseSchema),
-    () => construirRespaldoSeguimiento(modeloValidado),
+    conSeleccion
+      ? undefined
+      : () => construirRespaldoSeguimiento(modeloValidado),
     signal,
   );
 
@@ -405,9 +430,10 @@ export async function obtenerSeguimientoBolsines(
 export async function seleccionarBolsinSeguimiento(
   bolsinId: number,
   signal?: AbortSignal,
+  conSeleccion = false,
 ): Promise<Cu36SeleccionResponse & { esModoDemo: boolean }> {
   return consultarJsonConRespaldo<Cu36SeleccionResponse>(
-    "/api/auth/cu36/seguimiento/seleccion",
+    `${conSeleccion ? ENDPOINT_CON_SELECCION : ENDPOINT_SEGUIMIENTO}/seleccion`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -427,18 +453,29 @@ export async function seleccionarBolsinSeguimiento(
 export async function notificarUbicacionGerente(
   payload: NotificarUbicacionRequest,
   signal?: AbortSignal,
+  conSeleccion = false,
 ): Promise<NotificarUbicacionResultado> {
   const payloadValidado = notificarUbicacionRequestSchema.parse(payload);
 
   const usaCu36 = typeof payloadValidado.bolsinId === "number";
+  if (conSeleccion && !usaCu36) {
+    throw new ErrorSeguimientoCliente(
+      "El bolsín no tiene un identificador válido para notificar.",
+    );
+  }
   const endpoint = usaCu36
-    ? "/api/auth/cu36/seguimiento"
+    ? conSeleccion
+      ? ENDPOINT_CON_SELECCION
+      : ENDPOINT_SEGUIMIENTO
     : "/api/auth/cu31/notificar-ubicacion";
 
   const fechaHoraActualizacion =
     payloadValidado.fechaHoraActualizacion ?? new Date().toISOString();
   const bodyBackend = usaCu36
-    ? { bolsinId: payloadValidado.bolsinId }
+    ? {
+        bolsinId: payloadValidado.bolsinId,
+        ...(conSeleccion ? { modeloGps: payloadValidado.modeloGps } : {}),
+      }
     : {
         ...(payloadValidado.emailDestino
           ? { emailDestino: payloadValidado.emailDestino }

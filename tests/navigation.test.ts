@@ -74,6 +74,7 @@ describe("navigation", () => {
     expect(base.principales).toHaveLength(3);
     expect(base.extras.map((d) => d.id)).toEqual([
       "bolsines",
+      "seguimiento-con-seleccion",
       "empleados",
       "perfil",
     ]);
@@ -99,7 +100,7 @@ describe("navigation", () => {
   });
 
   it("filtra destinos visibles en el tablero de Inicio", () => {
-    const tablero = getDestinosTablero(DESTINOS);
+    const tablero = getDestinosTablero(getDestinosVisibles("Operador"));
     expect(tablero.map((d) => d.id)).toEqual([
       "seguimiento",
       "comisiones-medicas",
@@ -110,6 +111,11 @@ describe("navigation", () => {
       detalle: "Consultar ubicación de bolsines",
       href: "/seguimiento",
     });
+    expect(
+      getDestinosTablero(getDestinosVisibles("Encargado de Bolsines")).map(
+        (destino) => destino.href,
+      ),
+    ).toContain("/seguimiento/con-opcion-a-elegir");
   });
 
   it("construye segmentos de breadcrumb tipo URL desde pathname", () => {

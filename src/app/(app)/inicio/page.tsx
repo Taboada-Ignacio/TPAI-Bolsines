@@ -4,12 +4,12 @@ import { PageHeading } from "@/components/layout/PageHeading";
 import { BoardRow } from "@/components/ui/display/BoardRow";
 import { Marker } from "@/components/ui/display/Marker";
 import { MicroLabel } from "@/components/ui/display/MicroLabel";
-import { getDestinosTablero } from "@/lib/navigation";
+import { getDestinosTablero, getDestinosVisibles } from "@/lib/navigation";
 import { getSesionActual } from "@/services/auth/sesion-actual";
 
 export default async function InicioPage() {
   const sesion = await getSesionActual();
-  const destinos = getDestinosTablero();
+  const destinos = getDestinosTablero(getDestinosVisibles(sesion.rol));
   const cmCorta = sesion.cm.nombre.replace(/^CM\s+/i, "");
 
   return (
