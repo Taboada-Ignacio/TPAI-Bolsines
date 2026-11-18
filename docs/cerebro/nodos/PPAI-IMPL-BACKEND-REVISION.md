@@ -34,7 +34,7 @@ La separación en capas (`domain`, `services`, `infrastructure`, `adapters`, `dt
 - [x] Endpoint técnico `GET /api/health` + DTO Zod + test unitario (`tests/health.test.ts`).
 - [x] Entidades del dominio en `src/domain/`: `Usuario`, `Sesion`, `Empleado`, `Rol`, `ComisionMedica`, `Bolsin`, `CambioEstadoBolsin`, `Estado` + 9 tests unitarios (`tests/domain.test.ts`).
 - [x] Esquema relacional en `prisma/schema.prisma` (8 tablas `snake_case`, `ON DELETE RESTRICT`, índices y unicidades) y migración inicial `20261114202500_init_domain_entities`.
-- [x] Singleton de Prisma Client en `src/infrastructure/prisma.ts`.
+- [x] Singleton de Prisma Client en `src/persistence/prisma.ts`.
 
 ---
 
@@ -61,7 +61,7 @@ La separación en capas (`domain`, `services`, `infrastructure`, `adapters`, `dt
 
 ### P5 — Capas pendientes para completar el CU 36 y CU 30/31
 - [ ] Repositorios concretos en `src/infrastructure/` que mapeen entre modelos Prisma y entidades de `src/domain/`.
-- [ ] Implementación de `IGPSTrackerAdapter`, adaptadores concretos (`XTR4500LAdapter`, `NavTrackQX7AAdapter`, `GeoPulseMTR900Adapter`) y `GPSTrackerAdapterFactory` en `src/adapters/`.
+- [ ] Implementación de `IGPSTrackerAdapter`, adaptadores concretos (`XTR4500LAdapter`, `NavTrackQX7AAdapter`, `GeoPulseMTR900Adapter`) y `GPSTrackerAdapterFactory` en `src/externalInterfaces/gpsTracker/`.
 - [ ] `GestorSeguimientoBolsines` en `src/services/` + endpoints del CU 36 en `src/app/api/`.
 - [ ] Integración de notificación por email (CU 30/31 — Microsoft Graph o servicio equivalente).
 
@@ -175,8 +175,8 @@ La implementación de los métodos pendientes de las entidades, la integración 
 Para desarrollar y testear el frontend sin depender de Docker ni de una instancia externa de PostgreSQL, en `feature/frontend` se agregó soporte opcional de PostgreSQL en memoria (`pg-mem`):
 
 - **Archivos:**
-  - `src/infrastructure/prisma.ts`: `getPrisma()` revisa `process.env.USE_PG_MEM === "true"`.
-  - `src/infrastructure/pg-mem-prisma.ts`: `crearPrismaEnMemoria()` levanta una instancia `pg-mem`, ejecuta el DDL de `prisma/migrations/20261114202500_init_domain_entities/migration.sql` y carga los seeds iniciales (`rol`, `estado`, `comision_medica`, `usuario`, `empleado`).
+  - `src/persistence/prisma.ts`: `getPrisma()` revisa `process.env.USE_PG_MEM === "true"`.
+  - `src/persistence/pg-mem-prisma.ts`: `crearPrismaEnMemoria()` levanta una instancia `pg-mem`, ejecuta el DDL de `prisma/migrations/20261114202500_init_domain_entities/migration.sql` y carga los seeds iniciales (`rol`, `estado`, `comision_medica`, `usuario`, `empleado`).
   - `tests/pg-mem-integration.test.ts`: test de integración que valida tablas, seeds, login, registro y actualización de perfil sobre `pg-mem`.
 - **Cómo desactivarlo para correr con Docker + PostgreSQL real (como antes):**
   1. En `.env` (o en el entorno del contenedor), **no definir `USE_PG_MEM`** o dejar **`USE_PG_MEM=false`** (en `docker-compose.yml` no está seteada, así que por defecto ya usa PostgreSQL real).
@@ -219,8 +219,8 @@ Pasaron TypeScript, ESLint y 225 pruebas de Vitest. Se omitieron las seis prueba
 Para desarrollar y testear el frontend sin depender de Docker ni de una instancia externa de PostgreSQL, en `feature/frontend` se agregó soporte opcional de PostgreSQL en memoria (`pg-mem`):
 
 - **Archivos:**
-  - `src/infrastructure/prisma.ts`: `getPrisma()` revisa `process.env.USE_PG_MEM === "true"`.
-  - `src/infrastructure/pg-mem-prisma.ts`: `crearPrismaEnMemoria()` levanta una instancia `pg-mem`, ejecuta el DDL de `prisma/migrations/20261114202500_init_domain_entities/migration.sql` y carga los seeds iniciales (`rol`, `estado`, `comision_medica`, `usuario`, `empleado`).
+  - `src/persistence/prisma.ts`: `getPrisma()` revisa `process.env.USE_PG_MEM === "true"`.
+  - `src/persistence/pg-mem-prisma.ts`: `crearPrismaEnMemoria()` levanta una instancia `pg-mem`, ejecuta el DDL de `prisma/migrations/20261114202500_init_domain_entities/migration.sql` y carga los seeds iniciales (`rol`, `estado`, `comision_medica`, `usuario`, `empleado`).
   - `tests/pg-mem-integration.test.ts`: test de integración que valida tablas, seeds, login, registro y actualización de perfil sobre `pg-mem`.
 - **Cómo desactivarlo para correr con Docker + PostgreSQL real (como antes):**
   1. En `.env` (o en el entorno del contenedor), **no definir `USE_PG_MEM`** o dejar **`USE_PG_MEM=false`** (en `docker-compose.yml` no está seteada, así que por defecto ya usa PostgreSQL real).
@@ -252,3 +252,67 @@ Verificaciones de esta entrega: Vitest pasó 269 pruebas con un worker y omitió
 ### [NACHO] Integración cartográfica efectiva
 
 El backend devuelve el estilo de OpenFreeMap y los puntos normalizados por el Adapter XTR. MapLibre GL JS renderiza `/seguimiento` en el navegador. Las referencias anteriores a Google Maps describen el UML o decisiones históricas. El mapa implementado prescinde de su API y SDK. El [nodo del CU 36](PPAI-CU-36.md#nacho-tecnologías-cartográficas-del-cu-36) registra la elección estética y distingue el enlace público del correo.
+
+### [NACHO] Reinicio del gestor del CU 36 (2026-11-18)
+
+A pedido del usuario se retiró toda la lógica de `GestorConsultarUbicacionDeBolsin` para reprogramarlo desde cero. Esta sección reemplaza las descripciones anteriores del gestor como funcional: consulta, selección y confirmación están pendientes. Se eliminaron métodos privados, mapeos de fixtures, construcción de DTOs, consultas GPS y delegación al CU 31 dentro del gestor.
+
+Se conservan la clase, el error exportado, los argumentos del constructor y las firmas de los tres métodos públicos para mantener compatibles los consumidores existentes. El constructor no guarda ni utiliza dependencias; el proveedor GPS es opcional y no se instancia. Cada operación rechaza con `ErrorSeguimientoBolsines(503, "Gestor pendiente de implementación.")`, que la Boundary transforma en HTTP 503. No se devuelve una consulta vacía como si hubiera sido exitosa. El Adapter, entidades, repositorios, pantalla y CU 31 independiente siguen en sus archivos existentes.
+
+El UML aprobado se conserva como objetivo de reimplementación; el esqueleto actual no implementa sus responsabilidades ni colaboraciones. Las 12 pruebas anteriores de `tests/seguimiento-bolsines.test.ts` se preservan en una suite `describe.skip` y deben revisarse y reactivarse durante la reimplementación.
+
+Verificación: Vitest con un worker pasó 307 pruebas y omitió 18 (12 del gestor y 6 HTTP GPS). ESLint de los archivos modificados pasó. El typecheck no pudo aprobarse por referencias obsoletas en `.next/dev`, ausencia de `maplibre-gl` y tipos `google` en archivos ajenos al cambio. Pendiente: reimplementar el gestor según UML, reactivar sus pruebas y verificar CU 36 completo con GPS y correo.
+
+### [NACHO] Reinicio de los adaptadores y servicios GPS
+
+La frontera GPS quedó sin implementaciones de proveedor. Véase el [nodo del Adapter](PPAI-PAT-ADAPTER-GPS.md#nacho-reinicio-de-la-implementación-del-adapter-gps-2026-11-18) para el comportamiento provisional y las suites pendientes.
+
+Verificación del reinicio GPS: Vitest pasó 272 pruebas y omitió las 12 del gestor. ESLint de los archivos TypeScript editados pasó. El typecheck sigue bloqueado por las referencias obsoletas de Next y las dependencias y tipos faltantes de mapas ya registrados. El grafo se regeneró con 37 nodos y 184 aristas válidas.
+
+### [NACHO] Capa de persistencia
+
+Se movieron los seis repositorios Prisma, la conexión Prisma, la implementación pg-mem y los dos auxiliares de mapeo y escritura a `src/persistence/`. Los archivos conservan su contenido. Se actualizaron los imports y mocks en los consumidores. Los contratos del dominio, el UML y los endpoints conservan sus responsabilidades.
+
+Vitest pasó 272 pruebas y omitió las 12 del gestor. ESLint pasó para los archivos de la reorganización. Typecheck continúa bloqueado por los errores previos de tipos generados de Next y dependencias de mapas.
+
+### [NACHO] Capa de integraciones externas
+
+Se movieron ServidorGoogleMaps a `src/integrations/maps/`, ServicioCorreoSMTP a `src/integrations/mail/` y TransporteHTTPGPS a `src/integrations/gpsTracker/`. Se actualizaron los imports de las fronteras y rutas de CU 36 y CU 31 y de sus pruebas. El cambio conserva el comportamiento, las relaciones del UML y la persistencia en `src/persistence/`.
+
+Vitest aprobó 272 pruebas y omitió las 12 del gestor. ESLint pasó para los archivos TypeScript de la reorganización. TypeScript sigue reportando referencias obsoletas en .next/dev y dependencias o tipos faltantes de MapLibre y Google. Sigue pendiente reimplementar el gestor y los servicios GPS.
+
+### [NACHO] Adapter GPS implementado de forma independiente
+
+Volvieron los tres adaptadores y sus respectivos servicios en `src/integrations/gpsTracker/`. La frontera admite la firma XTR del UML actualizado y la sobrecarga anterior. Se contrastaron las operaciones con los diagramas de clases y secuencia. El gestor, las pantallas y rutas del CU 36 quedaron fuera de esta tarea. Véase el [nodo del Adapter GPS](PPAI-PAT-ADAPTER-GPS.md).
+
+Vitest aprobó 276 pruebas y omitió las 12 del gestor. Las cuatro pruebas nuevas usan respuestas HTTP simuladas. ESLint y Prettier pasaron para los archivos del patrón y su prueba. TypeScript reportó errores previos en los tipos generados de Next, MapLibre y tipos de Google. El build genero Prisma Client y luego fallo porque no pudo descargar las fuentes de Google Fonts ni resolver maplibre-gl.
+
+### [NACHO] Fronteras externas agrupadas por proveedor
+
+`src/externalInterfaces/gpsTracker/` contiene la frontera GPS, el contrato, los tres adaptadores y la validación de localizaciones. `src/externalInterfaces/maps/` contiene la frontera cartográfica. Se actualizaron las referencias de los consumidores, pruebas y especificaciones. Las clases conservan sus firmas y relaciones UML. Los servicios concretos siguen en `src/integrations/`.
+
+Vitest aprobó 276 pruebas y omitió las 12 del gestor. ESLint y Prettier pasaron en los archivos TypeScript afectados. El chequeo global de tipos sigue bloqueado por las referencias generadas de Next y los tipos o dependencias de mapas ya registrados.
+
+### [NACHO] Sobrecargas GPS con modelo explícito
+
+La frontera selecciona XTR, QX o MTR mediante el primer argumento. XTR toma códigos de origen, QX de destino y MTR requiere solo los números además del modelo. Se actualizaron el ejemplo del README y las expectativas de llamada en las pruebas. El gestor sigue pendiente de integración.
+
+Vitest aprobó 276 pruebas y omitió las 12 del gestor. ESLint y Prettier aprobaron los archivos TypeScript afectados. El chequeo de tipos conserva los errores previos de Next y mapas.
+
+### [NACHO] Consulta de mapa disponible en el GET de seguimiento
+
+El GET conecta la sesión, el Adapter GPS y la frontera cartográfica mediante una consulta de lectura en la composición de la ruta. La identificación del Encargado y el listado de envíos del CU 36 mantienen su criterio de visibilidad. La búsqueda cartográfica posterior es global, y la ruta verifica que los identificadores enriquecidos pertenezcan al lote autorizado antes de devolverlos. El gestor permanece como esqueleto para sus métodos propios y la confirmación del correo sigue pendiente. Esta composición difiere del diagrama histórico, donde el gestor invoca la frontera; `obtenerMapaConPosicionDeBolsines()` y `getMapaLocation()` conservan su delegación.
+
+Las consultas GPS distinguen los 404 individuales y evitan inventar coordenadas. La respuesta conserva el total sin ubicación y agrega los datos serializables de recorrido. La persistencia incorpora `buscarParaMapa(numeros)` con una consulta por lote y las dos relaciones de comisión, sin cambios en el esquema.
+
+Vitest aprobó 280 pruebas y omitió 12 del gestor. Las pruebas nuevas cubren la búsqueda por número y sus ambigüedades, el cálculo compartido, el flujo HTTP con datos simulados y la adaptación de la respuesta en el cliente. El chequeo de tipos reportó los errores previos de Next y mapas. La prueba visual y contra los proveedores en vivo quedó pendiente por falta de MapLibre instalado, resolución DNS de npm y disponibilidad del motor de Docker.
+
+### [NACHO] Gestor CU 36 conectado al Adapter XTR, mapa y CU 31
+
+El GET deja la composición provisoria y pasa por el gestor. Se implementaron las operaciones de consulta, selección y confirmación mediante repositorios y servicios existentes. XTR-4500L es el único recorrido GPS del CU 36. El parámetro histórico `modeloGps` conserva la validación de valores conocidos y la elección del modelo se determina en el gestor. QX y MTR conservan sus contratos independientes. El método de selección revalida acceso y estado por solicitud. La confirmación resuelve el gerente y su email en servidor y entrega los datos al CU 31. Véase el [flujo del CU 36](PPAI-CU-36.md#nacho-ejecución-del-cu-36-por-el-gestor-con-xtr-4500l).
+
+Vitest aprobó 293 pruebas, incluidas las 12 pruebas reactivadas del gestor, la ruta GET con sesión firmada y dependencias simuladas, y la propagación de errores en la confirmación. ESLint y Prettier aprobaron los archivos de la tarea. ESLint global conserva un error en `MarcadorMapa.tsx` y dos advertencias previas. El typecheck global conserva referencias obsoletas de Next y la falta de MapLibre y tipos de Google. El build generó Prisma Client y se detuvo por MapLibre y la descarga fallida de Google Fonts. La prueba integral con los servicios en vivo queda pendiente.
+
+### [NACHO] Sedes oficiales desde init.sql
+
+Se retiró origenesGpsDelSeed. init.sql incorpora las sedes oficiales y, al reaplicarse, actualiza los fixtures anteriores identificados por número, precinto y origen anterior. Los remitos y el mapa referencian las nuevas sedes. La verificación en PostgreSQL queda pendiente porque el motor de Docker no está disponible.

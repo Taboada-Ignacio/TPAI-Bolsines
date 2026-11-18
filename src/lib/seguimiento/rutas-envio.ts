@@ -29,6 +29,18 @@ export const COORDENADAS_CM_ARGENTINA: Record<string, LatLngLiteral> = {
   "CM-05": { lat: -26.8083, lng: -65.2176 }, // Tucumán
   // Códigos oficiales del catálogo en BD (24 Comisiones Médicas)
   "CM-BA": { lat: -34.9214, lng: -57.9545 }, // La Plata, Buenos Aires
+  // Coordenadas de referencia para las sedes del seed GPS.
+  "CM-CBA-01": { lat: -31.4201, lng: -64.1888 },
+  "CM-CBA-02": { lat: -31.378, lng: -64.218 },
+  "CM-ROS-02": { lat: -32.9468, lng: -60.6393 },
+  "CM-MDZ-03": { lat: -32.8895, lng: -68.8458 },
+  "CM-BA-01": { lat: -34.6037, lng: -58.3816 },
+  "CM-TUC-01": { lat: -26.8083, lng: -65.2176 },
+  "CM-SLA-01": { lat: -24.7821, lng: -65.4232 },
+  "CM-JUJ-01": { lat: -24.1858, lng: -65.2995 },
+  "CM-NQN-01": { lat: -38.9516, lng: -68.0591 },
+  "CM-MDQ-01": { lat: -38.0055, lng: -57.5426 },
+  "CM-LPL-01": { lat: -34.9214, lng: -57.9545 },
   "CM-CABA": { lat: -34.6037, lng: -58.3816 }, // CABA
   "CM-CAT": { lat: -28.4696, lng: -65.7852 }, // San Fernando del Valle de Catamarca
   "CM-CBA": { lat: -31.4201, lng: -64.1888 }, // Córdoba Capital
@@ -349,7 +361,8 @@ export function calcularRutaGeodesicaEnvio(
   bolsin: BolsinSeguimiento,
   cmOrigenFallback?: CmOrigenSeguimiento | null,
 ): RutaEnvioResuelta {
-  const codigoOrigenRaw = bolsin.cmOrigen?.codigo ?? cmOrigenFallback?.codigo ?? "CM-01";
+  const codigoOrigenRaw =
+    bolsin.cmOrigen?.codigo ?? cmOrigenFallback?.codigo ?? "CM-01";
   const codigoDestinoRaw = bolsin.cmDestino.codigo;
 
   const origen = obtenerCoordenadaCm(
@@ -397,7 +410,7 @@ function claveParOrigenDestino(
   return `${origen.lat.toFixed(4)},${origen.lng.toFixed(4)}->${destino.lat.toFixed(4)},${destino.lng.toFixed(4)}`;
 }
 
-async function consultarOsrmRuta(
+export async function consultarOsrmRuta(
   origen: LatLngLiteral,
   destino: LatLngLiteral,
 ): Promise<LatLngLiteral[] | null> {
@@ -435,6 +448,17 @@ async function consultarOsrmRuta(
         return null;
       }
 
+      if (
+        coords.some(
+          (coord) =>
+            !Array.isArray(coord) ||
+            !Number.isFinite(coord[0]) ||
+            Math.abs(coord[0]) > 180 ||
+            !Number.isFinite(coord[1]) ||
+            Math.abs(coord[1]) > 90,
+        )
+      )
+        return null;
       const path: LatLngLiteral[] = coords.map(([lng, lat]) => ({ lat, lng }));
       osrmCache.set(cacheKey, path);
       return path;

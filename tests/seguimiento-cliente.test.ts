@@ -206,9 +206,69 @@ describe("seguimiento-cliente (CU 36 + CU 30/31)", () => {
       expect(res.cmOrigen.codigo).toBe("CM-CBA");
       expect(res.bolsines).toHaveLength(1);
       expect(res.bolsines[0]?.cmDestino.codigo).toBe("CM-ROS");
-      expect(res.bolsines[0]?.cmDestino.emailGcm).toBe("cm-rosario@example.com");
+      expect(res.bolsines[0]?.cmDestino.emailGcm).toBe(
+        "cm-rosario@example.com",
+      );
     },
   );
+
+  it("entrega al mapa las rutas y fechas del backend sin consultar el catalogo", async () => {
+    const origen = {
+      codigo: "CM-CBA",
+      nombre: "Cordoba",
+      direccion: "Origen 1",
+    };
+    const recorrido = {
+      origen: { lat: -31, lng: -64 },
+      destino: { lat: -32, lng: -60 },
+      trazado: [
+        { lat: -31, lng: -64 },
+        { lat: -32, lng: -60 },
+      ],
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      mockFetchResponse(200, {
+        comision: "Cordoba",
+        mapa: {
+          estilo: "https://tiles.openfreemap.org/styles/bright",
+          comisionOrigen: origen,
+          puntos: [
+            {
+              id: 1,
+              numero: 101,
+              precinto: 123,
+              latitud: -30,
+              longitud: -62,
+              actualizado: "2026-11-15T14:22:00.000Z",
+              cmOrigen: origen,
+              destino: "Santa Fe",
+              codigoDestino: "CM-SF",
+              direccionDestino: "Destino 1",
+              recorrido,
+            },
+          ],
+        },
+        sinUbicacion: 0,
+      }),
+    );
+
+    const resultado = await obtenerSeguimientoBolsines("XTR-4500L");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(resultado.estiloMapa).toBe(
+      "https://tiles.openfreemap.org/styles/bright",
+    );
+    expect(resultado.bolsines[0]).toMatchObject({
+      recorrido,
+      cmOrigen: origen,
+      cmDestino: { direccion: "Destino 1" },
+      ubicacion: {
+        latitud: -30,
+        longitud: -62,
+        fechaHoraActualizacion: "2026-11-15T14:22:00.000Z",
+      },
+    });
+  });
 
   it.each<ModeloGps>(MODELOS_GPS)(
     "notificarUbicacionGerente envía al endpoint real /api/auth/cu31/notificar-ubicacion y retorna confirmación",
@@ -253,7 +313,9 @@ describe("seguimiento-cliente (CU 36 + CU 30/31)", () => {
     const res = await obtenerSeguimientoBolsines("XTR-4500L");
     expect(res.esModoDemo).toBe(true);
     expect(
-      res.bolsines.some((b) => b.ubicacion?.estadoCobertura === "sin_cobertura"),
+      res.bolsines.some(
+        (b) => b.ubicacion?.estadoCobertura === "sin_cobertura",
+      ),
     ).toBe(true);
   });
 
@@ -304,11 +366,12 @@ describe("seguimiento-cliente (CU 36 + CU 30/31)", () => {
   });
 
   it("seleccionarBolsinSeguimiento invoca POST /api/auth/cu36/seguimiento/seleccion", async () => {
-    const fetchSpy = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        mockFetchResponse(200, { seleccionado: 7, confirmarNotificacion: true }),
-      );
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      mockFetchResponse(200, {
+        seleccionado: 7,
+        confirmarNotificacion: true,
+      }),
+    );
 
     const res = await seleccionarBolsinSeguimiento(7);
     expect(res).toEqual({
@@ -323,6 +386,22 @@ describe("seguimiento-cliente (CU 36 + CU 30/31)", () => {
         body: JSON.stringify({ bolsinId: 7 }),
       }),
     );
+  });
+
+  it("conserva el error real cuando el bolsín de CU 36 ya no existe", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+      mockFetchResponse(404, { error: "El bolsín no existe." }),
+    );
+
+    const error = { status: 404, message: "El bolsín no existe." };
+    await expect(seleccionarBolsinSeguimiento(7)).rejects.toMatchObject(error);
+    await expect(
+      notificarUbicacionGerente({
+        bolsinId: 7,
+        nroBolsin: 101,
+        modeloGps: "XTR-4500L",
+      }),
+    ).rejects.toMatchObject(error);
   });
 
   it("notificarUbicacionGerente consume la respuesta enriquecida de CU 36", async () => {

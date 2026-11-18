@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { SesionRepositoryPrisma } from "@/infrastructure/SesionRepositoryPrisma";
+import { SesionRepositoryPrisma } from "@/persistence/SesionRepositoryPrisma";
 import {
   getSigningKey,
   SESSION_COOKIE_NAME,

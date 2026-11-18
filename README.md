@@ -319,8 +319,9 @@ Las comprobaciones de integración requieren PostgreSQL y los endpoints activos.
 | Controller     | `src/app/api`        | Route Handlers de Next.js. Reciben solicitudes y construyen respuestas HTTP.                       |
 | Service        | `src/services`       | Coordina los casos de uso mediante contratos de repositorios e integraciones.                      |
 | Domain         | `src/domain`         | Aloja entidades, reglas e interfaces de negocio independientes del framework y de la persistencia. |
-| Infrastructure | `src/infrastructure` | Centraliza Prisma Client y aloja las implementaciones de repositorios.                             |
-| Adapter        | `src/adapters`       | Aloja la frontera GPS y los adaptadores GoF que normalizan los contratos de los proveedores.       |
+| Persistence    | `src/persistence`    | Prisma, pg-mem, repositorios y mapeo a entidades.                                                   |
+| Integrations | `src/integrations` | Cartografía en `maps/`, correo SMTP en `mail/` y transporte GPS en `gpsTracker/`. |
+| External Interfaces | `src/externalInterfaces` | Fronteras de GPS y cartografía, con los adaptadores GoF en `gpsTracker/`. |
 | DTO            | `src/dtos`           | Aloja esquemas Zod y tipos para los contratos HTTP.                                                |
 
 La página mínima y el layout viven en `src/app`. `prisma/` contiene el esquema y las migraciones. `tests/` contiene las pruebas de los endpoints, los servicios de catálogos y el dominio. El alias `@/*` apunta a `src/*` tanto en Next.js como en Vitest.
@@ -626,7 +627,7 @@ $id = [int]$perfil.sesion.id
 
 Se esperan `204` al cerrar, `401` al reutilizar la cookie y una fecha de fin no nula en PostgreSQL.
 
-`Empleado.obtenerCM()` devuelve el nombre y la dirección de la comisión médica asociada en el formato `Nombre de la Comisión Médica - Dirección`. En el CU 36, el gestor lo invocará sobre el empleado identificado como logueado.
+`Empleado.obtenerCM()` devuelve el nombre y la dirección de la comisión médica asociada en el formato `Nombre de la Comisión Médica - Dirección`. En el CU 36, el gestor lo invoca sobre el empleado identificado como logueado.
 
 ### Consultas de dominio para el CU 36
 
@@ -636,7 +637,7 @@ Se esperan `204` al cerrar, `401` al reutilizar la cookie y una fecha de fin no 
 
 - `Empleado.esTuCM()` compara el código de su comisión con el de destino. `Empleado.sosGCM()` delega en `Rol.esGCM()`, que comprueba el nombre exacto `Gerente de Comisión Médica`.
 
-El gestor que coordinará estas operaciones queda pendiente.
+El gestor coordina la consulta, la selección y el aviso opcional. El aviso al gerente se procesa mediante el CU 31 al confirmar.
 
 ## GPS Tracker oficial de la cátedra
 
@@ -705,20 +706,19 @@ Cada concreto implementa directamente la interfaz y declara sus propios atributo
 | `MTR-900`   | `nroBolsin`                 | `fetchCargoPositions` · matriz JSON con tres números y una fecha |
 
 ```typescript
-import { InterfazGPSTracker } from "@/adapters/InterfazGPSTracker";
+import { InterfazGPSTracker } from "@/externalInterfaces/gpsTracker/InterfazGPSTracker";
 
 const tracker = new InterfazGPSTracker();
 const localizaciones = await tracker.obtenerLocalizacionDeBolsines(
   "XTR-4500L",
   [101],
   ["CM-CBA-01"],
-  [],
 );
 ```
 
 Cada fila tiene cuatro cadenas en orden `[nroBolsin, latitud, longitud, fechaHoraActualizacion]`. Las consultas se esperan de forma asíncrona en el orden del lote. Cada adaptador valida el número devuelto, la cantidad de campos, los rangos geográficos y la fecha ISO 8601 en UTC. Las fechas oficiales sin zona se interpretan como hora argentina (UTC−03:00) y se convierten a UTC. Un error interrumpe el lote y se propaga como `ErrorGPSTracker`, con `tipo` y, para errores HTTP, `estadoHttp`. El transporte preserva estados como `400`, `401` y `404` y distingue errores de conexión y timeout.
 
-La futura integración del CU 36 contempla XTR-4500L con CM origen, QX-7A con CM destino y MTR-900 con el número de bolsín. `Bolsin.obtenerCodCMOrigen()` y `Bolsin.obtenerCodCMDestino()` leen los códigos de sus asociaciones. `Empleado.esTuCM(cm)` compara códigos y `Empleado.sosGCM()` delega en `Rol.esGCM()`. La CM destino del bolsín seleccionado se consulta posteriormente para el correo. El [tramo GPS de la secuencia](docs/cerebro/nodos/PPAI-CU-36.md#nacho-tramo-gps-del-cu-36-con-cm-origen) documenta los mensajes de ese recorrido.
+El CU 36 fija `MODELO_GPS_TRACKER = "XTR-4500L" as const` y consulta el Adapter con números y códigos de CM origen alineados por posición. La CM destino se usa en el mapa y para buscar el gerente al confirmar el aviso. QX-7A y MTR-900 siguen disponibles en el Adapter para otros consumidores. El [tramo GPS de la secuencia](docs/cerebro/nodos/PPAI-CU-36.md#nacho-tramo-gps-del-cu-36-con-cm-origen) documenta los mensajes de ese recorrido.
 
 Al construir `InterfazGPSTracker`, se copian y validan exactamente tres claves en `apisKeys`, en orden XTR-4500L, NavTrack QX-7A y GeoPulse MTR-900. Si alguna falta o está en blanco, se lanza `ErrorGPSTracker` de tipo `CONFIGURACION` sin incluir valores. `crearAdaptador()` entrega por constructor únicamente la clave del modelo solicitado.
 

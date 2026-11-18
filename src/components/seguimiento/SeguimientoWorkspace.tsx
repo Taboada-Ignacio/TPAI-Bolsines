@@ -75,6 +75,7 @@ export function SeguimientoWorkspace() {
 
   const [modeloGps, setModeloGps] = useState<ModeloGps>(MODELOS_GPS[0]);
   const [bolsines, setBolsines] = useState<BolsinSeguimiento[]>([]);
+  const [estiloMapa, setEstiloMapa] = useState<string>();
   const [cmOrigen, setCmOrigen] = useState<CmOrigenSeguimiento | null>(null);
   const [esModoDemo, setEsModoDemo] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -112,6 +113,7 @@ export function SeguimientoWorkspace() {
 
         setBolsines(resultado.bolsines);
         setCmOrigen(resultado.cmOrigen);
+        setEstiloMapa(resultado.estiloMapa);
         setEsModoDemo(resultado.esModoDemo);
         setSeleccionadoNro((prev) => {
           if (prev === null) return null;
@@ -300,6 +302,7 @@ export function SeguimientoWorkspace() {
       <div className="absolute inset-0 z-0">
         <MapaSeguimiento
           bolsines={bolsinesFiltrados}
+          estiloBase={estiloMapa}
           seleccionadoNro={bolsinSeleccionado?.nroBolsin ?? null}
           hoveredBolsinNro={hoveredBolsinNro}
           onHoverBolsin={setHoveredBolsinNro}
@@ -519,7 +522,9 @@ export function SeguimientoWorkspace() {
 
       {/* Mobile (< 768px): Sheet con detalle del bolsín seleccionado */}
       <ResponsiveSheet
-        open={!isDesktop && Boolean(bolsinSeleccionado) && !mobileDetalleMinimizado}
+        open={
+          !isDesktop && Boolean(bolsinSeleccionado) && !mobileDetalleMinimizado
+        }
         onClose={() => {
           setSeleccionadoNro(null);
           setMobileDetalleMinimizado(false);

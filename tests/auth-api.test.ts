@@ -15,7 +15,7 @@ const db = vi.hoisted(() => ({
   empleado: { findUnique: vi.fn() },
   sesion: { create: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn() },
 }));
-vi.mock("@/infrastructure/prisma", () => ({ getPrisma: () => db }));
+vi.mock("@/persistence/prisma", () => ({ getPrisma: () => db }));
 
 const credenciales = { nombre: "bolsines.demo", contrasena: "123456" };
 const usuario = { id: 31, ...credenciales };

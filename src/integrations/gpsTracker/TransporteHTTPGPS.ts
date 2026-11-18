@@ -1,5 +1,10 @@
 import { ErrorGPSTracker } from "@/lib/gps-tracker/ErrorGPSTracker";
 
+/**
+ * Centraliza las solicitudes HTTP a los servicios GPS. Incorpora las credenciales,
+ * controla los tiempos de espera y traduce los errores de comunicación.
+ * Los servicios comparten este transporte y los adaptadores interpretan los datos.
+ */
 export class TransporteHTTPGPS {
   constructor(
     private readonly baseUrl = process.env.GPS_TRACKER_BASE_URL ??

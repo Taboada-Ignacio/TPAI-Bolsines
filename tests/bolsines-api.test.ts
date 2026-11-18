@@ -27,7 +27,7 @@ const db = vi.hoisted(() => ({
   comisionMedica: { findUnique: vi.fn() },
   $transaction: vi.fn(),
 }));
-vi.mock("@/infrastructure/prisma", () => ({ getPrisma: () => db }));
+vi.mock("@/persistence/prisma", () => ({ getPrisma: () => db }));
 
 const url = "http://localhost/api/bolsines";
 const estados = [

@@ -1,5 +1,8 @@
 export interface IAdaptadorLocalizacionBolsines {
-  recibirLocalizacionBolsines(): Promise<string[][]>;
+  recibirLocalizacionBolsines(
+    apiKey: string,
+    nrosBolsines: number[],
+  ): Promise<string[][]>;
   solicitarLocalizacionBolsines(): Promise<void>;
   adaptarLocalizacionBolsines(): void;
 }

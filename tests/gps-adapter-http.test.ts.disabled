@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { InterfazGPSTracker } from "@/adapters/InterfazGPSTracker";
-import { ServicioGPSTrackerMTR900 } from "@/infrastructure/ServicioGPSTrackerMTR900";
-import { ServicioGPSTrackerQX7A } from "@/infrastructure/ServicioGPSTrackerQX7A";
-import { ServicioGPSTrackerXTR4500L } from "@/infrastructure/ServicioGPSTrackerXTR4500L";
-import { TransporteHTTPGPS } from "@/infrastructure/TransporteHTTPGPS";
+import { InterfazGPSTracker } from "@/externalInterfaces/gpsTracker/InterfazGPSTracker";
+import { ServicioGPSTrackerMTR900 } from "@/integrations/gpsTracker/ServicioGPSTrackerMTR900";
+import { ServicioGPSTrackerQX7A } from "@/integrations/gpsTracker/ServicioGPSTrackerQX7A";
+import { ServicioGPSTrackerXTR4500L } from "@/integrations/gpsTracker/ServicioGPSTrackerXTR4500L";
+import { TransporteHTTPGPS } from "@/integrations/gpsTracker/TransporteHTTPGPS";
 
 const url = process.env.GPS_ADAPTER_TEST_BASE_URL ?? "";
 const solicitudes: Parameters<

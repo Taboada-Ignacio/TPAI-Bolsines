@@ -114,3 +114,35 @@ La frontera configura una clave por modelo en `apisKeys`, en orden XTR, QX y MTR
 ### [NACHO] Ubicaciones GPS y cartografía
 
 `AdaptadorXTR4500L.adaptarLocalizacionBolsines()` interpreta y valida el JSON de XTR-4500L y normaliza sus filas. El gestor recibe esas filas mediante `InterfazGPSTracker`, las asocia a los bolsines y entrega los puntos a la frontera cartográfica. MapLibre GL JS representa los puntos sobre los recursos de OpenFreeMap. Los dos componentes cartográficos intervienen en la visualización y la API GPS oficial aporta la ubicación.
+
+### [NACHO] Reinicio de la implementación del Adapter GPS (2026-11-18)
+
+Se retiraron `IAdaptadorLocalizacionBolsines`, los adaptadores XTR-4500L, QX-7A y MTR-900 y sus tres servicios TypeScript. El diseño y las relaciones UML de las secciones anteriores quedan como referencia para reimplementarlos. En el código, `InterfazGPSTracker` conserva las firmas de consulta y creación, valida la correspondencia de códigos por modelo y devuelve una lista vacía para un lote válido sin bolsines. La creación y cualquier consulta con bolsines fallan con `ErrorGPSTracker("NO_IMPLEMENTADO")`. La frontera ya no selecciona adaptadores ni lee claves.
+
+El transporte HTTP común y la API oficial en Compose se conservan. Las suites anteriores se guardaron como `tests/gps-adapter.test.ts.disabled` y `tests/gps-adapter-http.test.ts.disabled`, fuera de Vitest y TypeScript mientras falten las clases. Queda pendiente reconstruir el Adapter y adaptar y reactivar esas pruebas.
+
+### [NACHO] Carpeta de integración GPS
+
+`TransporteHTTPGPS.ts` vive en `src/integrations/gpsTracker/`. Los imports de las suites desactivadas apuntan allí para el transporte y los futuros servicios. La frontera y el diseño de los adaptadores corresponden a `src/externalInterfaces/gpsTracker/`.
+
+### [NACHO] Reimplementación según UML actualizado
+
+`IAdaptadorLocalizacionBolsines` declara `recibirLocalizacionBolsines(apiKey, nrosBolsines)`, `solicitarLocalizacionBolsines()` y `adaptarLocalizacionBolsines()`. XTR recibe los códigos de origen por constructor y adapta JSON; QX recibe los de destino y adapta CSV; MTR valida y normaliza la fila de la matriz del servicio. Las clases implementan la interfaz directamente. El flujo de XTR encadena creación, recepción, solicitud y adaptación como en la secuencia. Cada fila conserva el número solicitado, las coordenadas y la fecha ISO UTC.
+
+La frontera expone la firma UML de dos argumentos para XTR y conserva la sobrecarga previa con modelo y códigos de origen y destino. Las operaciones de red devuelven Promise en TypeScript y los constructores permiten inyectar servicios para pruebas. El lote vacío válido devuelve una matriz vacía. Los errores HTTP, incluidos los 404, se propagan al consumidor. Una respuesta inválida o asociada a otro bolsín también rechaza el lote.
+
+Los tres servicios y `TransporteHTTPGPS` viven en `src/integrations/gpsTracker/`. El transporte centraliza credenciales, timeout y errores de comunicación. XTR y QX devuelven el cuerpo como texto; MTR entrega la matriz del contrato. La integración con el gestor del CU 36 queda pendiente.
+
+### [NACHO] Selección explícita del modelo en las sobrecargas
+
+La frontera sustituye las firmas anteriores por tres sobrecargas. La primera posición identifica el modelo y las siguientes contienen el lote y, cuando corresponde, sus códigos de CM.
+
+- XTR-4500L: `obtenerLocalizacionDeBolsines("XTR-4500L", nrosBolsines, codigosCMOrigen)`.
+- QX-7A: `obtenerLocalizacionDeBolsines("QX-7A", nrosBolsines, codigosCMDestino)`.
+- MTR-900: `obtenerLocalizacionDeBolsines("MTR-900", nrosBolsines)`.
+
+Este cambio aprobado agrega el modelo explícito a la firma XTR del UML. Las tres sobrecargas comparten implementación, conservan `Promise<string[][]>` y seleccionan el adaptador y la clave por modelo. La integración del gestor del CU 36 sigue pendiente.
+
+### [NACHO] Adaptación del JSON dentro de la operación XTR
+
+`AdaptadorXTR4500L.adaptarLocalizacionBolsines()` interpreta el JSON, valida el esquema, construye la fila y valida su correspondencia con el bolsín. Se eliminó el método privado `adaptarRespuesta()` para alinear las operaciones de la clase con el UML. Se conservan el contrato y los errores del adaptador. Vitest aprobó 276 pruebas y omitió las 12 del gestor.

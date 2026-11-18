@@ -48,6 +48,22 @@ VALUES
   ('CM-CABA', 'Comisión Médica Ciudad Autónoma de Buenos Aires', 'Sede ficticia - Ciudad Autónoma de Buenos Aires, Argentina', 'cm-caba@example.com', '0000000024')
 ON CONFLICT (codigo) DO NOTHING;
 
+-- Sedes identificadas por la API GPS oficial.
+INSERT INTO public.comision_medica (codigo, nombre, direccion, email, telefono)
+VALUES
+  ('CM-CBA-01', 'CM Cordoba Centro', 'Sede ficticia - Cordoba Centro, Argentina', 'cm-cba-01@example.com', '0000000025'),
+  ('CM-CBA-02', 'CM Cordoba Norte', 'Sede ficticia - Cordoba Norte, Argentina', 'cm-cba-02@example.com', '0000000026'),
+  ('CM-ROS-02', 'CM Rosario', 'Sede ficticia - Rosario, Argentina', 'cm-ros-02@example.com', '0000000027'),
+  ('CM-MDZ-03', 'CM Mendoza', 'Sede ficticia - Mendoza, Argentina', 'cm-mdz-03@example.com', '0000000028'),
+  ('CM-BA-01', 'CM Buenos Aires', 'Sede ficticia - Buenos Aires, Argentina', 'cm-ba-01@example.com', '0000000029'),
+  ('CM-TUC-01', 'CM Tucuman', 'Sede ficticia - Tucuman, Argentina', 'cm-tuc-01@example.com', '0000000030'),
+  ('CM-SLA-01', 'CM Salta', 'Sede ficticia - Salta, Argentina', 'cm-sla-01@example.com', '0000000031'),
+  ('CM-JUJ-01', 'CM Jujuy', 'Sede ficticia - Jujuy, Argentina', 'cm-juj-01@example.com', '0000000032'),
+  ('CM-NQN-01', 'CM Neuquen', 'Sede ficticia - Neuquen, Argentina', 'cm-nqn-01@example.com', '0000000033'),
+  ('CM-MDQ-01', 'CM Mar del Plata', 'Sede ficticia - Mar del Plata, Argentina', 'cm-mdq-01@example.com', '0000000034'),
+  ('CM-LPL-01', 'CM La Plata', 'Sede ficticia - La Plata, Argentina', 'cm-lpl-01@example.com', '0000000035')
+ON CONFLICT (codigo) DO NOTHING;
+
 -- 4. Empleados y usuarios ficticios
 -- La comprobación por email y el alta deben serializarse incluso sin UNIQUE.
 LOCK TABLE public.empleado IN SHARE ROW EXCLUSIVE MODE;
@@ -59,12 +75,21 @@ DECLARE
   id_rol integer;
   id_comision integer;
 BEGIN
+  UPDATE public.empleado e
+  SET comision_medica_id = nueva.id
+  FROM public.comision_medica anterior, public.comision_medica nueva
+  WHERE e.comision_medica_id = anterior.id
+    AND (
+      (e.email = 'bolsines.demo@example.com' AND anterior.codigo = 'CM-CBA' AND nueva.codigo = 'CM-CBA-01')
+      OR (e.email = 'gerente.demo@example.com' AND anterior.codigo = 'CM-SF' AND nueva.codigo = 'CM-ROS-02')
+    );
+
   FOR demo IN
     SELECT * FROM (VALUES
       ('Martín', 'Fernández', 'parametrizador.demo', 'Parametrizador del sistema', 'CM-CABA'),
       ('Lucía', 'González', 'documentacion.demo', 'Encargado de Documentación', 'CM-CBA'),
-      ('Nicolás', 'Rodríguez', 'bolsines.demo', 'Encargado de Bolsines', 'CM-CBA'),
-      ('Carolina', 'Martínez', 'gerente.demo', 'Gerente de Comisión Médica', 'CM-SF')
+      ('Nicolás', 'Rodríguez', 'bolsines.demo', 'Encargado de Bolsines', 'CM-CBA-01'),
+      ('Carolina', 'Martínez', 'gerente.demo', 'Gerente de Comisión Médica', 'CM-ROS-02')
     ) AS datos(nombre, apellido, usuario, rol, comision)
   LOOP
     IF EXISTS (
@@ -132,30 +157,41 @@ BEGIN
         'documentacion.demo@example.com',
         'bolsines.demo@example.com',
         'gerente.demo@example.com'
-      ])[(serie - 1) % 4 + 1] AS responsable
+      ])[(serie - 1) % 4 + 1] AS responsable,
+      NULL::text AS origen_anterior
     FROM generate_series(1, 35) AS numeros(serie)
     UNION ALL
     -- Fixtures del GPS oficial (bd457ed8349a08dad9f3533dd93530aebf844204).
-    -- Las CM locales son correspondencias geográficas. Para XTR y QX se
-    -- deben enviar los códigos oficiales indicados en cada fila.
+    -- Cada fixture referencia directamente las sedes de la API GPS.
     -- Bolsin no persiste el modelo GPS. Los modelos comentados son para pruebas.
     SELECT numero, 940000 + numero, 600,
       TIMESTAMPTZ '2026-03-07 09:00:00-03',
-      origen, destino, 'Enviado', 'bolsines.demo@example.com'
+      origen, destino, 'Enviado', 'bolsines.demo@example.com', origen_anterior
     FROM (VALUES
-      (101, 'CM-CBA', 'CM-SF'),  -- CM-CBA-01 -> CM-ROS-02 / XTR-4500L
-      (102, 'CM-SF',  'CM-MZA'), -- CM-ROS-02 -> CM-MDZ-03 / NavTrack QX-7A
-      (103, 'CM-MZA', 'CM-BA'),  -- CM-MDZ-03 -> CM-BA-01 / GeoPulse MTR-900
-      (104, 'CM-BA',  'CM-CBA'), -- CM-BA-01 -> CM-CBA-01 / XTR-4500L
-      (105, 'CM-TUC', 'CM-SAL'), -- CM-TUC-01 -> CM-SLA-01 / NavTrack QX-7A
-      (106, 'CM-SAL', 'CM-JUJ'), -- CM-SLA-01 -> CM-JUJ-01 / GeoPulse MTR-900
-      (107, 'CM-NEU', 'CM-BA'),  -- CM-NQN-01 -> CM-MDQ-01 / XTR-4500L
-      (108, 'CM-BA',  'CM-BA'),  -- CM-MDQ-01 -> CM-BA-01 / NavTrack QX-7A
-      (109, 'CM-BA',  'CM-CBA'), -- CM-LPL-01 -> CM-CBA-01 / GeoPulse MTR-900
-      (110, 'CM-CBA', 'CM-SF')   -- CM-CBA-02 -> CM-ROS-02 / XTR-4500L
-    ) AS gps(numero, origen, destino)
+      (101, 'CM-CBA-01', 'CM-ROS-02', 'CM-CBA'), -- XTR-4500L
+      (102, 'CM-ROS-02', 'CM-MDZ-03', 'CM-SF'), -- NavTrack QX-7A
+      (103, 'CM-MDZ-03', 'CM-BA-01', 'CM-MZA'), -- GeoPulse MTR-900
+      (104, 'CM-BA-01', 'CM-CBA-01', 'CM-BA'), -- XTR-4500L
+      (105, 'CM-TUC-01', 'CM-SLA-01', 'CM-TUC'), -- NavTrack QX-7A
+      (106, 'CM-SLA-01', 'CM-JUJ-01', 'CM-SAL'), -- GeoPulse MTR-900
+      (107, 'CM-NQN-01', 'CM-MDQ-01', 'CM-NEU'), -- XTR-4500L
+      (108, 'CM-MDQ-01', 'CM-BA-01', 'CM-BA'), -- NavTrack QX-7A
+      (109, 'CM-LPL-01', 'CM-CBA-01', 'CM-BA'), -- GeoPulse MTR-900
+      (110, 'CM-CBA-02', 'CM-ROS-02', 'CM-CBA') -- XTR-4500L
+    ) AS gps(numero, origen, destino, origen_anterior)
   LOOP
     SELECT id INTO STRICT id_origen FROM public.comision_medica WHERE codigo = demo.origen;
+
+    -- Actualizar únicamente los fixtures sembrados con el código anterior.
+    IF demo.origen_anterior IS NOT NULL AND NOT EXISTS (
+      SELECT 1 FROM public.bolsin WHERE cm_origen_id = id_origen AND numero_bolsin = demo.numero
+    ) THEN
+      UPDATE public.bolsin
+      SET cm_origen_id = id_origen,
+          cm_destino_id = (SELECT id FROM public.comision_medica WHERE codigo = demo.destino)
+      WHERE numero_bolsin = demo.numero AND numero_precinto = demo.precinto
+        AND cm_origen_id = (SELECT id FROM public.comision_medica WHERE codigo = demo.origen_anterior);
+    END IF;
 
     IF EXISTS (
       SELECT 1 FROM public.bolsin WHERE cm_origen_id = id_origen AND numero_bolsin = demo.numero
@@ -184,9 +220,9 @@ $bolsines$;
 INSERT INTO public.remito (numero, asunto, tipo_documento, bolsin_id)
 SELECT rem.numero, rem.asunto, rem.tipo_documento, b.id
 FROM (VALUES
-  (101, 'CM-CBA', 'REM-4101', 'Dictamen Junta Médica #101', 'Expediente médico'),
-  (104, 'CM-BA',  'REM-4104', 'Oficio judicial SRT 104/26', 'Nota legal'),
-  (110, 'CM-CBA', 'REM-4110', 'Historia clínica certificada #110', 'Documentación clínica')
+  (101, 'CM-CBA-01', 'REM-4101', 'Dictamen Junta Médica #101', 'Expediente médico'),
+  (104, 'CM-BA-01', 'REM-4104', 'Oficio judicial SRT 104/26', 'Nota legal'),
+  (110, 'CM-CBA-02', 'REM-4110', 'Historia clínica certificada #110', 'Documentación clínica')
 ) AS rem(numero_bolsin, origen_codigo, numero, asunto, tipo_documento)
 JOIN public.comision_medica cm ON cm.codigo = rem.origen_codigo
 JOIN public.bolsin b ON b.cm_origen_id = cm.id AND b.numero_bolsin = rem.numero_bolsin

@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/auth/cu31/notificar-ubicacion/route";
 import { firmarSesion, servicio } from "@/app/api/auth/sesion";
-import { ServicioCorreoSMTP } from "@/infrastructure/ServicioCorreoSMTP";
+import { ServicioCorreoSMTP } from "@/integrations/mail/ServicioCorreoSMTP";
 import { GestorNotificarUbicacionBolsin } from "@/services/GestorNotificarUbicacionBolsin";
 import {
   ErrorEnvioCorreo,
@@ -15,7 +15,7 @@ const { createTransport, sendMail, getPrisma } = vi.hoisted(() => ({
   getPrisma: vi.fn(),
 }));
 vi.mock("nodemailer", () => ({ createTransport }));
-vi.mock("@/infrastructure/prisma", () => ({ getPrisma }));
+vi.mock("@/persistence/prisma", () => ({ getPrisma }));
 
 const datos = {
   emailDestino: "gcm.cm-cba@example.test",

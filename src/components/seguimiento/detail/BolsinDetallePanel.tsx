@@ -38,6 +38,7 @@ const FORMATO_FECHA_AR = new Intl.DateTimeFormat("es-AR", {
   hour: "2-digit",
   minute: "2-digit",
   hour12: false,
+  timeZone: "America/Argentina/Buenos_Aires",
 });
 
 const FORMATO_PESO_AR = new Intl.NumberFormat("es-AR", {
@@ -64,7 +65,9 @@ export function BolsinDetallePanel({
   puedeSiguiente = true,
   className,
 }: BolsinDetallePanelProps) {
-  const origen = cmOrigen ?? bolsin.cmOrigen ?? null;
+  const origen = bolsin.recorrido
+    ? bolsin.cmOrigen
+    : (bolsin.cmOrigen ?? cmOrigen);
   const codigoOrigen = origen?.codigo ?? "ORIGEN";
   const codigoDestino = bolsin.cmDestino.codigo;
   const ubicacion = bolsin.ubicacion;
@@ -207,11 +210,24 @@ export function BolsinDetallePanel({
               <MicroLabel>Recorrido</MicroLabel>
             </dt>
             <dd className="mt-1 text-[13px] font-bold text-fg">
-              {origen
-                ? `${origen.codigo} · ${origen.nombre}`
-                : "CM Origen"}{" "}
-              → {bolsin.cmDestino.codigo} · {bolsin.cmDestino.nombre}
+              {origen ? `${origen.codigo} · ${origen.nombre}` : "CM Origen"} →{" "}
+              {bolsin.cmDestino.codigo} · {bolsin.cmDestino.nombre}
             </dd>
+            {origen?.direccion && (
+              <dd className="mt-1 text-xs text-muted">
+                Origen · {origen.direccion}
+              </dd>
+            )}
+            {bolsin.cmDestino.direccion && (
+              <dd className="mt-1 text-xs text-muted">
+                Destino · {bolsin.cmDestino.direccion}
+              </dd>
+            )}
+            {bolsin.recorrido && !bolsin.recorrido.trazado && (
+              <dd className="mt-1 text-xs text-muted">
+                Recorrido vial indisponible
+              </dd>
+            )}
           </div>
 
           <div className="rounded-xl border border-hair bg-surface px-3 py-2.5">

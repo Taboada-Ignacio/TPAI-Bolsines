@@ -81,7 +81,7 @@ sequenceDiagram
     Gestor ->> Bolsin: buscarBolsinesEnviados(cmOrigen)
     Bolsin -->> Gestor: colBolsinesEnviados
 
-    Gestor ->> Tracker: obtenerLocalizacionDeBolsines(XTR-4500L, números, orígenes, [])
+    Gestor ->> Tracker: obtenerLocalizacionDeBolsines(XTR-4500L, números, orígenes)
     Tracker -->> Gestor: listadoBolsines
 
     Gestor ->> GoogleMaps: renderizarMapaConMarcadores(colUbicaciones)
@@ -111,7 +111,7 @@ sequenceDiagram
     participant F as InterfazGPSTracker
     participant A as AdaptadorXTR4500L
     participant S as ServicioGPSTrackerXTR4500L
-    G->>F: obtenerLocalizacionDeBolsines(XTR-4500L, números, orígenes, [])
+    G->>F: obtenerLocalizacionDeBolsines(XTR-4500L, números, orígenes)
     F->>F: crearAdaptador()
     F->>A: recibirLocalizacionBolsines()
     A->>A: solicitarLocalizacionBolsines()
@@ -158,8 +158,8 @@ La ruta `/seguimiento` conserva el App Shell. Precinto y código de CM destino f
 | GestorConsultarUbicacionDeBolsin | `src/services/GestorConsultarUbicacionDeBolsin.ts` | Identifica al empleado y su CM, busca enviados, consulta ubicaciones normalizadas y las asocia con los bolsines, solicita el mapa y valida selección y confirmación. Obtiene CM destino, GCM y email, llama al CU 31 y ejecuta `finCU`. |
 | Sesion, Usuario, Empleado, Rol, ComisionMedica | `src/domain/` | `getUsuario`, `esTuUsuario`, `obtenerCM`, `getNombre`, `getDireccion`, `getCodigo`, `esTuCM`, `sosGCM`, `esGCM`, `getEmail`. `SesionService.buscarEmpleadoLogueado` reutiliza la verificación de identidad; el correo pertenece a Empleado. |
 | Bolsin, CambioEstadoBolsin, Estado | `src/domain/` | `esCMOrigenIgualCMLogueado`, `buscarEstadoActualBolsin`, `sosActual`, `esAmbitoBolsin`, `esEnviado`, `getNumeroBolsin`, `obtenerCodCMOrigen` y `getCmDestino`. Los repositorios hidratan las asociaciones para que resuelvan estas consultas. |
-| InterfazGPSTracker, IAdaptadorLocalizacionBolsines, AdaptadorXTR4500L y ServicioGPSTrackerXTR4500L | `src/adapters/`, `src/infrastructure/ServicioGPSTrackerXTR4500L.ts` | El gestor usa la frontera con XTR; esta crea el adaptador y recibe la matriz normalizada de la operación existente. El servicio solicita las ubicaciones al GPS oficial. |
-| InterfazGoogleMaps y ServidorGoogleMaps | `src/adapters/InterfazGoogleMaps.ts`, `src/infrastructure/ServidorGoogleMaps.ts` | `obtenerMapaConPosicionDeBolsines` delega a `getMapaLocation`. Devuelve las posiciones y el estilo OpenFreeMap. `MapaBolsines.tsx` consume ese resultado en el navegador con MapLibre. |
+| InterfazGPSTracker, IAdaptadorLocalizacionBolsines, AdaptadorXTR4500L y ServicioGPSTrackerXTR4500L | `src/externalInterfaces/gpsTracker/`, `src/integrations/gpsTracker/ServicioGPSTrackerXTR4500L.ts` | El gestor usa la frontera con XTR; esta crea el adaptador y recibe la matriz normalizada de la operación existente. El servicio solicita las ubicaciones al GPS oficial. |
+| InterfazGoogleMaps y ServidorGoogleMaps | `src/externalInterfaces/maps/InterfazGoogleMaps.ts`, `src/integrations/maps/ServidorGoogleMaps.ts` | `obtenerMapaConPosicionDeBolsines` delega a `getMapaLocation`. Devuelve las posiciones y el estilo OpenFreeMap. `MapaBolsines.tsx` consume ese resultado en el navegador con MapLibre. |
 | GestorNotificarUbicacionBolsin | `src/services/GestorNotificarUbicacionBolsin.ts` | `llamarCU31NotificarUbicacionDeBolsin` invoca directamente `notificarUbicacionDeBolsin` con datos recuperados de nuevo del servidor. Se reutiliza `ServicioCorreoSMTP`. |
 
 **Contratos HTTP.** `GET /api/auth/cu36/seguimiento` devuelve CM, mapa y cantidad sin ubicación. `POST /api/auth/cu36/seguimiento/seleccion` valida un `{ bolsinId }` y habilita la oferta de envío. `POST /api/auth/cu36/seguimiento` acepta el mismo cuerpo y revalida el bolsín antes de resolver GCM y GPS. Las solicitudes son independientes. Se devuelven 400 para cuerpo inválido, 401 para sesión inválida, 403 para rol u origen ajeno, 404 para bolsín inexistente, 409 para estado incompatible o GCM faltante/ambiguo y 503 ante caída GPS/SMTP. No se cargan coordenadas ficticias ni se mantiene una caché de última posición.
@@ -183,3 +183,43 @@ El mapa de `/seguimiento` no usa la API ni el SDK de Google Maps. Por la estéti
 La API GPS de la cátedra sigue proveyendo las ubicaciones. El cálculo de rutas en pantalla consulta OSRM con un trazado local de respaldo. Se retiraron el SDK de mapas de Google y sus variables públicas de la configuración de seguimiento. Las referencias a Google Maps del diseño histórico y los enlaces del correo del CU 31 se conservan. El contrato del CU 36 y el Adapter GPS siguen iguales.
 
 Verificación: Compose resolvió sus servicios y `git diff --check` pasó. La instalación de dependencias quedó bloqueada por resolución DNS del registro npm. Typecheck, lint, tests, build y la comprobación del mapa en el navegador quedan pendientes.
+
+### [NACHO] Reinicio del gestor del CU 36 (2026-11-18)
+
+A pedido del usuario se retiró toda la lógica de `GestorConsultarUbicacionDeBolsin` para reprogramarlo desde cero. Esta sección reemplaza las descripciones anteriores del gestor como funcional: consulta, selección y confirmación están pendientes. Se eliminaron métodos privados, mapeos de fixtures, construcción de DTOs, consultas GPS y delegación al CU 31 dentro del gestor.
+
+Se conservan la clase, el error exportado, los argumentos del constructor y las firmas de los tres métodos públicos para mantener compatibles los consumidores existentes. El constructor no guarda ni utiliza dependencias; el proveedor GPS es opcional y no se instancia. Cada operación rechaza con `ErrorSeguimientoBolsines(503, "Gestor pendiente de implementación.")`, que la Boundary transforma en HTTP 503. No se devuelve una consulta vacía como si hubiera sido exitosa. El Adapter, entidades, repositorios, pantalla y CU 31 independiente siguen en sus archivos existentes.
+
+El UML aprobado se conserva como objetivo de reimplementación; el esqueleto actual no implementa sus responsabilidades ni colaboraciones. Las 12 pruebas anteriores de `tests/seguimiento-bolsines.test.ts` se preservan en una suite `describe.skip` y deben revisarse y reactivarse durante la reimplementación.
+
+Verificación: Vitest con un worker pasó 307 pruebas y omitió 18 (12 del gestor y 6 HTTP GPS). ESLint de los archivos modificados pasó. El typecheck no pudo aprobarse por referencias obsoletas en `.next/dev`, ausencia de `maplibre-gl` y tipos `google` en archivos ajenos al cambio. Pendiente: reimplementar el gestor según UML, reactivar sus pruebas y verificar CU 36 completo con GPS y correo.
+
+### [NACHO] Integración GPS pendiente
+
+Además del gestor, está pendiente el [Adapter GPS](PPAI-PAT-ADAPTER-GPS.md#nacho-reinicio-de-la-implementación-del-adapter-gps-2026-11-18). La frontera conserva la firma de consulta del diseño y rechaza lotes no vacíos mientras se reconstruyen los adaptadores y servicios.
+
+### [NACHO] Ubicación de las integraciones
+
+La tabla de clases anterior describe el flujo de referencia. El servidor cartográfico vive en `src/integrations/maps/ServidorGoogleMaps.ts`. Los servicios GPS del diseño se reimplementarán en `src/integrations/gpsTracker/`. La delegación cartográfica, las firmas y el UML se conservan.
+
+### [NACHO] Mapa con recorridos viales y foco de bolsín
+
+El GET de seguimiento obtiene las ubicaciones del GPS oficial y pasa solo número, latitud, longitud y fecha de actualización a `InterfazGoogleMaps.obtenerMapaConPosicionDeBolsines()`. La frontera delega en `ServidorGoogleMaps.getMapaLocation()`, que busca el lote por número en el repositorio de bolsines y carga sus dos relaciones, `cmOrigen` y `cmDestino`. La búsqueda cartográfica es global y reutilizable. Si el número no existe o identifica a varios bolsines, entrega el punto GPS sin asociar una ficha ni una ruta.
+
+La integración obtiene las coordenadas de las direcciones con Photon (`MAPAS_GEOCODIFICADOR_URL` permite indicar otra instancia compatible). Las sedes ficticias del seed usan las coordenadas de referencia del catálogo. OSRM calcula el trazado vial de origen a destino y se comparte un cálculo por par de sedes en el lote. Si falla una resolución, el DTO conserva el punto GPS y los datos disponibles. El recorrido se representa mediante geometría serializable y los nombres de frontera y servidor se conservan como en el UML.
+
+`MapaSeguimiento` recibe el DTO en el frontend y se ocupa del mapa base OpenFreeMap, los marcadores y recorridos. Al seleccionar un bolsín, destaca la ruta y muestra los marcadores de origen y destino disponibles junto al punto GPS. La ficha muestra número, datos de las comisiones, direcciones y fecha de última actualización en hora argentina. El recorrido previsto puede quedar separado de la última posición reportada.
+
+### [NACHO] Ejecución del CU 36 por el gestor con XTR-4500L
+
+La pantalla delega consulta, selección y confirmación a `GestorConsultarUbicacionDeBolsin`. En consulta, `SesionService` identifica al empleado mediante `Sesion.getUsuario()` y `Empleado.esTuUsuario()`. El gestor exige el rol Encargado, obtiene la comisión del empleado y aplica los métodos de dominio para verificar CM origen y estado Enviado. `obtenerNumerosBolsines()` y `obtenerCMOrigenesBolsines()` recorren el mismo lote en orden. La constante `MODELO_GPS_TRACKER` fija la sobrecarga XTR. Los códigos de los fixtures del seed se traducen a los códigos oficiales del GPS. Un 404 del lote habilita la consulta individual para conservar las ubicaciones disponibles. Un lote vacío omite el GPS.
+
+El gestor entrega a `InterfazGoogleMaps` solo número, latitud, longitud y fecha. El enriquecimiento y el enrutamiento siguen en la integración cartográfica. La respuesta mantiene el mapa serializable para `MapaSeguimiento` y el contador de bolsines sin posición. La asignación de recorridos y el punto GPS real se mantienen como se describen arriba.
+
+La selección valida el bolsín por identificador, origen y estado y presenta la opción de correo. La confirmación revalida el bolsín en su propia solicitud, toma la CM destino con `Bolsin.getCmDestino()`, identifica un único gerente con `esTuCM()` y `sosGCM()`, usa `Empleado.getEmail()` y obtiene la posición vigente mediante XTR. `llamarCU31NotificarUbicacionDeBolsin()` delega en el gestor de notificación existente. Cerrar el diálogo finaliza la interacción sin ejecutar la solicitud de envío. El frontend presenta los errores reales de selección y confirmación por identificador.
+
+La implementación es por solicitud, sin guardar estado compartido entre usuarios o pestañas. La pantalla conserva el método `habilitarPantalla()` y la firma del contrato HTTP. El navegador maneja el foco del mapa, y el POST de selección del backend se ejecuta al abrir la confirmación. `getCmDestino()` conserva la escritura vigente del código para la operación `getCMDestino()` del modelo.
+
+### [NACHO] Sedes oficiales desde init.sql
+
+El seed asigna los códigos de sede oficiales a las asociaciones de origen y destino de los bolsines 101 a 110. El gestor pasa directamente el código de CM origen. El usuario bolsines.demo pertenece a CM-CBA-01 y ve el 101. El 110 pertenece a CM-CBA-02.

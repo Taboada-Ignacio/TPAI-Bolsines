@@ -50,6 +50,7 @@ function coordenadasMapa(punto: {
 
 export interface MapaLibreSeguimientoProps {
   bolsines: BolsinSeguimiento[];
+  estiloBase?: string;
   seleccionadoNro: number | null;
   hoveredBolsinNro?: number | null;
   onHoverBolsin?: (nroBolsin: number | null) => void;
@@ -85,6 +86,7 @@ function prefiereMovimientoReducido(): boolean {
 
 export function MapaLibreSeguimiento({
   bolsines,
+  estiloBase,
   seleccionadoNro,
   hoveredBolsinNro = null,
   onHoverBolsin,
@@ -150,45 +152,52 @@ export function MapaLibreSeguimiento({
     const stage = mapStageRef.current;
     if (!stage) return;
 
-    let map: MapLibreMap;
-    try {
-      setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
-      map = new MapLibreMap({
-        container: stage,
-        center: coordenadasMapa(centroInicial.current),
-        zoom: ZOOM_INICIAL,
-        minZoom: 3,
-        maxZoom: 16,
-        maplibreLogo: false,
-      });
-    } catch {
-      setErrorMapa(true);
-      return;
-    }
+    const frame = requestAnimationFrame(() => {
+      let map: MapLibreMap;
+      try {
+        setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
+        map = new MapLibreMap({
+          container: stage,
+          center: coordenadasMapa(centroInicial.current),
+          zoom: ZOOM_INICIAL,
+          minZoom: 3,
+          maxZoom: 16,
+          maplibreLogo: false,
+        });
+      } catch {
+        setMapInstancia(null);
+        setErrorMapa(true);
+        return;
+      }
 
-    let estiloCargado = false;
-    map.on("style.load", () => {
-      estiloCargado = true;
+      let estiloCargado = false;
+      map.on("style.load", () => {
+        estiloCargado = true;
+      });
+      map.on("error", () => {
+        if (!estiloCargado) setErrorMapa(true);
+      });
+      mapRef.current = map;
+      setMapInstancia(map);
     });
-    map.on("error", () => {
-      if (!estiloCargado) setErrorMapa(true);
-    });
-    mapRef.current = map;
-    setMapInstancia(map);
 
     return () => {
+      cancelAnimationFrame(frame);
+      const map = mapRef.current;
       mapRef.current = null;
-      map.remove();
+      map?.remove();
     };
   }, [reintentoTick]);
 
   useEffect(() => {
     if (!mapInstancia || mapRef.current !== mapInstancia) return;
-    mapInstancia.setStyle(estiloMapa(temaOscuro), { diff: false });
-  }, [mapInstancia, temaOscuro]);
+    mapInstancia.setStyle(
+      temaOscuro ? estiloMapa(true) : (estiloBase ?? estiloMapa(false)),
+      { diff: false },
+    );
+  }, [estiloBase, mapInstancia, temaOscuro]);
 
-  // Resolver rutas por envío (CM Origen -> Posición -> CM Destino)
-  // Primero asigna el trazado vial síncrono para render instantáneo y luego refina con OSRM
+  // El modo demo y los contratos anteriores todavía resuelven sus rutas en el cliente.
   useEffect(() => {
     let cancelado = false;
 
@@ -196,6 +205,7 @@ export function MapaLibreSeguimiento({
     const pendientes: BolsinSeguimiento[] = [];
 
     for (const bolsin of bolsines) {
+      if (bolsin.recorrido !== undefined) continue;
       const cacheKey = `${bolsin.nroBolsin}:${bolsin.ubicacion?.latitud ?? "none"}:${bolsin.ubicacion?.longitud ?? "none"}:${bolsin.cmOrigen?.codigo ?? cmOrigen?.codigo}:${bolsin.cmDestino.codigo}`;
       const enCache = rutasCacheRef.current.get(cacheKey);
       if (enCache) {
@@ -233,6 +243,26 @@ export function MapaLibreSeguimiento({
     };
   }, [bolsines, cmOrigen]);
 
+  const recorridoDe = useCallback(
+    (bolsin: BolsinSeguimiento) => {
+      if (bolsin.recorrido) return bolsin.recorrido;
+      const ruta =
+        rutasResueltas.get(bolsin.nroBolsin) ??
+        calcularRutaGeodesicaEnvio(bolsin, cmOrigen);
+      return {
+        origen: ruta.origen,
+        destino: ruta.destino,
+        trazado: ruta.rutaCompleta,
+      };
+    },
+    [cmOrigen, rutasResueltas],
+  );
+
+  const rutaFoco = useMemo(
+    () => (bolsinSeleccionado ? recorridoDe(bolsinSeleccionado) : null),
+    [bolsinSeleccionado, recorridoDe],
+  );
+
   useEffect(() => {
     const map = mapInstancia;
     if (!map || mapRef.current !== map) return;
@@ -240,7 +270,6 @@ export function MapaLibreSeguimiento({
     const pintarRutas = () => {
       const primaria = leerTokenCss("--primary", "#0251b0");
       const lima = leerTokenCss("--lime", "#d1ff42");
-      const ambar = leerTokenCss("--amber", "#f59e0b");
       const dibujar = (
         tramo: string,
         rutas: RutaEnvioResuelta["rutaCompleta"][],
@@ -265,33 +294,20 @@ export function MapaLibreSeguimiento({
         }
       };
 
-      const rutaDe = (bolsin: BolsinSeguimiento) =>
-        rutasResueltas.get(bolsin.nroBolsin) ??
-        calcularRutaGeodesicaEnvio(bolsin, cmOrigen);
-      const foco = bolsinSeleccionado ? rutaDe(bolsinSeleccionado) : null;
-      const sinCobertura =
-        !bolsinSeleccionado?.ubicacion ||
-        bolsinSeleccionado.ubicacion.estadoCobertura === "sin_cobertura";
-
-      dibujar(
-        "general",
-        foco ? [] : bolsines.map((bolsin) => rutaDe(bolsin).rutaCompleta),
-        { "line-color": primaria, "line-opacity": 0.28, "line-width": 2 },
-      );
-      dibujar("halo", foco ? [foco.rutaCompleta] : [], {
-        "line-color": "#0b1220",
-        "line-opacity": temaOscuro ? 0.28 : 0.16,
-        "line-width": 7,
-      });
-      dibujar("restante", foco ? [foco.tramoRestante] : [], {
+      const generales = bolsines
+        .filter((bolsin) => bolsin !== bolsinSeleccionado)
+        .flatMap((bolsin) => {
+          const trazado = recorridoDe(bolsin).trazado;
+          return trazado ? [trazado] : [];
+        });
+      dibujar("general", generales, {
         "line-color": primaria,
-        "line-width": 3,
-        "line-dasharray": [1, 2],
+        "line-opacity": bolsinSeleccionado ? 0.14 : 0.45,
+        "line-width": 2,
       });
-      dibujar("recorrido", foco ? [foco.tramoRecorrido] : [], {
-        "line-color": sinCobertura ? ambar : lima,
+      dibujar("seleccion", rutaFoco?.trazado ? [rutaFoco.trazado] : [], {
+        "line-color": lima,
         "line-width": 4,
-        "line-dasharray": sinCobertura ? [1, 2] : [1, 0],
       });
     };
 
@@ -304,61 +320,29 @@ export function MapaLibreSeguimiento({
   }, [
     bolsinSeleccionado,
     bolsines,
-    cmOrigen,
     mapInstancia,
-    rutasResueltas,
+    recorridoDe,
+    rutaFoco,
     temaOscuro,
   ]);
 
-  const rutaFoco = useMemo(() => {
-    if (!bolsinSeleccionado) return null;
-    return (
-      rutasResueltas.get(bolsinSeleccionado.nroBolsin) ??
-      calcularRutaGeodesicaEnvio(bolsinSeleccionado, cmOrigen)
-    );
-  }, [bolsinSeleccionado, cmOrigen, rutasResueltas]);
-
-  // Marcadores individuales por bolsín (1 marcador = 1 bolsín = 1 viaje/ruta)
-  const itemsMarcadores = useMemo(() => {
-    if (enModoFoco && bolsinSeleccionado && rutaFoco) {
-      const posReal = bolsinSeleccionado.ubicacion
-        ? {
-            lat: bolsinSeleccionado.ubicacion.latitud,
-            lng: bolsinSeleccionado.ubicacion.longitud,
-          }
-        : rutaFoco.posicionActual;
-
-      return [
-        {
-          id: `bolsin-${bolsinSeleccionado.nroBolsin}`,
-          coordenadas: posReal,
-          bolsin: bolsinSeleccionado,
-        },
-      ];
-    }
-
-    return bolsines.map((b) => {
-      const ruta =
-        rutasResueltas.get(b.nroBolsin) ??
-        calcularRutaGeodesicaEnvio(b, cmOrigen);
-      const coordenadas = b.ubicacion
-        ? { lat: b.ubicacion.latitud, lng: b.ubicacion.longitud }
-        : ruta.posicionActual;
-
-      return {
-        id: `bolsin-${b.nroBolsin}`,
-        coordenadas,
-        bolsin: b,
-      };
-    });
-  }, [
-    bolsines,
-    bolsinSeleccionado,
-    cmOrigen,
-    enModoFoco,
-    rutaFoco,
-    rutasResueltas,
-  ]);
+  const itemsMarcadores = useMemo(
+    () =>
+      bolsines.flatMap((bolsin) => {
+        if (!bolsin.ubicacion) return [];
+        return [
+          {
+            id: `bolsin-${bolsin.nroBolsin}`,
+            coordenadas: {
+              lat: bolsin.ubicacion.latitud,
+              lng: bolsin.ubicacion.longitud,
+            },
+            bolsin,
+          },
+        ];
+      }),
+    [bolsines],
+  );
 
   // Animación de entrada de marcadores con GSAP + matchMedia
   useGSAP(
@@ -410,21 +394,28 @@ export function MapaLibreSeguimiento({
 
   const limites = useMemo(() => {
     const bounds = new LngLatBounds();
-    for (const { coordenadas } of itemsMarcadores) {
-      bounds.extend(coordenadasMapa(coordenadas));
+    for (const { bolsin, coordenadas } of itemsMarcadores) {
+      if (!bolsinSeleccionado || bolsin === bolsinSeleccionado) {
+        bounds.extend(coordenadasMapa(coordenadas));
+      }
     }
     if (rutaFoco) {
       for (const punto of [
         rutaFoco.origen,
-        ...rutaFoco.rutaCompleta,
-        rutaFoco.posicionActual,
+        ...(rutaFoco.trazado ?? []),
         rutaFoco.destino,
       ]) {
-        bounds.extend(coordenadasMapa(punto));
+        if (punto) bounds.extend(coordenadasMapa(punto));
+      }
+    } else {
+      for (const bolsin of bolsines) {
+        for (const punto of recorridoDe(bolsin).trazado ?? []) {
+          bounds.extend(coordenadasMapa(punto));
+        }
       }
     }
     return bounds;
-  }, [itemsMarcadores, rutaFoco]);
+  }, [bolsinSeleccionado, bolsines, itemsMarcadores, recorridoDe, rutaFoco]);
 
   const encuadrarMapa = useCallback(() => {
     const map = mapRef.current;
@@ -553,6 +544,7 @@ export function MapaLibreSeguimiento({
             variant="secondary"
             size="sm"
             onClick={() => {
+              setMapInstancia(null);
               setErrorMapa(false);
               setReintentoTick((n) => n + 1);
             }}
@@ -563,7 +555,7 @@ export function MapaLibreSeguimiento({
         </div>
       )}
 
-      {/* Marcadores individuales por bolsín  vía OverlayView + React Portal */}
+      {/* Marcadores con la última posición reportada por GPS. */}
       {mapInstancia &&
         !errorMapa &&
         itemsMarcadores.map((item) => {
@@ -598,28 +590,31 @@ export function MapaLibreSeguimiento({
       {/* Marcadores discretos de CM Origen y CM Destino en Modo Foco */}
       {mapInstancia && !errorMapa && bolsinSeleccionado && rutaFoco ? (
         <>
-          <MarcadorMapa
-            map={mapInstancia}
-            position={rutaFoco.origen}
-            zIndex={20}
-          >
-            <span className="inline-flex items-center gap-1 rounded-full border border-edge bg-glass px-2.5 py-0.5 font-mono text-[10px] font-semibold text-fg backdrop-blur-[12px]">
-              <span className="size-1.5 rounded-full bg-lime" />
-              {bolsinSeleccionado.cmOrigen?.codigo ??
-                cmOrigen?.codigo ??
-                "Origen"}
-            </span>
-          </MarcadorMapa>
-          <MarcadorMapa
-            map={mapInstancia}
-            position={rutaFoco.destino}
-            zIndex={20}
-          >
-            <span className="inline-flex items-center gap-1 rounded-full border border-primary/50 bg-glass px-2.5 py-0.5 font-mono text-[10px] font-semibold text-primary backdrop-blur-[12px]">
-              <span className="size-1.5 rounded-full bg-primary" />
-              {bolsinSeleccionado.cmDestino.codigo}
-            </span>
-          </MarcadorMapa>
+          {rutaFoco.origen && (
+            <MarcadorMapa
+              map={mapInstancia}
+              position={rutaFoco.origen}
+              zIndex={20}
+            >
+              <span className="inline-flex items-center gap-1 rounded-full border border-edge bg-glass px-2.5 py-0.5 font-mono text-[10px] font-semibold text-fg backdrop-blur-[12px]">
+                <span className="size-1.5 rounded-full bg-lime" />
+                Origen ·{" "}
+                {bolsinSeleccionado.cmOrigen?.codigo ?? cmOrigen?.codigo}
+              </span>
+            </MarcadorMapa>
+          )}
+          {rutaFoco.destino && (
+            <MarcadorMapa
+              map={mapInstancia}
+              position={rutaFoco.destino}
+              zIndex={20}
+            >
+              <span className="inline-flex items-center gap-1 rounded-full border border-primary/50 bg-glass px-2.5 py-0.5 font-mono text-[10px] font-semibold text-primary backdrop-blur-[12px]">
+                <span className="size-1.5 rounded-full bg-primary" />
+                Destino · {bolsinSeleccionado.cmDestino.codigo}
+              </span>
+            </MarcadorMapa>
+          )}
         </>
       ) : null}
 

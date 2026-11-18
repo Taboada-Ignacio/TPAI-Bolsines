@@ -8,6 +8,7 @@ tags:
   [
     frontend,
     handoff,
+    nacho,
     traspaso,
     implementacion,
     specs,
@@ -60,7 +61,7 @@ npm run dev
   - `/comisiones-medicas`: CRUD completo de sedes (búsqueda, paginado, crear/editar en `ResponsiveSheet`, eliminar con confirmación). Actualmente opera sobre `COMISIONES_MEDICAS_SEED`; para conectar con PostgreSQL real, apuntar a `GET/POST /api/comisiones-medicas` y `PATCH/DELETE /api/comisiones-medicas/[id]` ya implementados por Nacho en `origin/feature/backend` (commits `0634975` y `42d5590`).
   - `/seguimiento`: placeholder visual a sangre esperando la nueva spec + maqueta del CU 36.
 - **Checks locales:** `npm run typecheck`, `npm run lint`, `npm run test:run` (`216` tests en verde), `npm run build`.
-- **Base en memoria (`pg-mem`) vs. Docker/PostgreSQL:** si no tenés Docker levantado localmente, podés usar `USE_PG_MEM=true` en `.env` para que `src/infrastructure/prisma.ts` delegue en `crearPrismaEnMemoria()` (`src/infrastructure/pg-mem-prisma.ts` con el DDL de migración + seeds). **Para conectarse a PostgreSQL en Docker como antes**, simplemente quitá `USE_PG_MEM` de `.env` (o dejalo en `USE_PG_MEM=false`) y asegurate de tener `DATABASE_URL` configurada; `docker-compose.yml` no define `USE_PG_MEM`, así que en contenedor usa PostgreSQL real automáticamente.
+- **[NACHO] Base en memoria (`pg-mem`) vs. Docker/PostgreSQL:** si no tenés Docker levantado localmente, podés usar `USE_PG_MEM=true` en `.env` para que `src/persistence/prisma.ts` delegue en `crearPrismaEnMemoria()` (`src/persistence/pg-mem-prisma.ts` con el DDL de migración + seeds). **Para conectarse a PostgreSQL en Docker como antes**, simplemente quitá `USE_PG_MEM` de `.env` (o dejalo en `USE_PG_MEM=false`) y asegurate de tener `DATABASE_URL` configurada; `docker-compose.yml` no define `USE_PG_MEM`, así que en contenedor usa PostgreSQL real automáticamente.
 - **Nota de integración con Backend (`feature/backend`):** ya existen CRUD + seeds de `roles`, `estados` y `comisiones-medicas`; siguen pendientes `/api/auth/login` (para reemplazar el mock de `src/app/api/auth/`) y `GestorSeguimientoBolsines` + endpoints del CU 36. Detail en [`PPAI-IMPL-BACKEND-REVISION`](./PPAI-IMPL-BACKEND-REVISION.md).
 
 ## 4. Reglas del usuario (obligatorias)
@@ -115,3 +116,7 @@ textos en español rioplatense. Al terminar cada tarea corré typecheck, lint, t
 la tarea con [x] en el todos.md y contame qué quedó. No hagas commit ni push sin que te lo pida.
 Si algo de la spec contradice al manual de marca v2.0, vale la spec.
 ```
+
+### [NACHO] Recorridos provistos por el backend de seguimiento
+
+La respuesta del GET de CU 36 incluye el estilo de mapa, la comisión de la sesión y los puntos con su recorrido cuando está disponible. `seguimiento-cliente.ts` entrega los datos a `MapaSeguimiento` y a la ficha existente. En el mapa se muestran todos los recorridos disponibles y se destaca la selección. La ficha distingue un recorrido indisponible y formatea la fecha del GPS en la zona horaria de Argentina. Los contratos antiguos y el modo demo mantienen su resolución de ruta en el cliente.

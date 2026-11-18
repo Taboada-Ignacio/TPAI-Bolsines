@@ -1,97 +1,19 @@
-import {
-  InterfazGPSTracker,
-  type ModeloGPSTracker,
-} from "@/adapters/InterfazGPSTracker";
-import type { InterfazGoogleMaps } from "@/adapters/InterfazGoogleMaps";
-import { obtenerCoordenadaCm } from "@/lib/seguimiento/rutas-envio";
+import { InterfazGPSTracker } from "@/externalInterfaces/gpsTracker/InterfazGPSTracker";
+import type { InterfazGoogleMaps } from "@/externalInterfaces/maps/InterfazGoogleMaps";
 import type { Bolsin } from "@/domain/Bolsin";
 import type { ComisionMedica } from "@/domain/ComisionMedica";
 import type { Empleado } from "@/domain/Empleado";
 import type {
-  PuntoBolsin,
-  RemitoResumen,
+  SeguimientoBolsines,
+  UbicacionGpsBolsin,
 } from "@/dtos/seguimiento-bolsines.dto";
-import type { BolsinRepositoryPrisma } from "@/infrastructure/BolsinRepositoryPrisma";
-import type { EmpleadoRepositoryPrisma } from "@/infrastructure/EmpleadoRepositoryPrisma";
+import { ErrorGPSTracker } from "@/lib/gps-tracker/ErrorGPSTracker";
+import type { BolsinRepositoryPrisma } from "@/persistence/BolsinRepositoryPrisma";
+import type { EmpleadoRepositoryPrisma } from "@/persistence/EmpleadoRepositoryPrisma";
 import type { GestorNotificarUbicacionBolsin } from "./GestorNotificarUbicacionBolsin";
 import type { SesionService } from "./SesionService";
 
-// Mapeo 1:1 entre códigos locales de CM (init.sql) y códigos oficiales de sede del GPS tracker.
-const sedesOficialesPorCM = new Map<string, string>([
-  ["CM-CBA", "CM-CBA-01"],
-  ["CM-SF", "CM-ROS-02"],
-  ["CM-MZA", "CM-MDZ-03"],
-  ["CM-BA", "CM-BA-01"],
-  ["CM-TUC", "CM-TUC-01"],
-  ["CM-SAL", "CM-SLA-01"],
-  ["CM-JUJ", "CM-JUJ-01"],
-  ["CM-NEU", "CM-NQN-01"],
-]);
-
-// Overrides específicos para los fixtures 101..110 que comparten CM local (p.ej. 110 en CM-CBA-02).
-const origenesOficialesPorFixture = new Map<string, string>([
-  ["CM-CBA:101", "CM-CBA-01"],
-  ["CM-SF:102", "CM-ROS-02"],
-  ["CM-MZA:103", "CM-MDZ-03"],
-  ["CM-BA:104", "CM-BA-01"],
-  ["CM-TUC:105", "CM-TUC-01"],
-  ["CM-SAL:106", "CM-SLA-01"],
-  ["CM-NEU:107", "CM-NQN-01"],
-  ["CM-BA:108", "CM-MDQ-01"],
-  ["CM-BA:109", "CM-LPL-01"],
-  ["CM-CBA:110", "CM-CBA-02"],
-]);
-
-const destinosOficialesPorFixture = new Map<string, string>([
-  ["CM-BA:107", "CM-MDQ-01"],
-]);
-
-function resolverSedeOficialOrigen(codOrigen: string, numero: number): string { //mejoras para el front
-  return (
-    origenesOficialesPorFixture.get(`${codOrigen}:${numero}`) ??
-    sedesOficialesPorCM.get(codOrigen) ??
-    codOrigen
-  );
-}
-
-function resolverSedeOficialDestino(  //mejoras para el front
-  codDestino: string,
-  numero: number,
-): string {
-  return (
-    destinosOficialesPorFixture.get(`${codDestino}:${numero}`) ??
-    sedesOficialesPorCM.get(codDestino) ??
-    codDestino
-  );
-}
-
-type BolsinConRemitoOpcional = Bolsin & {  //mejoras para el front
-  getRemito?: () => RemitoResumen | null | undefined;
-  remito?: RemitoResumen | null;
-};
-
-function extraerRemitoOpcional(bolsin: Bolsin): RemitoResumen | null | undefined { //mejoras para el front
-  const candidato = bolsin as BolsinConRemitoOpcional;
-  const valor =
-    typeof candidato.getRemito === "function"
-      ? candidato.getRemito()
-      : candidato.remito;
-  if (!valor || typeof valor !== "object") return undefined;
-  if (
-    typeof valor.numero === "string" &&
-    typeof valor.asunto === "string" &&
-    typeof valor.tipoDocumento === "string"
-  ) {
-    return {
-      numero: valor.numero,
-      asunto: valor.asunto,
-      tipoDocumento: valor.tipoDocumento,
-    };
-  }
-  return undefined;
-}
-
-type RegistroBolsin = { id: number; bolsin: Bolsin };
+const MODELO_GPS_TRACKER = "XTR-4500L" as const;
 
 export class ErrorSeguimientoBolsines extends Error {
   constructor(
@@ -122,12 +44,11 @@ export class GestorConsultarUbicacionDeBolsin {
       InterfazGPSTracker,
       "obtenerLocalizacionDeBolsines"
     > = () => new InterfazGPSTracker(),
-  ) { }
+  ) {}
 
   async opcConsultarUbicacionDeBolsines(
     idSesion: number,
-    modeloGps: ModeloGPSTracker = "XTR-4500L",
-  ) {
+  ): Promise<SeguimientoBolsines> {
     const { empleado, comisionMedicaId } =
       await this.buscarEmpleadoLogueado(idSesion);
     const { cm, descripcion } = this.buscarCMDeLogueado(empleado);
@@ -136,28 +57,40 @@ export class GestorConsultarUbicacionDeBolsin {
         comisionMedicaId,
         cm,
       );
-    const emailsGcm = await this.resolverEmailsGcmPorDestino(enviados);
-    const puntos = await this.solicitarDatosDeLocalizacionDeBolsines(
-      enviados,
-      modeloGps,
-      emailsGcm,
+    const ubicaciones = await this.solicitarDatosDeLocalizacionDeBolsines(
+      enviados.map(({ bolsin }) => bolsin),
+    );
+    const mapa = await this.solicitarMapaConPosicionDeBolsines(ubicaciones);
+    const idsPorNumero = new Map(
+      enviados.map(({ id, bolsin }) => [bolsin.getNumeroBolsin(), id]),
     );
     return {
       comision: descripcion,
-      mapa: this.solicitarMapaConPosicionDeBolsines(puntos),
-      sinUbicacion: puntos.filter(
-        (punto) => punto.estadoCobertura === "sin_cobertura",
-      ).length,
+      mapa: {
+        ...mapa,
+        comisionOrigen: {
+          codigo: cm.getCodigo(),
+          nombre: cm.getNombre(),
+          direccion: cm.getDireccion(),
+        },
+        puntos: mapa.puntos.filter(
+          ({ id, numero }) =>
+            id === undefined || idsPorNumero.get(numero) === id,
+        ),
+      },
+      sinUbicacion: enviados.length - ubicaciones.length,
     };
   }
 
   private async buscarEmpleadoLogueado(idSesion: number) {
+    // SesionService identifica al empleado mediante Sesion.getUsuario y Empleado.esTuUsuario.
     const registro = await this.sesiones.buscarEmpleadoLogueado(idSesion);
-    if (registro.empleado.getRol().getNombre() !== "Encargado de Bolsines")
+    if (registro.empleado.getRol().getNombre() !== "Encargado de Bolsines") {
       throw new ErrorSeguimientoBolsines(
         403,
         "El seguimiento requiere el rol Encargado de Bolsines.",
       );
+    }
     return registro;
   }
 
@@ -169,11 +102,11 @@ export class GestorConsultarUbicacionDeBolsin {
   }
 
   private async buscarBolsinesEnviadosConCMOrigenIgualACMLogueado(
-    id: number,
+    idCm: number,
     cm: ComisionMedica,
   ) {
-    const registros = await this.bolsines.listarEnviados(id);
-    return registros.filter(
+    const enviados = await this.bolsines.listarEnviados(idCm);
+    return enviados.filter(
       ({ bolsin }) =>
         bolsin.esCMOrigenIgualCMLogueado(cm) &&
         this.buscarEstadoActualBolsin(bolsin),
@@ -185,156 +118,82 @@ export class GestorConsultarUbicacionDeBolsin {
     return cambio?.esAmbitoBolsin() && cambio.esEnviado();
   }
 
-  private obtenerDatosConsultaGps(registros: RegistroBolsin[]) { //esta para que el front se vea mejor
-    return registros.map((registro) => {
-      const numero = registro.bolsin.getNumeroBolsin();
-      const codOrigen = registro.bolsin.obtenerCodCMOrigen();
-      const codDestino = registro.bolsin.obtenerCodCMDestino();
-      return {
-        ...registro,
-        numero,
-        origen: resolverSedeOficialOrigen(codOrigen, numero),
-        destino: resolverSedeOficialDestino(codDestino, numero),
-      };
-    });
+  private obtenerNumerosBolsines(bolsines: Bolsin[]): number[] {
+    return bolsines.map((bolsin) => bolsin.getNumeroBolsin());
   }
 
-  private async resolverEmailsGcmPorDestino(registros: RegistroBolsin[]) { //es para la confirmacion, son mejoras para el front
-    const codigosUnicos = Array.from(
-      new Set(registros.map(({ bolsin }) => bolsin.obtenerCodCMDestino())),
-    );
-    const mapa = new Map<string, string | null>();
-    await Promise.all(
-      codigosUnicos.map(async (codigo) => {
-        try {
-          const candidatos = await this.empleados.listarDeComision(codigo);
-          const gerentes = candidatos.filter(
-            (empleado) =>
-              empleado.getComisionMedica().getCodigo() === codigo &&
-              empleado.sosGCM(),
-          );
-          mapa.set(
-            codigo,
-            gerentes.length === 1 ? gerentes[0].getEmail() : null,
-          );
-        } catch {
-          mapa.set(codigo, null);
-        }
-      }),
-    );
-    return mapa;
-  }
-
-  private construirPuntoBolsin( //arma el DTO PuntoBolsin que el frontend usa para representar un bolsín en el mapa
-    registro: RegistroBolsin,
-    latitud: number,
-    longitud: number,
-    actualizado: string,
-    emailsGcmPorDestino?: Map<string, string | null>,
-    estadoCobertura: "vivo" | "sin_cobertura" = "vivo",
-  ): PuntoBolsin {
-    const destino = this.obtenerCMDestino(registro.bolsin);
-    const codigoDestino = destino.getCodigo();
-    const peso = registro.bolsin.getPeso();
-    const remito = extraerRemitoOpcional(registro.bolsin);
-    return {
-      id: registro.id,
-      numero: registro.bolsin.getNumeroBolsin(),
-      precinto: registro.bolsin.getNumeroPrecinto(),
-      destino: destino.getNombre(),
-      codigoDestino,
-      latitud,
-      longitud,
-      actualizado,
-      ...(Number.isFinite(peso) && peso > 0 ? { pesoKg: peso } : {}),
-      emailGcm: emailsGcmPorDestino?.get(codigoDestino) ?? null,
-      estadoCobertura,
-      ...(remito !== undefined ? { remito } : {}),
-    };
+  private obtenerCMOrigenesBolsines(bolsines: Bolsin[]): string[] {
+    return bolsines.map((bolsin) => bolsin.getCmOrigen().getCodigo());
   }
 
   private async solicitarDatosDeLocalizacionDeBolsines(
-    registros: RegistroBolsin[],
-    modeloGps: ModeloGPSTracker = "XTR-4500L",
-    emailsGcmPorDestino?: Map<string, string | null>,
-    incluirSinCobertura = true,
-  ): Promise<PuntoBolsin[]> {
-    const consultables = this.obtenerDatosConsultaGps(registros);
-    if (!consultables.length) return [];
+    bolsines: Bolsin[],
+  ): Promise<UbicacionGpsBolsin[]> {
+    if (bolsines.length === 0) return [];
+    // 1. Obtener los números de los bolsines.
+    const nrosBolsines = this.obtenerNumerosBolsines(bolsines);
 
-    let ubicaciones: string[][];
+    // 2. Obtener sus códigos de CM origen en el mismo orden.
+    const codigosCMOrigen = this.obtenerCMOrigenesBolsines(bolsines);
+    const tracker = this.crearTracker();
+    let localizaciones: string[][];
     try {
-      ubicaciones = await this.crearTracker().obtenerLocalizacionDeBolsines(
-        modeloGps,
-        consultables.map(({ numero }) => numero),
-        modeloGps === "XTR-4500L"
-          ? consultables.map(({ origen }) => origen)
-          : [],
-        modeloGps === "QX-7A"
-          ? consultables.map(({ destino }) => destino)
-          : [],
+      // 3. Consultar al GPS con ambos arreglos alineados por índice.
+      localizaciones = await tracker.obtenerLocalizacionDeBolsines(
+        MODELO_GPS_TRACKER,
+        nrosBolsines,
+        codigosCMOrigen,
       );
     } catch (error) {
-      if (process.env.USE_PG_MEM !== "true") throw error;
-      const ahora = new Date().toISOString();
-      return consultables.map((registro) => {
-        const origenCoord = obtenerCoordenadaCm(
-          registro.bolsin.obtenerCodCMOrigen(),
-        );
-        const destino = this.obtenerCMDestino(registro.bolsin);
-        const destinoCoord = obtenerCoordenadaCm(destino.getCodigo());
-        return this.construirPuntoBolsin(
-          registro,
-          (origenCoord.lat + destinoCoord.lat) / 2,
-          (origenCoord.lng + destinoCoord.lng) / 2,
-          ahora,
-          emailsGcmPorDestino,
-        );
-      });
+      if (!this.esUbicacionNoDisponible(error)) throw error;
+      if (nrosBolsines.length === 1) return [];
+
+      // XTR aborta el lote ante el primer 404. Recuperar los puntos de los demás bolsines.
+      localizaciones = [];
+      for (const [indice, numero] of nrosBolsines.entries()) {
+        try {
+          const filas = await tracker.obtenerLocalizacionDeBolsines(
+            MODELO_GPS_TRACKER,
+            [numero],
+            [codigosCMOrigen[indice]],
+          );
+          localizaciones.push(...filas);
+        } catch (errorIndividual) {
+          if (!this.esUbicacionNoDisponible(errorIndividual))
+            throw errorIndividual;
+        }
+      }
     }
-    const ubicacionesPorNumero = new Map(
-      ubicaciones.map(([numero, latitud, longitud, actualizado]) => [
-        numero,
-        { latitud, longitud, actualizado },
+
+    const porNumero = new Map(
+      localizaciones.map(([numero, latitud, longitud, actualizado]) => [
+        Number(numero),
+        {
+          numero: Number(numero),
+          latitud: Number(latitud),
+          longitud: Number(longitud),
+          actualizado,
+        },
       ]),
     );
-    return consultables.flatMap((registro) => {
-      const vivo = ubicacionesPorNumero.get(String(registro.numero));
-      if (vivo) {
-        return [
-          this.construirPuntoBolsin(
-            registro,
-            Number(vivo.latitud),
-            Number(vivo.longitud),
-            vivo.actualizado,
-            emailsGcmPorDestino,
-            "vivo",
-          ),
-        ];
-      }
-      if (!incluirSinCobertura) return [];
-      // Flujo Alternativo A3: si el tracker no reporta el bolsín (ej. 404 para bolsines nuevos),
-      // se muestra en el mapa con su última posición estimada de tránsito y advertencia visual.
-      const origenCoord = obtenerCoordenadaCm(
-        registro.bolsin.obtenerCodCMOrigen(),
-      );
-      const destino = this.obtenerCMDestino(registro.bolsin);
-      const destinoCoord = obtenerCoordenadaCm(destino.getCodigo());
-      return [
-        this.construirPuntoBolsin(
-          registro,
-          (origenCoord.lat + destinoCoord.lat) / 2,
-          (origenCoord.lng + destinoCoord.lng) / 2,
-          registro.bolsin.getFecha().toISOString(),
-          emailsGcmPorDestino,
-          "sin_cobertura",
-        ),
-      ];
+    return nrosBolsines.flatMap((numero) => {
+      const ubicacion = porNumero.get(numero);
+      return ubicacion ? [ubicacion] : [];
     });
   }
 
-  private solicitarMapaConPosicionDeBolsines(puntos: PuntoBolsin[]) {
-    return this.mapas.obtenerMapaConPosicionDeBolsines(puntos);
+  private esUbicacionNoDisponible(error: unknown): boolean {
+    return (
+      error instanceof ErrorGPSTracker &&
+      error.tipo === "HTTP" &&
+      error.estadoHttp === 404
+    );
+  }
+
+  private solicitarMapaConPosicionDeBolsines(
+    ubicaciones: UbicacionGpsBolsin[],
+  ) {
+    return this.mapas.obtenerMapaConPosicionDeBolsines(ubicaciones);
   }
 
   async tomarSeleccionDeBolsin(idSesion: number, idBolsin: number) {
@@ -343,16 +202,16 @@ export class GestorConsultarUbicacionDeBolsin {
     if (!registro)
       throw new ErrorSeguimientoBolsines(404, "El bolsín no existe.");
     if (
-      !registro.bolsin.esCMOrigenIgualCMLogueado(
-        this.buscarCMDeLogueado(empleado).cm,
-      )
-    )
+      !registro.bolsin.esCMOrigenIgualCMLogueado(empleado.getComisionMedica())
+    ) {
       throw new ErrorSeguimientoBolsines(
         403,
         "El bolsín pertenece a otra comisión de origen.",
       );
-    if (!this.buscarEstadoActualBolsin(registro.bolsin))
+    }
+    if (!this.buscarEstadoActualBolsin(registro.bolsin)) {
       throw new ErrorSeguimientoBolsines(409, "El bolsín ya no está Enviado.");
+    }
     return registro;
   }
 
@@ -360,31 +219,30 @@ export class GestorConsultarUbicacionDeBolsin {
     idSesion: number,
     idBolsin: number,
   ) {
-    const registro = await this.tomarSeleccionDeBolsin(idSesion, idBolsin);
-    const destino = this.obtenerCMDestino(registro.bolsin);
+    const { bolsin } = await this.tomarSeleccionDeBolsin(idSesion, idBolsin);
+    const destino = this.obtenerCMDestino(bolsin);
     const gerente =
       await this.buscarGCMDeCMDestinoDeBolsinSeleccionado(destino);
     const email = this.obtenerEmailDeGCM(gerente);
-    const destinatarioNombre =
-      `${gerente.getNombre()} ${gerente.getApellido()}`.trim();
-    const [punto] = await this.solicitarDatosDeLocalizacionDeBolsines(
-      [registro],
-      "XTR-4500L",
-      new Map([[destino.getCodigo(), email]]),
-      false,
-    );
-    if (!punto)
+    const [ubicacion] = await this.solicitarDatosDeLocalizacionDeBolsines([
+      bolsin,
+    ]);
+    if (!ubicacion) {
       throw new ErrorSeguimientoBolsines(
         503,
         "El GPS no informó una ubicación para el bolsín.",
       );
-    const cmOrigen = registro.bolsin.getCmOrigen();
+    }
     await this.llamarCU31NotificarUbicacionDeBolsin(
+      bolsin,
+      destino,
       email,
-      punto,
-      `${cmOrigen.getNombre()} (${cmOrigen.getCodigo()})`,
+      ubicacion,
     );
-    return this.finCU(email, destinatarioNombre, new Date().toISOString());
+    return this.finCU(
+      email,
+      `${gerente.getNombre()} ${gerente.getApellido()}`.trim(),
+    );
   }
 
   private obtenerCMDestino(bolsin: Bolsin) {
@@ -392,15 +250,16 @@ export class GestorConsultarUbicacionDeBolsin {
   }
 
   private async buscarGCMDeCMDestinoDeBolsinSeleccionado(cm: ComisionMedica) {
-    const candidatos = await this.empleados.listarDeComision(cm.getCodigo());
-    const gerentes = candidatos.filter(
+    const empleados = await this.empleados.listarDeComision(cm.getCodigo());
+    const gerentes = empleados.filter(
       (empleado) => empleado.esTuCM(cm) && empleado.sosGCM(),
     );
-    if (gerentes.length !== 1)
+    if (gerentes.length !== 1) {
       throw new ErrorSeguimientoBolsines(
         409,
         "La comisión de destino debe tener exactamente un gerente.",
       );
+    }
     return gerentes[0];
   }
 
@@ -409,33 +268,38 @@ export class GestorConsultarUbicacionDeBolsin {
   }
 
   private llamarCU31NotificarUbicacionDeBolsin(
+    bolsin: Bolsin,
+    destino: ComisionMedica,
     emailDestino: string,
-    punto: PuntoBolsin,
-    cmOrigen?: string,
+    ubicacion: UbicacionGpsBolsin,
   ) {
+    const origen = bolsin.getCmOrigen();
+    const remito = bolsin.getRemito();
     return this.cu31.notificarUbicacionDeBolsin({
       emailDestino,
-      nroBolsin: punto.numero,
-      latitud: String(punto.latitud),
-      longitud: String(punto.longitud),
-      fechaHoraActualizacion: punto.actualizado,
-      nroPrecinto: punto.precinto,
-      cmOrigen,
-      cmDestino: `${punto.destino} (${punto.codigoDestino})`,
-      remito: punto.remito ?? null,
+      nroBolsin: ubicacion.numero,
+      latitud: String(ubicacion.latitud),
+      longitud: String(ubicacion.longitud),
+      fechaHoraActualizacion: ubicacion.actualizado,
+      nroPrecinto: bolsin.getNumeroPrecinto(),
+      cmOrigen: `${origen.getNombre()} (${origen.getCodigo()})`,
+      cmDestino: `${destino.getNombre()} (${destino.getCodigo()})`,
+      remito: remito
+        ? {
+            numero: remito.getNumero(),
+            asunto: remito.getAsunto(),
+            tipoDocumento: remito.getTipoDocumento(),
+          }
+        : null,
     });
   }
 
-  private finCU(
-    destinatarioEmail: string,
-    destinatarioNombre: string,
-    fechaEnvio: string,
-  ) {
+  private finCU(destinatarioEmail: string, destinatarioNombre: string) {
     return {
       aceptada: true as const,
       destinatarioEmail,
       destinatarioNombre,
-      fechaEnvio,
+      fechaEnvio: new Date().toISOString(),
     };
   }
 }

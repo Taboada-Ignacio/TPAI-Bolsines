@@ -27,9 +27,22 @@ export const cmOrigenSeguimientoSchema = z.object({
 });
 export type CmOrigenSeguimiento = z.infer<typeof cmOrigenSeguimientoSchema>;
 
+const coordenadaMapaSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+});
+
+const recorridoMapaSchema = z.object({
+  origen: coordenadaMapaSchema.nullable(),
+  destino: coordenadaMapaSchema.nullable(),
+  trazado: z.array(coordenadaMapaSchema).min(2).nullable(),
+});
+export type RecorridoMapa = z.infer<typeof recorridoMapaSchema>;
+
 export const cmDestinoSeguimientoSchema = z.object({
   codigo: textoObligatorio,
   nombre: textoObligatorio,
+  direccion: textoObligatorio.optional(),
   emailGcm: z.email().nullable().optional(),
 });
 export type CmDestinoSeguimiento = z.infer<typeof cmDestinoSeguimientoSchema>;
@@ -50,6 +63,7 @@ export const bolsinSeguimientoSchema = z.object({
   cmOrigen: cmOrigenSeguimientoSchema.optional(),
   cmDestino: cmDestinoSeguimientoSchema,
   ubicacion: ubicacionBolsinSchema.nullable(),
+  recorrido: recorridoMapaSchema.optional(),
   remito: remitoSeguimientoSchema.nullable().optional(),
   pesoKg: z.number().finite().positive().optional(),
 });
@@ -59,17 +73,21 @@ export const seguimientoResponseSchema = z.object({
   cmOrigen: cmOrigenSeguimientoSchema,
   modeloGps: modeloGpsSchema,
   bolsines: z.array(bolsinSeguimientoSchema),
+  estiloMapa: z.string().optional(),
   sinUbicacion: z.number().int().min(0).optional().default(0),
 });
 export type SeguimientoResponse = z.infer<typeof seguimientoResponseSchema>;
 
 export const cu36PuntoBackendSchema = z.object({
-  id: z.number().int().positive(),
+  id: z.number().int().positive().optional(),
   numero: z.number().int().positive(),
   precinto: z.union([textoObligatorio, z.number().int().positive()]).nullable(),
   destino: textoObligatorio,
   codigoDestino: textoObligatorio.optional(),
   destinoCodigo: textoObligatorio.optional(),
+  direccionDestino: textoObligatorio.optional(),
+  cmOrigen: cmOrigenSeguimientoSchema.optional(),
+  recorrido: recorridoMapaSchema.optional(),
   emailGcm: z.email().nullable().optional(),
   pesoKg: z.number().finite().positive().optional(),
   remito: remitoSeguimientoSchema.nullable().optional(),
@@ -90,6 +108,7 @@ export const cu36BackendResponseSchema = z.union([
     comision: textoObligatorio,
     mapa: z.object({
       estilo: z.string().optional(),
+      comisionOrigen: cmOrigenSeguimientoSchema.optional(),
       puntos: z.array(cu36PuntoBackendSchema),
     }),
     sinUbicacion: z.number().int().min(0),
@@ -101,9 +120,7 @@ export const cu36SeleccionResponseSchema = z.object({
   seleccionado: z.number().int().positive(),
   confirmarNotificacion: z.literal(true),
 });
-export type Cu36SeleccionResponse = z.infer<
-  typeof cu36SeleccionResponseSchema
->;
+export type Cu36SeleccionResponse = z.infer<typeof cu36SeleccionResponseSchema>;
 
 export const cu31BackendResponseSchema = z.object({
   aceptada: z.literal(true),

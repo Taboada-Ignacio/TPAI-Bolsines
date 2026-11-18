@@ -1,7 +1,13 @@
 type TipoErrorGps =
-  "CONFIGURACION" | "CONEXION" | "TIMEOUT" | "HTTP" | "RESPUESTA_INVALIDA";
+  | "NO_IMPLEMENTADO"
+  | "CONFIGURACION"
+  | "CONEXION"
+  | "TIMEOUT"
+  | "HTTP"
+  | "RESPUESTA_INVALIDA";
 
 const mensajes: Record<TipoErrorGps, string> = {
+  NO_IMPLEMENTADO: "La integración GPS está pendiente de implementación.",
   CONFIGURACION: "Configuración de GPS inválida o incompleta.",
   CONEXION: "No se pudo completar la comunicación con el GPS.",
   TIMEOUT: "Se agotó el tiempo de espera del GPS.",

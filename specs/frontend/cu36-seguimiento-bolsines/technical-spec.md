@@ -2,7 +2,7 @@
 
 **Feature ID:** `cu36-seguimiento-bolsines`  
 **Rama:** `feature/frontend`  
-**Referencias obligatorias:** `src/app/globals.css`, `PPAI-UX-APP-SHELL.md`, `PPAI-UX-MANUAL-MARCA.md`, `PPAI-IMPL-FRONTEND-HANDOFF.md`, `src/adapters/InterfazGPSTracker.ts`, `src/dtos/localizacion-gps.dto.ts`, `src/lib/gps-simulator/rutas-nacionales.geojson`, `src/components/login/bolsin3d/BolsinProcedural.tsx`.  
+**Referencias obligatorias:** `src/app/globals.css`, `PPAI-UX-APP-SHELL.md`, `PPAI-UX-MANUAL-MARCA.md`, `PPAI-IMPL-FRONTEND-HANDOFF.md`, `src/externalInterfaces/gpsTracker/InterfazGPSTracker.ts`, `src/dtos/localizacion-gps.dto.ts`, `src/lib/gps-simulator/rutas-nacionales.geojson`, `src/components/login/bolsin3d/BolsinProcedural.tsx`.
 **Estado:** Actualización MapLibre 3D + Camiones → Bolsines + Visor 3D (Gate 2)
 
 ---

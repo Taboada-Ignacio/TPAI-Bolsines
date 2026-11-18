@@ -1,6 +1,6 @@
-import { ComisionMedicaRepositoryPrisma } from "@/infrastructure/ComisionMedicaRepositoryPrisma";
-import { EstadoRepositoryPrisma } from "@/infrastructure/EstadoRepositoryPrisma";
-import { RolRepositoryPrisma } from "@/infrastructure/RolRepositoryPrisma";
+import { ComisionMedicaRepositoryPrisma } from "@/persistence/ComisionMedicaRepositoryPrisma";
+import { EstadoRepositoryPrisma } from "@/persistence/EstadoRepositoryPrisma";
+import { RolRepositoryPrisma } from "@/persistence/RolRepositoryPrisma";
 import { ComisionMedicaService } from "@/services/ComisionMedicaService";
 import { EstadoService } from "@/services/EstadoService";
 import { RolService } from "@/services/RolService";

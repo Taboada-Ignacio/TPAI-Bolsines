@@ -21,7 +21,11 @@ import { getPrisma } from "./prisma";
 
 const comision = { id: true, codigo: true, nombre: true } as const;
 const estado = { id: true, nombre: true } as const;
-const remitoSelect = { numero: true, asunto: true, tipoDocumento: true } as const;
+const remitoSelect = {
+  numero: true,
+  asunto: true,
+  tipoDocumento: true,
+} as const;
 const ordenHistorial = [
   { fechaHoraInicio: "asc" },
   { id: "asc" },
@@ -222,6 +226,18 @@ export class BolsinRepositoryPrisma implements RepositorioBolsin {
       .map(hidratarBolsin);
   }
 
+  async buscarParaMapa(numeros: number[]) {
+    if (numeros.length === 0) return [];
+    return getPrisma().bolsin.findMany({
+      where: { numeroBolsin: { in: numeros } },
+      select: {
+        ...campos,
+        cmOrigen: { select: { ...comision, direccion: true } },
+        cmDestino: { select: { ...comision, direccion: true } },
+      },
+    });
+  }
+
   async buscarParaSeguimiento(id: number) {
     const fila = await getPrisma().bolsin.findUnique({
       where: { id },
@@ -358,7 +374,9 @@ export class BolsinRepositoryPrisma implements RepositorioBolsin {
           }
 
           const nuevoEstado = await tx.estado.findUnique({
-            where: { nombre_ambito: { nombre: estadoDestino, ambito: "BOLSIN" } },
+            where: {
+              nombre_ambito: { nombre: estadoDestino, ambito: "BOLSIN" },
+            },
             select: { id: true },
           });
           if (!nuevoEstado) {

@@ -203,7 +203,7 @@ async function consultarJsonConRespaldo<T>(
   url: string,
   init: RequestInit,
   schema: z.ZodType<T>,
-  construirDemo: () => T & { esModoDemo: boolean },
+  construirDemo: (() => T & { esModoDemo: boolean }) | undefined,
   signal?: AbortSignal,
 ): Promise<T & { esModoDemo: boolean }> {
   let respuesta: Response;
@@ -219,7 +219,7 @@ async function consultarJsonConRespaldo<T>(
     );
   }
 
-  if (respuesta.status === 404 || respuesta.status === 501) {
+  if (construirDemo && (respuesta.status === 404 || respuesta.status === 501)) {
     return construirDemo();
   }
 
@@ -234,7 +234,11 @@ async function consultarJsonConRespaldo<T>(
   const contentType =
     respuesta.headers?.get?.("content-type")?.toLowerCase() ?? null;
   if (contentType !== null && !contentType.includes("application/json")) {
-    return construirDemo();
+    if (construirDemo) return construirDemo();
+    throw new ErrorSeguimientoCliente(
+      "Recibimos una respuesta inválida del servidor. Probá de nuevo.",
+      respuesta.status,
+    );
   }
 
   let cuerpo: unknown;
@@ -303,11 +307,14 @@ function adaptarCu36Backend(
   modelo: ModeloGps,
   comisionesPorNombre: Map<string, ComisionCatalogo>,
 ): SeguimientoResponse {
-  const nombreOrigenBase = backend.comision.split(" - ")[0]?.trim().toLowerCase() ?? "";
+  const nombreOrigenBase =
+    backend.comision.split(" - ")[0]?.trim().toLowerCase() ?? "";
   const origenCat =
     comisionesPorNombre.get(backend.comision.trim().toLowerCase()) ??
     comisionesPorNombre.get(nombreOrigenBase);
-  const cmOrigen = {
+  const cmOrigen = ("mapa" in backend
+    ? backend.mapa.comisionOrigen
+    : undefined) ?? {
     codigo: origenCat?.codigo ?? "CM-ORIGEN",
     nombre: origenCat?.nombre ?? backend.comision,
     direccion: origenCat?.direccion ?? backend.comision,
@@ -316,9 +323,7 @@ function adaptarCu36Backend(
   const puntos = "mapa" in backend ? backend.mapa.puntos : backend.puntos;
 
   const bolsines: BolsinSeguimiento[] = puntos.map((punto) => {
-    const destCat = comisionesPorNombre.get(
-      punto.destino.trim().toLowerCase(),
-    );
+    const destCat = comisionesPorNombre.get(punto.destino.trim().toLowerCase());
     const tieneUbicacion =
       punto.latitud !== null &&
       punto.longitud !== null &&
@@ -327,7 +332,7 @@ function adaptarCu36Backend(
       id: punto.id,
       nroBolsin: punto.numero,
       numeroPrecinto: punto.precinto,
-      cmOrigen,
+      cmOrigen: punto.recorrido ? punto.cmOrigen : (punto.cmOrigen ?? cmOrigen),
       cmDestino: {
         codigo:
           punto.codigoDestino ??
@@ -335,6 +340,7 @@ function adaptarCu36Backend(
           destCat?.codigo ??
           punto.destino,
         nombre: punto.destino,
+        direccion: punto.direccionDestino,
         emailGcm: punto.emailGcm ?? destCat?.email ?? null,
       },
       ubicacion: tieneUbicacion
@@ -345,6 +351,7 @@ function adaptarCu36Backend(
             estadoCobertura: punto.estadoCobertura ?? "vivo",
           }
         : null,
+      recorrido: punto.recorrido,
       pesoKg: punto.pesoKg,
       remito: punto.remito ?? null,
     };
@@ -354,6 +361,7 @@ function adaptarCu36Backend(
     cmOrigen,
     modeloGps: modelo,
     bolsines,
+    estiloMapa: "mapa" in backend ? backend.mapa.estilo : undefined,
     sinUbicacion: backend.sinUbicacion,
   });
 }
@@ -369,20 +377,24 @@ export async function obtenerSeguimientoBolsines(
   const modeloValidado = modeloGpsSchema.parse(modelo);
   const url = `/api/auth/cu36/seguimiento?modeloGps=${encodeURIComponent(modeloValidado)}`;
 
-  const [seguimientoRes, comisionesPorNombre] = await Promise.all([
-    consultarJsonConRespaldo<SeguimientoResponse | Cu36BackendResponse>(
-      url,
-      { method: "GET" },
-      seguimientoResponseSchema.or(cu36BackendResponseSchema),
-      () => construirRespaldoSeguimiento(modeloValidado),
-      signal,
-    ),
-    cargarCatalogoComisiones(signal),
-  ]);
+  const seguimientoRes = await consultarJsonConRespaldo<
+    SeguimientoResponse | Cu36BackendResponse
+  >(
+    url,
+    { method: "GET" },
+    seguimientoResponseSchema.or(cu36BackendResponseSchema),
+    () => construirRespaldoSeguimiento(modeloValidado),
+    signal,
+  );
 
   if ("bolsines" in seguimientoRes) {
     return seguimientoRes;
   }
+
+  const comisionesPorNombre =
+    "mapa" in seguimientoRes && seguimientoRes.mapa.comisionOrigen
+      ? new Map()
+      : await cargarCatalogoComisiones(signal);
 
   return {
     ...adaptarCu36Backend(seguimientoRes, modeloValidado, comisionesPorNombre),
@@ -402,11 +414,7 @@ export async function seleccionarBolsinSeguimiento(
       body: JSON.stringify({ bolsinId }),
     },
     cu36SeleccionResponseSchema,
-    () => ({
-      seleccionado: bolsinId,
-      confirmarNotificacion: true,
-      esModoDemo: true,
-    }),
+    undefined,
     signal,
   );
 }
@@ -451,7 +459,7 @@ export async function notificarUbicacionGerente(
       body: JSON.stringify(bodyBackend),
     },
     notificarUbicacionResponseSchema.or(cu31BackendResponseSchema),
-    () => construirRespaldoNotificacion(payloadValidado),
+    usaCu36 ? undefined : () => construirRespaldoNotificacion(payloadValidado),
     signal,
   );
 

@@ -1,5 +1,14 @@
+import { NextRequest } from "next/server";
 import { describe, expect, it, vi } from "vitest";
-import { InterfazGoogleMaps } from "@/adapters/InterfazGoogleMaps";
+import { GET as consultarSeguimiento } from "@/app/api/auth/cu36/seguimiento/route";
+import {
+  firmarSesion,
+  nombreCookie,
+  servicio as servicioSesion,
+} from "@/app/api/auth/sesion";
+import { InterfazGPSTracker } from "@/externalInterfaces/gpsTracker/InterfazGPSTracker";
+import { BolsinRepositoryPrisma } from "@/persistence/BolsinRepositoryPrisma";
+import { InterfazGoogleMaps } from "@/externalInterfaces/maps/InterfazGoogleMaps";
 import { PantallaConsultarUbicacionDeBolsines } from "@/app/api/auth/cu36/seguimiento/PantallaConsultarUbicacionDeBolsines";
 import { Bolsin } from "@/domain/Bolsin";
 import { CambioEstadoBolsin } from "@/domain/CambioEstadoBolsin";
@@ -9,7 +18,7 @@ import { Estado } from "@/domain/Estado";
 import { Rol } from "@/domain/Rol";
 import { Sesion } from "@/domain/Sesion";
 import { Usuario } from "@/domain/Usuario";
-import { ServidorGoogleMaps } from "@/infrastructure/ServidorGoogleMaps";
+import { ServidorGoogleMaps } from "@/integrations/maps/ServidorGoogleMaps";
 import { ErrorGPSTracker } from "@/lib/gps-tracker/ErrorGPSTracker";
 import { GestorConsultarUbicacionDeBolsin } from "@/services/GestorConsultarUbicacionDeBolsin";
 import { GestorNotificarUbicacionBolsin } from "@/services/GestorNotificarUbicacionBolsin";
@@ -18,7 +27,7 @@ import { SesionInvalida } from "@/services/SesionService";
 
 const fecha = new Date("2026-03-07T15:30:00.000Z");
 const cordoba = new ComisionMedica(
-  "CM-CBA",
+  "CM-CBA-01",
   "Av. Central 1",
   "cm@example.test",
   "Córdoba",
@@ -96,7 +105,9 @@ function contexto() {
   const empleados = {
     listarDeComision: vi.fn().mockResolvedValue([encargado, gerente]),
   };
-  const servidor = new ServidorGoogleMaps();
+  const servidor = new ServidorGoogleMaps({
+    buscarParaMapa: vi.fn().mockResolvedValue([]),
+  });
   const mapa = vi.spyOn(servidor, "getMapaLocation");
   const gps = vi
     .fn()
@@ -150,8 +161,7 @@ describe("CU 36", () => {
     expect(gps).toHaveBeenCalledExactlyOnceWith(
       "XTR-4500L",
       [101, 110, 36011],
-      ["CM-CBA-01", "CM-CBA-02", "CM-CBA-01"],
-      [],
+      ["CM-CBA-01", "CM-CBA-01", "CM-CBA-01"],
     );
     expect(datos.comision).toBe("Córdoba - Av. Central 1");
     expect(datos.sinUbicacion).toBe(0);
@@ -159,20 +169,36 @@ describe("CU 36", () => {
     expect(
       datos.mapa.puntos.map(({ numero }: { numero: number }) => numero),
     ).toEqual([101, 110, 36011]);
-    expect(mapa).toHaveBeenCalledExactlyOnceWith(datos.mapa.puntos);
+    expect(mapa).toHaveBeenCalledExactlyOnceWith(
+      [101, 110, 36011].map((numero) => ({
+        numero,
+        latitud: -31.42,
+        longitud: -64.18,
+        actualizado: fecha.toISOString(),
+      })),
+    );
+    expect(datos.mapa.comisionOrigen).toMatchObject({
+      codigo: "CM-CBA-01",
+      direccion: "Av. Central 1",
+    });
     expect(correo).not.toHaveBeenCalled();
   });
 
-  it("reenvía modeloGps QX-7A con codigosCMDestino al tracker", async () => {
-    const { pantalla, gps } = contexto();
-    const respuesta = await pantalla.habilitarPantalla(7, "QX-7A");
-    expect(respuesta.status).toBe(200);
-    expect(gps).toHaveBeenCalledExactlyOnceWith(
-      "QX-7A",
-      [101, 110, 36011],
-      [],
-      ["CM-ROS-02", "CM-ROS-02", "CM-ROS-02"],
-    );
+  it("cuenta las ubicaciones ausentes sin dibujar puntos estimados", async () => {
+    const { pantalla, gps, mapa } = contexto();
+    gps.mockResolvedValueOnce([
+      ["110", "-31.42", "-64.18", fecha.toISOString()],
+    ]);
+    const datos = await (await pantalla.habilitarPantalla(7)).json();
+    expect(datos.sinUbicacion).toBe(2);
+    expect(mapa).toHaveBeenCalledExactlyOnceWith([
+      {
+        numero: 110,
+        latitud: -31.42,
+        longitud: -64.18,
+        actualizado: fecha.toISOString(),
+      },
+    ]);
   });
 
   it("omite el GPS cuando la CM no tiene bolsines consultables", async () => {
@@ -193,6 +219,8 @@ describe("CU 36", () => {
       seleccionado: 1,
       confirmarNotificacion: true,
     });
+    expect(gps).not.toHaveBeenCalled();
+    expect(empleados.listarDeComision).not.toHaveBeenCalled();
     expect(correo).not.toHaveBeenCalled();
     const respuesta = await pantalla.tomarConfirmacionOpcEnviarCorreoGCM(
       7,
@@ -210,7 +238,6 @@ describe("CU 36", () => {
       "XTR-4500L",
       [101],
       ["CM-CBA-01"],
-      [],
     );
     expect(correo).toHaveBeenCalledExactlyOnceWith(
       "gcm@example.test",
@@ -293,4 +320,220 @@ describe("CU 36", () => {
     ).toBe(503);
     expect(correo).toHaveBeenCalledTimes(1);
   });
+});
+
+describe("mapa enriquecido de bolsines", () => {
+  const origen = {
+    id: 10,
+    codigo: "CM-CBA",
+    nombre: "Cordoba",
+    direccion: "Origen 1",
+  };
+  const destino = {
+    id: 20,
+    codigo: "CM-SF",
+    nombre: "Santa Fe",
+    direccion: "Destino 1",
+  };
+  const fila = (numeroBolsin: number) => ({
+    id: numeroBolsin,
+    numeroBolsin,
+    numeroPrecinto: 123,
+    peso: 2,
+    fecha,
+    cmOrigen: origen,
+    cmDestino: destino,
+    remito: null,
+  });
+  const gps = (numero: number) => ({
+    numero,
+    latitud: -30,
+    longitud: -62,
+    actualizado: fecha.toISOString(),
+  });
+
+  it("carga ambas comisiones por numero, comparte el trazado y conserva la posicion GPS", async () => {
+    const buscarParaMapa = vi.fn().mockResolvedValue([fila(101), fila(110)]);
+    const origenMapa = { lat: -31, lng: -64 };
+    const destinoMapa = { lat: -32, lng: -60 };
+    const resolverSede = vi
+      .fn()
+      .mockResolvedValueOnce(origenMapa)
+      .mockResolvedValueOnce(destinoMapa);
+    const trazado = [origenMapa, destinoMapa];
+    const resolverRuta = vi.fn().mockResolvedValue(trazado);
+    const mapas = new InterfazGoogleMaps(
+      new ServidorGoogleMaps({ buscarParaMapa }, resolverSede, resolverRuta),
+    );
+
+    const mapa = await mapas.obtenerMapaConPosicionDeBolsines([
+      gps(110),
+      gps(101),
+    ]);
+
+    expect(buscarParaMapa).toHaveBeenCalledExactlyOnceWith([110, 101]);
+    expect(resolverSede).toHaveBeenCalledTimes(2);
+    expect(resolverRuta).toHaveBeenCalledExactlyOnceWith(
+      origenMapa,
+      destinoMapa,
+    );
+    expect(mapa.estilo).toContain("openfreemap.org");
+    expect(mapa.puntos.map(({ numero }) => numero)).toEqual([110, 101]);
+    expect(mapa.puntos[0]).toMatchObject({
+      ...gps(110),
+      cmOrigen: { direccion: "Origen 1" },
+      direccionDestino: "Destino 1",
+      recorrido: { origen: origenMapa, destino: destinoMapa, trazado },
+    });
+  });
+
+  it("conserva los puntos ante numeros ambiguos y fallas de enrutamiento", async () => {
+    const buscarParaMapa = vi
+      .fn()
+      .mockResolvedValue([
+        fila(101),
+        { ...fila(101), id: 500, cmOrigen: destino },
+        fila(110),
+      ]);
+    const resolverSede = vi
+      .fn()
+      .mockResolvedValueOnce({ lat: -31, lng: -64 })
+      .mockResolvedValueOnce({ lat: -32, lng: -60 });
+    const resolverRuta = vi
+      .fn()
+      .mockRejectedValue(new Error("Ruta no disponible"));
+    const mapas = new InterfazGoogleMaps(
+      new ServidorGoogleMaps({ buscarParaMapa }, resolverSede, resolverRuta),
+    );
+
+    const { puntos } = await mapas.obtenerMapaConPosicionDeBolsines([
+      gps(101),
+      gps(110),
+      gps(999),
+    ]);
+
+    expect(resolverRuta).toHaveBeenCalledTimes(1);
+    expect(puntos[0]).toMatchObject({
+      ...gps(101),
+      recorrido: { origen: null, destino: null, trazado: null },
+    });
+    expect(puntos[0].id).toBeUndefined();
+    expect(puntos[1]).toMatchObject({
+      ...gps(110),
+      id: 110,
+      recorrido: { trazado: null },
+    });
+    expect(puntos[2]).toMatchObject(gps(999));
+    expect(puntos[2].id).toBeUndefined();
+  });
+});
+
+it("entrega el mapa desde la pantalla real aunque un GPS responda 404", async () => {
+  const validarSesion = vi
+    .spyOn(servicioSesion, "buscarEmpleadoLogueado")
+    .mockResolvedValue({
+      id: 1,
+      usuarioId: 1,
+      rolId: 1,
+      comisionMedicaId: 5,
+      sesion: new Sesion(fecha, null, usuario),
+      empleado: encargado,
+    });
+  const listar = vi
+    .spyOn(BolsinRepositoryPrisma.prototype, "listarEnviados")
+    .mockResolvedValue([registro(1, 101), registro(2, 110)]);
+  const buscar = vi
+    .spyOn(BolsinRepositoryPrisma.prototype, "buscarParaMapa")
+    .mockResolvedValue([
+      {
+        id: 1,
+        fecha,
+        numeroBolsin: 101,
+        numeroPrecinto: 201,
+        peso: 2,
+        remito: null,
+        cmOrigen: {
+          id: 5,
+          codigo: "CM-CBA",
+          nombre: "Cordoba",
+          direccion: "Sede ficticia - Cordoba",
+        },
+        cmDestino: {
+          id: 6,
+          codigo: "CM-SF",
+          nombre: "Santa Fe",
+          direccion: "Sede ficticia - Santa Fe",
+        },
+      },
+    ]);
+  const tracker = vi
+    .spyOn(InterfazGPSTracker.prototype, "obtenerLocalizacionDeBolsines")
+    .mockRejectedValueOnce(new ErrorGPSTracker("HTTP", 404))
+    .mockResolvedValueOnce([["101", "-31", "-62", fecha.toISOString()]])
+    .mockRejectedValueOnce(new ErrorGPSTracker("HTTP", 404));
+  const fetchRuta = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+    Response.json({
+      code: "Ok",
+      routes: [
+        {
+          geometry: {
+            coordinates: [
+              [-64.1888, -31.4201],
+              [-60.6973, -31.6107],
+            ],
+          },
+        },
+      ],
+    }),
+  );
+  try {
+    const clave = "clave-de-prueba-no-usar-en-entornos-reales";
+    vi.stubEnv("SESSION_SIGNING_KEY", clave);
+    const respuesta = await consultarSeguimiento(
+      new NextRequest(
+        "http://localhost/api/auth/cu36/seguimiento?modeloGps=QX-7A",
+        { headers: { cookie: `${nombreCookie}=${firmarSesion(7, clave)}` } },
+      ),
+    );
+    expect(respuesta.status).toBe(200);
+    expect(validarSesion).toHaveBeenCalledWith(7);
+    expect(listar).toHaveBeenCalledWith(5);
+    expect(buscar).toHaveBeenCalledExactlyOnceWith([101]);
+    expect(tracker).toHaveBeenNthCalledWith(
+      1,
+      "XTR-4500L",
+      [101, 110],
+      ["CM-CBA-01", "CM-CBA-01"],
+    );
+    expect(tracker).toHaveBeenNthCalledWith(
+      3,
+      "XTR-4500L",
+      [110],
+      ["CM-CBA-01"],
+    );
+    expect(fetchRuta).toHaveBeenCalledTimes(1);
+    expect(await respuesta.json()).toMatchObject({
+      sinUbicacion: 1,
+      mapa: {
+        puntos: [
+          {
+            id: 1,
+            numero: 101,
+            latitud: -31,
+            longitud: -62,
+            actualizado: fecha.toISOString(),
+            recorrido: {
+              trazado: [
+                { lat: -31.4201, lng: -64.1888 },
+                { lat: -31.6107, lng: -60.6973 },
+              ],
+            },
+          },
+        ],
+      },
+    });
+  } finally {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  }
 });

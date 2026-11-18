@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { ServicioCorreoSMTP } from "@/infrastructure/ServicioCorreoSMTP";
+import { ServicioCorreoSMTP } from "@/integrations/mail/ServicioCorreoSMTP";
 import { GestorNotificarUbicacionBolsin } from "@/services/GestorNotificarUbicacionBolsin";
 import {
   leerSesion,

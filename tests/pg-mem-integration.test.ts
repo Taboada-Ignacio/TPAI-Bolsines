@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { crearPrismaEnMemoria } from "@/infrastructure/pg-mem-prisma";
+import { crearPrismaEnMemoria } from "@/persistence/pg-mem-prisma";
 
 describe("pg-mem + Prisma", () => {
   it("inicializa tablas, seeds y soporta login, registro y actualización de perfil", async () => {

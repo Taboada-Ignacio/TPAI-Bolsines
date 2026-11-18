@@ -16,7 +16,7 @@ const db = vi.hoisted(() => ({
   comisionMedica: { findUnique: vi.fn() },
   $transaction: vi.fn(),
 }));
-vi.mock("@/infrastructure/prisma", () => ({ getPrisma: () => db }));
+vi.mock("@/persistence/prisma", () => ({ getPrisma: () => db }));
 
 const id = 23;
 const rol = { id: 31, nombre: "Encargado", descripcion: "Bolsines" };

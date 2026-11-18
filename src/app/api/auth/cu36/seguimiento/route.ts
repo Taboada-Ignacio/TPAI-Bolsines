@@ -5,16 +5,13 @@ import { atenderSeguimiento, pantalla } from "./servicio";
 export function GET(request: NextRequest) {
   return atenderSeguimiento(request, async (id) => {
     const param = request.nextUrl.searchParams.get("modeloGps");
-    const modelo = modeloGpsSchema.safeParse(
-      param && param.trim() !== "" ? param : "XTR-4500L",
-    );
-    if (!modelo.success) {
+    if (param?.trim() && !modeloGpsSchema.safeParse(param).success) {
       return Response.json(
         { error: "Indicá un modelo de GPS válido." },
         { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
-    return pantalla.habilitarPantalla(id, modelo.data);
+    return pantalla.habilitarPantalla(id);
   });
 }
 

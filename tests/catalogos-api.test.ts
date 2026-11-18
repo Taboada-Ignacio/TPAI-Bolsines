@@ -20,7 +20,7 @@ const prisma = vi.hoisted(() => {
   return { rol: delegado(), comisionMedica: delegado(), estado: delegado() };
 });
 
-vi.mock("@/infrastructure/prisma", () => ({ getPrisma: () => prisma }));
+vi.mock("@/persistence/prisma", () => ({ getPrisma: () => prisma }));
 
 const datosRol = { nombre: "Administrador", descripcion: "Rol administrativo" };
 const datosComision = {

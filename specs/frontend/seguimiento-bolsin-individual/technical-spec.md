@@ -130,7 +130,7 @@ Los siguientes archivos dejan de usarse en el flujo activo de `/seguimiento`:
 
 > Esta sección documenta exactamente qué necesita el frontend que implemente el backend para que el flujo funcione 100% con datos reales (sin caer en `BOLSINES_DEMO`).
 
-### 4.1 API Externa GPS (ya integrada en `src/adapters/`)
+### 4.1 API Externa GPS (ya integrada en `src/externalInterfaces/gpsTracker/`)
 
 El servicio externo `gps-tracker` (`GPS_TRACKER_BASE_URL`, `X-API-Key` por proveedor) tiene 3 contratos:
 
@@ -145,7 +145,7 @@ El servicio externo `gps-tracker` (`GPS_TRACKER_BASE_URL`, `X-API-Key` por prove
 
 1. **Leer query param `modeloGps`:**
    - Aceptar `?modeloGps=XTR-4500L|QX-7A|MTR-900` (default `"XTR-4500L"`, responder `400` si es inválido).
-   - Pasar el modelo elegido a `InterfazGPSTracker.obtenerLocalizacionDeBolsines(modelo, nros, codigosOrigen, codigosDestino)` enviando `codigosCMOrigen` para `XTR-4500L` y `codigosCMDestino` para `QX-7A`.
+   - Invocar la sobrecarga de `InterfazGPSTracker.obtenerLocalizacionDeBolsines` correspondiente al modelo: XTR con números y códigos de origen, QX con números y códigos de destino, MTR con números.
 2. **Eliminar el `Map` estático `origenesOficiales`:**
    - Hoy solo consulta los 10 pares hardcoded (`CM-CBA:101`, etc.). Debe consultar todos los bolsines en estado `Enviado` de la CM del usuario logueado usando sus códigos reales de CM origen/destino (o un mapeo configurable si el simulador externo usa sufijos `-01`).
 3. **Aislar fallos por bolsín (no abortar todo el lote con `503`):**

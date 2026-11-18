@@ -1,9 +1,9 @@
 import type { NextRequest } from "next/server";
-import { InterfazGoogleMaps } from "@/adapters/InterfazGoogleMaps";
-import { BolsinRepositoryPrisma } from "@/infrastructure/BolsinRepositoryPrisma";
-import { EmpleadoRepositoryPrisma } from "@/infrastructure/EmpleadoRepositoryPrisma";
-import { ServidorGoogleMaps } from "@/infrastructure/ServidorGoogleMaps";
-import { ServicioCorreoSMTP } from "@/infrastructure/ServicioCorreoSMTP";
+import { InterfazGoogleMaps } from "@/externalInterfaces/maps/InterfazGoogleMaps";
+import { BolsinRepositoryPrisma } from "@/persistence/BolsinRepositoryPrisma";
+import { EmpleadoRepositoryPrisma } from "@/persistence/EmpleadoRepositoryPrisma";
+import { ServidorGoogleMaps } from "@/integrations/maps/ServidorGoogleMaps";
+import { ServicioCorreoSMTP } from "@/integrations/mail/ServicioCorreoSMTP";
 import { GestorConsultarUbicacionDeBolsin } from "@/services/GestorConsultarUbicacionDeBolsin";
 import { GestorNotificarUbicacionBolsin } from "@/services/GestorNotificarUbicacionBolsin";
 import {
@@ -14,12 +14,15 @@ import {
 } from "../../sesion";
 import { PantallaConsultarUbicacionDeBolsines } from "./PantallaConsultarUbicacionDeBolsines";
 
+const bolsines = new BolsinRepositoryPrisma();
+const mapas = new InterfazGoogleMaps(new ServidorGoogleMaps(bolsines));
+
 export const pantalla = new PantallaConsultarUbicacionDeBolsines(
   new GestorConsultarUbicacionDeBolsin(
     servicio,
-    new BolsinRepositoryPrisma(),
+    bolsines,
     new EmpleadoRepositoryPrisma(),
-    new InterfazGoogleMaps(new ServidorGoogleMaps()),
+    mapas,
     new GestorNotificarUbicacionBolsin(new ServicioCorreoSMTP()),
   ),
 );
