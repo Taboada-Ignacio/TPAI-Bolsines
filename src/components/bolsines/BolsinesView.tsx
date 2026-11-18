@@ -51,9 +51,7 @@ gsap.registerPlugin(useGSAP);
 const PAGE_SIZE = 10;
 
 type SheetState =
-  | { tipo: "crear" }
-  | { tipo: "editar"; bolsin: BolsinListadoItem }
-  | null;
+  { tipo: "crear" } | { tipo: "editar"; bolsin: BolsinListadoItem } | null;
 
 /** Vista principal de gestión de bolsines conectada a la API real. */
 export function BolsinesView() {
@@ -70,6 +68,7 @@ export function BolsinesView() {
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("");
   const [filtroOrigen, setFiltroOrigen] = useState("");
+  const [agruparPorOrigen, setAgruparPorOrigen] = useState(false);
   const [page, setPage] = useState(1);
 
   const [sheetState, setSheetState] = useState<SheetState>(null);
@@ -88,14 +87,20 @@ export function BolsinesView() {
 
     async function load() {
       try {
-        const [resBolsines, resCm, resEstados, resEmpleados] = await Promise.all([
-          fetch("/api/bolsines", { signal: controller.signal }),
-          fetch("/api/comisiones-medicas", { signal: controller.signal }),
-          fetch("/api/estados", { signal: controller.signal }),
-          fetch("/api/empleados", { signal: controller.signal }),
-        ]);
+        const [resBolsines, resCm, resEstados, resEmpleados] =
+          await Promise.all([
+            fetch("/api/bolsines", { signal: controller.signal }),
+            fetch("/api/comisiones-medicas", { signal: controller.signal }),
+            fetch("/api/estados", { signal: controller.signal }),
+            fetch("/api/empleados", { signal: controller.signal }),
+          ]);
 
-        if (!resBolsines.ok || !resCm.ok || !resEstados.ok || !resEmpleados.ok) {
+        if (
+          !resBolsines.ok ||
+          !resCm.ok ||
+          !resEstados.ok ||
+          !resEmpleados.ok
+        ) {
           throw new Error("No se pudieron cargar los datos de bolsines.");
         }
 
@@ -146,10 +151,7 @@ export function BolsinesView() {
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
     const lista = bolsines.filter((b) => {
-      if (
-        filtroEstado &&
-        String(b.estadoActual?.id ?? "") !== filtroEstado
-      ) {
+      if (filtroEstado && String(b.estadoActual?.id ?? "") !== filtroEstado) {
         return false;
       }
       if (filtroOrigen && String(b.cmOrigen.id) !== filtroOrigen) {
@@ -170,12 +172,18 @@ export function BolsinesView() {
 
     // Prioriza bolsines en viaje ("Enviado") y luego los más recientes (id descendente)
     return [...lista].sort((a, b) => {
+      if (agruparPorOrigen && a.cmOrigen.id !== b.cmOrigen.id) {
+        return (
+          a.cmOrigen.codigo.localeCompare(b.cmOrigen.codigo, "es-AR") ||
+          a.cmOrigen.id - b.cmOrigen.id
+        );
+      }
       const aEnviado = a.estadoActual?.nombre === "Enviado" ? 1 : 0;
       const bEnviado = b.estadoActual?.nombre === "Enviado" ? 1 : 0;
       if (aEnviado !== bEnviado) return bEnviado - aEnviado;
       return b.id - a.id;
     });
-  }, [bolsines, busqueda, filtroEstado, filtroOrigen]);
+  }, [bolsines, busqueda, filtroEstado, filtroOrigen, agruparPorOrigen]);
 
   const totalPages = Math.max(1, Math.ceil(filtrados.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -184,6 +192,14 @@ export function BolsinesView() {
     const start = (currentPage - 1) * PAGE_SIZE;
     return filtrados.slice(start, start + PAGE_SIZE);
   }, [filtrados, currentPage]);
+
+  const gruposPagina = new Map<number | null, BolsinListadoItem[]>();
+  for (const bolsin of paginados) {
+    const clave = agruparPorOrigen ? bolsin.cmOrigen.id : null;
+    const grupo = gruposPagina.get(clave);
+    if (grupo) grupo.push(bolsin);
+    else gruposPagina.set(clave, [bolsin]);
+  }
 
   useGSAP(
     () => {
@@ -205,7 +221,11 @@ export function BolsinesView() {
         gsap.set("[data-bolsin-item]", { autoAlpha: 1, y: 0 });
       });
     },
-    { scope: listRef, dependencies: [loading, currentPage, filtrados.length] },
+    {
+      scope: listRef,
+      dependencies: [loading, paginados, agruparPorOrigen],
+      revertOnUpdate: true,
+    },
   );
 
   function handleFormSuccess(guardado: BolsinListadoItem) {
@@ -244,9 +264,7 @@ export function BolsinesView() {
         method: "POST",
       });
       const body = (await res.json().catch(() => null)) as
-        | BolsinListadoItem
-        | { error?: string }
-        | null;
+        BolsinListadoItem | { error?: string } | null;
       if (!res.ok) {
         setAccionError(
           (body && "error" in body && body.error) ||
@@ -291,9 +309,8 @@ export function BolsinesView() {
         </Button>
       </div>
 
-      {/* Barra de búsqueda y filtro por estado */}
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-1 flex-col gap-2.5 sm:flex-row sm:items-center">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex w-full flex-wrap items-center gap-2.5 xl:w-auto xl:flex-1">
           <div className="relative w-full sm:max-w-sm">
             <Search
               aria-hidden="true"
@@ -362,6 +379,18 @@ export function BolsinesView() {
               ))}
             </Select>
           </div>
+
+          <Button
+            variant={agruparPorOrigen ? "secondary" : "ghost"}
+            aria-pressed={agruparPorOrigen}
+            className="rounded-full"
+            onClick={() => {
+              setAgruparPorOrigen((activa) => !activa);
+              setPage(1);
+            }}
+          >
+            Agrupar por CM origen
+          </Button>
         </div>
 
         <MicroLabel aria-live="polite" className="shrink-0">
@@ -469,238 +498,259 @@ export function BolsinesView() {
           </div>
         ) : (
           <>
-            {/* Cards en mobile (< 640px) */}
-            <ul className="flex flex-col gap-3 sm:hidden">
-              {paginados.map((b) => (
-                <li
-                  key={b.id}
-                  data-bolsin-item=""
-                  className="rounded-[18px] border border-edge bg-raised/50 p-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <Link
-                      href={`/bolsines/${b.id}`}
-                      className="group inline-flex items-center gap-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent rounded-md"
+            {Array.from(gruposPagina, ([clave, grupo]) => (
+              <div key={clave ?? "sin-agrupar"} className="mb-5 last:mb-0">
+                {clave !== null ? (
+                  <h2 className="mb-2 text-sm font-semibold text-fg">
+                    {grupo[0].cmOrigen.codigo} · {grupo[0].cmOrigen.nombre}
+                  </h2>
+                ) : null}
+                {/* Cards en mobile (< 640px) */}
+                <ul className="flex flex-col gap-3 sm:hidden">
+                  {grupo.map((b) => (
+                    <li
+                      key={b.id}
+                      data-bolsin-item=""
+                      className="rounded-[18px] border border-edge bg-raised/50 p-4"
                     >
-                      <SplitFlap
-                        text={String(b.numeroBolsin).padStart(4, "0")}
-                        size="sm"
-                      />
-                      <span className="font-mono text-xs text-muted group-hover:text-accent">
-                        Ver detalle →
-                      </span>
-                    </Link>
-                    <BolsinEstadoBadge nombre={b.estadoActual?.nombre} />
-                  </div>
-
-                  <Link
-                    href={`/bolsines/${b.id}`}
-                    className="mt-3 block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent rounded-md"
-                  >
-                    <p className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-fg">
-                      <span>{b.cmOrigen.codigo}</span>
-                      <ArrowRight
-                        className="size-3.5 text-muted"
-                        aria-hidden="true"
-                      />
-                      <span>{b.cmDestino.codigo}</span>
-                      <span className="font-normal text-muted">
-                        · {b.cmDestino.nombre}
-                      </span>
-                    </p>
-                    <p className="mt-1 font-mono text-xs text-muted">
-                      {b.numeroPrecinto !== null
-                        ? `Precinto ${b.numeroPrecinto}`
-                        : "Sin precinto"}{" "}
-                      · {formatPesoKg(b.peso)} · {formatFechaCorta(b.fecha)}
-                      {b.remito ? ` · ${b.remito.numero}` : ""}
-                    </p>
-                  </Link>
-
-                  <div className="mt-3 flex flex-wrap items-center justify-end gap-1.5 border-t border-hair pt-2.5">
-                    {b.estadoActual?.nombre === "Creado" ? (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={() =>
-                          setPrecintoSheet({ accion: "cerrar", bolsin: b })
-                        }
-                        leftIcon={<Lock className="size-3.5" aria-hidden="true" />}
-                        className="rounded-full"
-                      >
-                        Poner precinto
-                      </Button>
-                    ) : null}
-                    {b.estadoActual?.nombre === "Cerrado" ? (
-                      <>
-                        <Button
-                          type="button"
-                          variant="primary"
-                          size="sm"
-                          loading={enviandoId === b.id}
-                          disabled={enviandoId !== null && enviandoId !== b.id}
-                          onClick={() => void handleMarcarEnviado(b)}
-                          leftIcon={
-                            <Send className="size-3.5" aria-hidden="true" />
-                          }
-                          className="rounded-full"
+                      <div className="flex items-start justify-between gap-3">
+                        <Link
+                          href={`/bolsines/${b.id}`}
+                          className="group inline-flex items-center gap-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent rounded-md"
                         >
-                          Marcar como Enviado
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setPrecintoSheet({ accion: "reabrir", bolsin: b })
-                          }
-                          leftIcon={
-                            <LockOpen className="size-3.5" aria-hidden="true" />
-                          }
-                          className="rounded-full border border-edge"
-                        >
-                          Abrir de nuevo
-                        </Button>
-                      </>
-                    ) : null}
-                    <Link
-                      href={`/bolsines/${b.id}`}
-                      className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-fg hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
-                    >
-                      <Eye className="size-3.5" aria-hidden="true" />
-                      Detalle
-                    </Link>
-                    <IconButton
-                      aria-label={`Editar bolsín ${b.numeroBolsin}`}
-                      onClick={() =>
-                        setSheetState({ tipo: "editar", bolsin: b })
-                      }
-                    >
-                      <Pencil className="size-4" aria-hidden="true" />
-                    </IconButton>
-                    <IconButton
-                      aria-label={`Eliminar bolsín ${b.numeroBolsin}`}
-                      onClick={() => setEliminando(b)}
-                      className="text-danger-ink hover:bg-danger/10"
-                    >
-                      <Trash2 className="size-4" aria-hidden="true" />
-                    </IconButton>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                          <SplitFlap
+                            text={String(b.numeroBolsin).padStart(4, "0")}
+                            size="sm"
+                          />
+                          <span className="font-mono text-xs text-muted group-hover:text-accent">
+                            Ver detalle →
+                          </span>
+                        </Link>
+                        <BolsinEstadoBadge nombre={b.estadoActual?.nombre} />
+                      </div>
 
-            {/* Tablero continuo en desktop (>= 640px) */}
-            <div className="hidden border-t border-hair sm:block">
-              {paginados.map((b) => (
-                <div
-                  key={b.id}
-                  data-bolsin-item=""
-                  className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-4 border-b border-hair px-2 py-3.5 transition-colors hover:bg-hover"
-                >
-                  <Link
-                    href={`/bolsines/${b.id}`}
-                    aria-label={`Ver detalle del bolsín ${b.numeroBolsin}`}
-                    className="rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                  >
-                    <SplitFlap
-                      text={String(b.numeroBolsin).padStart(4, "0")}
-                      size="sm"
-                    />
-                  </Link>
-
-                  <Link
-                    href={`/bolsines/${b.id}`}
-                    className="min-w-0 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                  >
-                    <p className="flex items-center gap-1.5 truncate text-[15px] font-semibold text-fg">
-                      <span>{b.cmOrigen.codigo}</span>
-                      <span className="font-normal text-muted truncate">
-                        {b.cmOrigen.nombre}
-                      </span>
-                      <ArrowRight
-                        className="size-3.5 shrink-0 text-muted"
-                        aria-hidden="true"
-                      />
-                      <span>{b.cmDestino.codigo}</span>
-                      <span className="font-normal text-muted truncate">
-                        {b.cmDestino.nombre}
-                      </span>
-                    </p>
-                    <p className="mt-0.5 font-mono text-xs text-muted">
-                      {b.numeroPrecinto !== null
-                        ? `Precinto ${b.numeroPrecinto}`
-                        : "Sin precinto"}{" "}
-                      · {formatPesoKg(b.peso)} · {formatFechaCorta(b.fecha)}
-                      {b.remito
-                        ? ` · ${b.remito.numero} (${b.remito.tipoDocumento})`
-                        : ""}
-                    </p>
-                  </Link>
-
-                  <BolsinEstadoBadge nombre={b.estadoActual?.nombre} />
-
-                  <div className="flex items-center gap-1">
-                    {b.estadoActual?.nombre === "Creado" ? (
-                      <IconButton
-                        aria-label={`Poner precinto al bolsín ${b.numeroBolsin}`}
-                        title="Poner precinto y cerrar"
-                        onClick={() =>
-                          setPrecintoSheet({ accion: "cerrar", bolsin: b })
-                        }
+                      <Link
+                        href={`/bolsines/${b.id}`}
+                        className="mt-3 block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent rounded-md"
                       >
-                        <Lock className="size-4" aria-hidden="true" />
-                      </IconButton>
-                    ) : null}
-                    {b.estadoActual?.nombre === "Cerrado" ? (
-                      <>
+                        <p className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-fg">
+                          <span>{b.cmOrigen.codigo}</span>
+                          <ArrowRight
+                            className="size-3.5 text-muted"
+                            aria-hidden="true"
+                          />
+                          <span>{b.cmDestino.codigo}</span>
+                          <span className="font-normal text-muted">
+                            · {b.cmDestino.nombre}
+                          </span>
+                        </p>
+                        <p className="mt-1 font-mono text-xs text-muted">
+                          {b.numeroPrecinto !== null
+                            ? `Precinto ${b.numeroPrecinto}`
+                            : "Sin precinto"}{" "}
+                          · {formatPesoKg(b.peso)} · {formatFechaCorta(b.fecha)}
+                          {b.remito ? ` · ${b.remito.numero}` : ""}
+                        </p>
+                      </Link>
+
+                      <div className="mt-3 flex flex-wrap items-center justify-end gap-1.5 border-t border-hair pt-2.5">
+                        {b.estadoActual?.nombre === "Creado" ? (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() =>
+                              setPrecintoSheet({ accion: "cerrar", bolsin: b })
+                            }
+                            leftIcon={
+                              <Lock className="size-3.5" aria-hidden="true" />
+                            }
+                            className="rounded-full"
+                          >
+                            Poner precinto
+                          </Button>
+                        ) : null}
+                        {b.estadoActual?.nombre === "Cerrado" ? (
+                          <>
+                            <Button
+                              type="button"
+                              variant="primary"
+                              size="sm"
+                              loading={enviandoId === b.id}
+                              disabled={
+                                enviandoId !== null && enviandoId !== b.id
+                              }
+                              onClick={() => void handleMarcarEnviado(b)}
+                              leftIcon={
+                                <Send className="size-3.5" aria-hidden="true" />
+                              }
+                              className="rounded-full"
+                            >
+                              Marcar como Enviado
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                setPrecintoSheet({
+                                  accion: "reabrir",
+                                  bolsin: b,
+                                })
+                              }
+                              leftIcon={
+                                <LockOpen
+                                  className="size-3.5"
+                                  aria-hidden="true"
+                                />
+                              }
+                              className="rounded-full border border-edge"
+                            >
+                              Abrir de nuevo
+                            </Button>
+                          </>
+                        ) : null}
+                        <Link
+                          href={`/bolsines/${b.id}`}
+                          className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-fg hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
+                        >
+                          <Eye className="size-3.5" aria-hidden="true" />
+                          Detalle
+                        </Link>
                         <IconButton
-                          aria-label={`Marcar como Enviado el bolsín ${b.numeroBolsin}`}
-                          title="Marcar como Enviado"
-                          disabled={enviandoId !== null}
-                          onClick={() => void handleMarcarEnviado(b)}
+                          aria-label={`Editar bolsín ${b.numeroBolsin}`}
+                          onClick={() =>
+                            setSheetState({ tipo: "editar", bolsin: b })
+                          }
                         >
-                          <Send className="size-4" aria-hidden="true" />
+                          <Pencil className="size-4" aria-hidden="true" />
                         </IconButton>
                         <IconButton
-                          aria-label={`Abrir de nuevo el bolsín ${b.numeroBolsin}`}
-                          title="Abrir de nuevo (romper precinto)"
+                          aria-label={`Eliminar bolsín ${b.numeroBolsin}`}
+                          onClick={() => setEliminando(b)}
+                          className="text-danger-ink hover:bg-danger/10"
+                        >
+                          <Trash2 className="size-4" aria-hidden="true" />
+                        </IconButton>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+
+                {/* Tablero continuo en desktop (>= 640px) */}
+                <div className="hidden border-t border-hair sm:block">
+                  {grupo.map((b) => (
+                    <div
+                      key={b.id}
+                      data-bolsin-item=""
+                      className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-4 border-b border-hair px-2 py-3.5 transition-colors hover:bg-hover"
+                    >
+                      <Link
+                        href={`/bolsines/${b.id}`}
+                        aria-label={`Ver detalle del bolsín ${b.numeroBolsin}`}
+                        className="rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      >
+                        <SplitFlap
+                          text={String(b.numeroBolsin).padStart(4, "0")}
+                          size="sm"
+                        />
+                      </Link>
+
+                      <Link
+                        href={`/bolsines/${b.id}`}
+                        className="min-w-0 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      >
+                        <p className="flex items-center gap-1.5 truncate text-[15px] font-semibold text-fg">
+                          <span>{b.cmOrigen.codigo}</span>
+                          <span className="font-normal text-muted truncate">
+                            {b.cmOrigen.nombre}
+                          </span>
+                          <ArrowRight
+                            className="size-3.5 shrink-0 text-muted"
+                            aria-hidden="true"
+                          />
+                          <span>{b.cmDestino.codigo}</span>
+                          <span className="font-normal text-muted truncate">
+                            {b.cmDestino.nombre}
+                          </span>
+                        </p>
+                        <p className="mt-0.5 font-mono text-xs text-muted">
+                          {b.numeroPrecinto !== null
+                            ? `Precinto ${b.numeroPrecinto}`
+                            : "Sin precinto"}{" "}
+                          · {formatPesoKg(b.peso)} · {formatFechaCorta(b.fecha)}
+                          {b.remito
+                            ? ` · ${b.remito.numero} (${b.remito.tipoDocumento})`
+                            : ""}
+                        </p>
+                      </Link>
+
+                      <BolsinEstadoBadge nombre={b.estadoActual?.nombre} />
+
+                      <div className="flex items-center gap-1">
+                        {b.estadoActual?.nombre === "Creado" ? (
+                          <IconButton
+                            aria-label={`Poner precinto al bolsín ${b.numeroBolsin}`}
+                            title="Poner precinto y cerrar"
+                            onClick={() =>
+                              setPrecintoSheet({ accion: "cerrar", bolsin: b })
+                            }
+                          >
+                            <Lock className="size-4" aria-hidden="true" />
+                          </IconButton>
+                        ) : null}
+                        {b.estadoActual?.nombre === "Cerrado" ? (
+                          <>
+                            <IconButton
+                              aria-label={`Marcar como Enviado el bolsín ${b.numeroBolsin}`}
+                              title="Marcar como Enviado"
+                              disabled={enviandoId !== null}
+                              onClick={() => void handleMarcarEnviado(b)}
+                            >
+                              <Send className="size-4" aria-hidden="true" />
+                            </IconButton>
+                            <IconButton
+                              aria-label={`Abrir de nuevo el bolsín ${b.numeroBolsin}`}
+                              title="Abrir de nuevo (romper precinto)"
+                              onClick={() =>
+                                setPrecintoSheet({
+                                  accion: "reabrir",
+                                  bolsin: b,
+                                })
+                              }
+                            >
+                              <LockOpen className="size-4" aria-hidden="true" />
+                            </IconButton>
+                          </>
+                        ) : null}
+                        <Link
+                          href={`/bolsines/${b.id}`}
+                          aria-label={`Ver historial del bolsín ${b.numeroBolsin}`}
+                          className="inline-flex size-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-raised hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                        >
+                          <Eye className="size-4" aria-hidden="true" />
+                        </Link>
+                        <IconButton
+                          aria-label={`Editar bolsín ${b.numeroBolsin}`}
                           onClick={() =>
-                            setPrecintoSheet({ accion: "reabrir", bolsin: b })
+                            setSheetState({ tipo: "editar", bolsin: b })
                           }
                         >
-                          <LockOpen className="size-4" aria-hidden="true" />
+                          <Pencil className="size-4" aria-hidden="true" />
                         </IconButton>
-                      </>
-                    ) : null}
-                    <Link
-                      href={`/bolsines/${b.id}`}
-                      aria-label={`Ver historial del bolsín ${b.numeroBolsin}`}
-                      className="inline-flex size-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-raised hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                    >
-                      <Eye className="size-4" aria-hidden="true" />
-                    </Link>
-                    <IconButton
-                      aria-label={`Editar bolsín ${b.numeroBolsin}`}
-                      onClick={() =>
-                        setSheetState({ tipo: "editar", bolsin: b })
-                      }
-                    >
-                      <Pencil className="size-4" aria-hidden="true" />
-                    </IconButton>
-                    <IconButton
-                      aria-label={`Eliminar bolsín ${b.numeroBolsin}`}
-                      onClick={() => setEliminando(b)}
-                      className="text-danger-ink hover:bg-danger/10"
-                    >
-                      <Trash2 className="size-4" aria-hidden="true" />
-                    </IconButton>
-                  </div>
+                        <IconButton
+                          aria-label={`Eliminar bolsín ${b.numeroBolsin}`}
+                          onClick={() => setEliminando(b)}
+                          className="text-danger-ink hover:bg-danger/10"
+                        >
+                          <Trash2 className="size-4" aria-hidden="true" />
+                        </IconButton>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-
+              </div>
+            ))}
             <Pagination
               page={currentPage}
               totalPages={totalPages}

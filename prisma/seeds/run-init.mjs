@@ -24,6 +24,7 @@ const tablasIniciales = [
   "sesion",
   "usuario",
 ];
+const cantidadComisionesDelSeed = 11;
 
 function prisma(...args) {
   return new Promise((resolve, reject) => {
@@ -83,18 +84,20 @@ async function cargarSeed() {
       GROUP BY cm.id, cm.codigo
     `);
     if (
-      rows.length !== 24 ||
+      rows.length !== cantidadComisionesDelSeed ||
       rows.some((cm) => cm.gerentes !== 1 || cm.con_usuario_y_correo !== 1)
     ) {
       throw new Error(
-        "El seed debe generar 24 CM con exactamente un GCM con usuario y correo por CM.",
+        `El seed debe generar ${cantidadComisionesDelSeed} CM con exactamente un GCM con usuario y correo por CM.`,
       );
     }
     await client.query(
       "UPDATE bolsines_bootstrap.inicializacion SET estado = 'completa'",
     );
   });
-  console.log("Carga inicial completada: 24 comisiones y 24 GCM verificados.");
+  console.log(
+    `Carga inicial completada: ${cantidadComisionesDelSeed} comisiones y sus GCM verificados.`,
+  );
 }
 
 async function inicializar() {
@@ -112,6 +115,7 @@ async function inicializar() {
 
   const nueva =
     estado.tablas.length === 0 && !estado.historial && !estado.espacio;
+  let requiereSeed = nueva;
   if (nueva) {
     await transaccion(() => crearMarcador("pendiente"));
   } else {
@@ -131,11 +135,16 @@ async function inicializar() {
       const { rows } = await client.query(
         "SELECT estado FROM bolsines_bootstrap.inicializacion",
       );
-      if (rows.length !== 1 || rows[0].estado !== "completa") {
+      if (
+        rows.length !== 1 ||
+        !["pendiente", "completa"].includes(rows[0].estado)
+      ) {
         throw new Error(
-          "Inicialización incompleta: la carga inicial todavía no fue confirmada.",
+          "Inicialización incompleta: marcador de carga inicial inválido.",
         );
       }
+      // El seed y la confirmación del marcador se escriben en una transacción.
+      requiereSeed = rows[0].estado === "pendiente";
     } else {
       // El seed anterior era transaccional. Adoptar bases con evidencia de uso,
       // sin exigir que conserven los datos originales ni reinsertarlos.
@@ -160,7 +169,7 @@ async function inicializar() {
     "--to-schema=prisma/schema.prisma",
     "--exit-code",
   );
-  if (nueva) await cargarSeed();
+  if (requiereSeed) await cargarSeed();
   else {
     if (!estado.marcador) await transaccion(() => crearMarcador("completa"));
     console.log("Base existente verificada. Se omite init.sql.");

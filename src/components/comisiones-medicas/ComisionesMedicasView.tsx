@@ -163,7 +163,10 @@ export function ComisionesMedicasView() {
         },
       );
     },
-    { scope: listRef, dependencies: [loading, safePage, busqueda, filtradas.length] },
+    {
+      scope: listRef,
+      dependencies: [loading, safePage, busqueda, filtradas.length],
+    },
   );
 
   function handleBusqueda(valor: string) {
@@ -181,7 +184,7 @@ export function ComisionesMedicasView() {
   function abrirEditar(cm: ComisionMedica) {
     setEditando(cm);
     setForm({
-      codigo: cm.codigo.replace(/^CM-/i, "").slice(0, 3).toUpperCase(),
+      codigo: cm.codigo.replace(/^CM-/i, ""),
       nombre: cm.nombre,
       direccion: cm.direccion,
       email: cm.email,
@@ -192,10 +195,7 @@ export function ComisionesMedicasView() {
   }
 
   function actualizarCampo(campo: keyof ComisionMedicaEntrada, valor: string) {
-    const nextValor =
-      campo === "codigo"
-        ? valor.replace(/[^a-zA-Z]/g, "").toUpperCase().slice(0, 3)
-        : valor;
+    const nextValor = campo === "codigo" ? valor.toUpperCase() : valor;
     setForm((prev) => ({ ...prev, [campo]: nextValor }));
     setErrors((prev) => {
       if (!prev[campo] && !prev.general) return prev;
@@ -221,7 +221,7 @@ export function ComisionesMedicasView() {
     event.preventDefault();
     if (saving) return;
 
-    const sufijo = form.codigo.replace(/[^a-zA-Z]/g, "").toUpperCase().slice(0, 3);
+    const sufijo = form.codigo.trim().replace(/^CM-/i, "");
     const parsed = comisionMedicaEntradaSchema.safeParse({
       ...form,
       codigo: sufijo ? `CM-${sufijo}` : "",
@@ -232,8 +232,7 @@ export function ComisionesMedicasView() {
       for (const issue of parsed.error.issues) {
         const key = issue.path[0] as keyof ComisionMedicaEntrada | undefined;
         if (key && !nextErrors[key]) {
-          nextErrors[key] =
-            key === "codigo" ? "Ingresá hasta 3 letras." : issue.message;
+          nextErrors[key] = issue.message;
         }
       }
       setErrors(nextErrors);
@@ -273,7 +272,8 @@ export function ComisionesMedicasView() {
           } else if (response.status === 404) {
             mensaje = "No encontramos la comisión médica que querés editar.";
           } else {
-            mensaje = "No pudimos guardar la comisión médica. Intentá de nuevo.";
+            mensaje =
+              "No pudimos guardar la comisión médica. Intentá de nuevo.";
           }
         }
 
@@ -325,7 +325,8 @@ export function ComisionesMedicasView() {
           } else if (response.status === 404) {
             mensaje = "La comisión médica ya no existe en el servidor.";
           } else {
-            mensaje = "No pudimos eliminar la comisión médica. Intentá nuevamente.";
+            mensaje =
+              "No pudimos eliminar la comisión médica. Intentá nuevamente.";
           }
         }
 
@@ -339,7 +340,10 @@ export function ComisionesMedicasView() {
       if (selectedId === idEliminado) {
         setSelectedId(null);
       }
-      const nextTotalPages = Math.max(1, Math.ceil(nextList.length / PAGE_SIZE));
+      const nextTotalPages = Math.max(
+        1,
+        Math.ceil(nextList.length / PAGE_SIZE),
+      );
       if (safePage > nextTotalPages) {
         setPage(nextTotalPages);
       }
@@ -364,7 +368,7 @@ export function ComisionesMedicasView() {
         </IconButton>
       </PageActions>
 
-      <div className="flex flex-row items-end justify-between gap-2 sm:gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <PageHeading
           rotulo="Parámetros · Sedes"
           className="min-w-0 [&_h1]:text-[clamp(2.3rem,6vw,4rem)]"
@@ -379,7 +383,7 @@ export function ComisionesMedicasView() {
           size="md"
           onClick={abrirCrear}
           leftIcon={<Plus className="size-4" />}
-          className="rounded-full px-3.5 sm:px-5 text-[13px] sm:text-sm text-on-lime self-end shrink-0"
+          className="rounded-full px-3.5 sm:px-5 text-[13px] sm:text-sm text-on-lime shrink-0"
         >
           Nueva comisión
         </Button>
@@ -395,7 +399,7 @@ export function ComisionesMedicasView() {
             type="search"
             value={busqueda}
             onChange={(e) => handleBusqueda(e.target.value)}
-            placeholder="Buscar por código, provincia o dirección…"
+            placeholder="Buscar por código, nombre o dirección…"
             aria-label="Buscar comisiones médicas"
             className="rounded-full pl-10 pr-10"
           />
@@ -505,12 +509,16 @@ export function ComisionesMedicasView() {
                   >
                     <div className="flex items-start justify-between gap-2.5">
                       <div className="flex items-start gap-3 min-w-0 flex-1">
-                        <SplitFlap text={siglaCorta} size="sm" className="mt-0.5 shrink-0" />
+                        <SplitFlap
+                          text={siglaCorta}
+                          size="sm"
+                          className="mt-0.5 hidden min-[400px]:inline-flex shrink-0"
+                        />
                         <div className="min-w-0 flex-1">
-                          <strong className="block font-display text-[17px] font-bold tracking-[-0.03em] leading-tight text-fg truncate">
+                          <strong className="block font-display text-[17px] font-bold tracking-[-0.03em] leading-tight text-fg [overflow-wrap:anywhere]">
                             {cm.nombre}
                           </strong>
-                          <p className="text-[12.5px] text-muted mt-0.5 truncate">
+                          <p className="text-[12.5px] text-muted mt-0.5 [overflow-wrap:anywhere]">
                             <span className="font-mono text-[11px] font-medium uppercase tracking-[0.06em]">
                               {cm.codigo}
                             </span>
@@ -540,8 +548,10 @@ export function ComisionesMedicasView() {
                       </div>
                     </div>
 
-                    <div className="pt-2 border-t border-hair font-mono text-[11.5px] text-muted flex items-center justify-between gap-3">
-                      <span className="truncate min-w-0">{cm.email}</span>
+                    <div className="pt-2 border-t border-hair font-mono text-[11.5px] text-muted flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                      <span className="min-w-0 [overflow-wrap:anywhere]">
+                        {cm.email}
+                      </span>
                       <span className="shrink-0">{cm.telefono}</span>
                     </div>
                   </article>
@@ -578,11 +588,15 @@ export function ComisionesMedicasView() {
               master={
                 <div>
                   {/* Encabezado de columnas */}
-                  <div className="grid grid-cols-[140px_minmax(0,1fr)_auto] @lg:grid-cols-[140px_minmax(180px,1.3fr)_minmax(150px,1fr)_minmax(190px,1.1fr)_84px] items-center gap-4 px-3 py-2.5 border-y border-hair">
+                  <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] @3xl:grid-cols-[140px_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.1fr)_84px] items-center gap-4 px-3 py-2.5 border-y border-hair">
                     <MicroLabel>Código</MicroLabel>
                     <MicroLabel>Sede</MicroLabel>
-                    <MicroLabel className="hidden @lg:block">Ubicación</MicroLabel>
-                    <MicroLabel className="hidden @lg:block">Contacto</MicroLabel>
+                    <MicroLabel className="hidden @3xl:block">
+                      Ubicación
+                    </MicroLabel>
+                    <MicroLabel className="hidden @3xl:block">
+                      Contacto
+                    </MicroLabel>
                     <MicroLabel className="text-right">Acciones</MicroLabel>
                   </div>
 
@@ -597,35 +611,35 @@ export function ComisionesMedicasView() {
                           onClick={() => setSelectedId(cm.id)}
                           className={
                             estaSeleccionada
-                              ? "group grid grid-cols-[140px_minmax(0,1fr)_auto] @lg:grid-cols-[140px_minmax(180px,1.3fr)_minmax(150px,1fr)_minmax(190px,1.1fr)_84px] items-center gap-4 px-3 py-3.5 border-b border-hair border-l-2 border-l-accent bg-raised/90 cursor-pointer transition-colors duration-120"
-                              : "group grid grid-cols-[140px_minmax(0,1fr)_auto] @lg:grid-cols-[140px_minmax(180px,1.3fr)_minmax(150px,1fr)_minmax(190px,1.1fr)_84px] items-center gap-4 px-3 py-3.5 border-b border-hair transition-colors duration-120 hover:bg-hover cursor-pointer"
+                              ? "group grid grid-cols-[auto_minmax(0,1fr)_auto] @3xl:grid-cols-[140px_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.1fr)_84px] items-center gap-4 px-3 py-3.5 border-b border-hair border-l-2 border-l-accent bg-raised/90 cursor-pointer transition-colors duration-120"
+                              : "group grid grid-cols-[auto_minmax(0,1fr)_auto] @3xl:grid-cols-[140px_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.1fr)_84px] items-center gap-4 px-3 py-3.5 border-b border-hair transition-colors duration-120 hover:bg-hover cursor-pointer"
                           }
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <SplitFlap text={siglaCorta} size="md" />
+                            <SplitFlap text={siglaCorta} size="sm" />
                           </div>
 
                           <div className="min-w-0">
                             <div className="flex items-baseline gap-2 flex-wrap">
-                              <strong className="font-display text-[17px] font-bold tracking-[-0.025em] leading-snug text-fg truncate">
+                              <strong className="font-display text-[17px] font-bold tracking-[-0.025em] leading-snug text-fg [overflow-wrap:anywhere]">
                                 {cm.nombre}
                               </strong>
                               <span className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-muted shrink-0">
                                 {cm.codigo}
                               </span>
                             </div>
-                            <p className="text-[12.5px] text-muted mt-0.5 truncate @lg:hidden">
+                            <p className="text-[12.5px] text-muted mt-0.5 [overflow-wrap:anywhere] @3xl:hidden">
                               {cm.direccion} · {cm.telefono}
                             </p>
                           </div>
 
-                          <div className="hidden @lg:block min-w-0">
+                          <div className="hidden @3xl:block min-w-0">
                             <p className="text-[13.5px] text-fg/90 truncate">
                               {cm.direccion}
                             </p>
                           </div>
 
-                          <div className="hidden @lg:block min-w-0">
+                          <div className="hidden @3xl:block min-w-0">
                             <p className="font-mono text-[12px] text-fg/90 truncate">
                               {cm.email}
                             </p>
@@ -814,12 +828,11 @@ export function ComisionesMedicasView() {
                   id="cm-codigo"
                   type="text"
                   inputMode="text"
-                  maxLength={3}
                   autoCapitalize="characters"
                   aria-invalid={Boolean(errors.codigo) || undefined}
                   value={form.codigo}
                   onChange={(e) => actualizarCampo("codigo", e.target.value)}
-                  placeholder="CBA"
+                  placeholder="CBA-01"
                   className="h-full w-full bg-transparent px-3 font-mono text-[15px] font-semibold uppercase tracking-[0.06em] text-ink placeholder:text-muted/65 focus:outline-none"
                 />
               </div>
@@ -881,7 +894,10 @@ export function ComisionesMedicasView() {
               role="alert"
               className="flex items-start gap-2.5 rounded-control border border-danger/40 bg-danger/10 p-3 text-sm text-danger-ink"
             >
-              <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <AlertCircle
+                className="mt-0.5 size-4 shrink-0"
+                aria-hidden="true"
+              />
               <span>{errors.general}</span>
             </div>
           ) : null}
@@ -949,7 +965,10 @@ export function ComisionesMedicasView() {
             role="alert"
             className="mt-4 flex items-start gap-2.5 rounded-control border border-danger/40 bg-danger/10 p-3 text-sm text-danger-ink"
           >
-            <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <AlertCircle
+              className="mt-0.5 size-4 shrink-0"
+              aria-hidden="true"
+            />
             <span>{deleteError}</span>
           </div>
         ) : null}

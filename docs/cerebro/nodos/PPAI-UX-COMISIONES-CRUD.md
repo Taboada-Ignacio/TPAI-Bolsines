@@ -17,6 +17,7 @@ tags:
     side-sheet,
     paginado,
     aprobado,
+    nacho,
   ]
 archivos_front:
   - TPAI-Bolsines/src/components/layout/IdentityIsland.tsx
@@ -125,3 +126,7 @@ import { SplitFlap } from "@/components/ui/display/SplitFlap";
   1. Mergear `feature/backend` y conectar `ComisionesMedicasView` a `/api/comisiones-medicas` (`GET`, `POST`, `PUT`, `DELETE`, manejando error `409` en baja/duplicado).
   2. Implementar `/estados` y `/roles` si se requieren en el alcance final reutilizando `ResponsiveSheet` y `Pagination`.
   3. Rehacer la spec de `cu36-seguimiento-bolsines` para el mapa a sangre sobre el esquema de islas.
+
+### [NACHO] Presentación de sedes con los códigos de la API GPS
+
+Las tarjetas móviles ajustan el nombre, la dirección y el correo al ancho disponible. El tablero abre las columnas de contacto y ubicación según el ancho real del listado. El formulario conserva sufijos como CBA-01 y CBA-02 al editar las sedes.

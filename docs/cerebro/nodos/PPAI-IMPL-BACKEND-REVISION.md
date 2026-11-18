@@ -316,3 +316,15 @@ Vitest aprobó 293 pruebas, incluidas las 12 pruebas reactivadas del gestor, la 
 ### [NACHO] Sedes oficiales desde init.sql
 
 Se retiró origenesGpsDelSeed. init.sql incorpora las sedes oficiales y, al reaplicarse, actualiza los fixtures anteriores identificados por número, precinto y origen anterior. Los remitos y el mapa referencian las nuevas sedes. La verificación en PostgreSQL queda pendiente porque el motor de Docker no está disponible.
+
+### [NACHO] Arranque de Compose con las sedes GPS
+
+`run-init.mjs` valida las 35 comisiones previstas en `init.sql` (24 originales y 11 sedes GPS), con exactamente un GCM con usuario y correo por comisión. Si Prisma ya creó el esquema y el marcador quedó pendiente tras revertirse el seed, el siguiente arranque verifica el esquema y reintenta la carga dentro de la transacción. La revisión confirma 35 códigos distintos en el SQL y la sintaxis de Node. Queda pendiente verificar el arranque completo porque esta sesión no tiene acceso al motor de Docker.
+
+### [NACHO] Correspondencia del seed con la API GPS oficial
+
+Los bolsines 101–110 de init.sql coinciden por número, CM origen y CM destino con la carga de la revisión bd457ed. Si se reaplica el seed, se corrige también el destino de un fixture con origen oficial, identificado por su número y precinto. La fecha del bolsín pertenece al registro local. Las coordenadas y la fecha de actualización se consultan a la API GPS. Se compararon los diez pares de códigos con la tabla de la revisión oficial aportada para la tarea. La ejecución en PostgreSQL quedó pendiente por acceso denegado al motor de Docker.
+
+### [NACHO] Catálogo inicial limitado a las sedes GPS
+
+Una base nueva carga solo las 11 sedes de la API GPS oficial. Los usuarios de demostración y los 35 bolsines ficticios usan esas sedes. Los diez pares de origen y destino oficiales se conservan, y run-init.mjs exige un gerente con usuario y correo por cada una de las 11 comisiones.

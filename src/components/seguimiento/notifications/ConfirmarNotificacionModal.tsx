@@ -11,10 +11,8 @@ import {
 } from "react";
 import {
   AlertCircle,
-  AlertTriangle,
   CheckCircle2,
   FileText,
-  Mail,
   MapPin,
   Send,
   X,
@@ -56,9 +54,10 @@ function formatearFechaHora(iso: string | undefined | null): string {
   return formateadorFechaHora.format(fecha);
 }
 
-function formatearCoordenadas(
-  bolsin: BolsinSeguimiento,
-): { texto: string; nota?: string } {
+function formatearCoordenadas(bolsin: BolsinSeguimiento): {
+  texto: string;
+  nota?: string;
+} {
   if (!bolsin.ubicacion) {
     return { texto: "Sin coordenadas registradas" };
   }
@@ -321,39 +320,6 @@ export function ConfirmarNotificacionModal({
                     <p>{errorMensaje}</p>
                   </div>
                 ) : null}
-
-                <div className="rounded-[var(--radius-card)] border border-edge bg-raised p-3.5">
-                  <div className="flex items-start gap-2.5">
-                    <Mail
-                      className="mt-0.5 size-4 shrink-0 text-accent"
-                      aria-hidden="true"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <MicroLabel className="block">
-                        Destinatario (GCM destino)
-                      </MicroLabel>
-                      <p className="mt-0.5 text-sm font-medium text-fg">
-                        Gerente · {bolsin.cmDestino.nombre}
-                      </p>
-                      {bolsin.cmDestino.emailGcm ? (
-                        <p className="font-mono text-xs text-muted break-all">
-                          {bolsin.cmDestino.emailGcm}
-                        </p>
-                      ) : (
-                        <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-control border border-amber/35 bg-amber/10 px-2.5 py-1 text-xs font-medium text-amber-ink">
-                          <AlertTriangle
-                            className="size-3.5 shrink-0"
-                            aria-hidden="true"
-                          />
-                          <span>
-                            No figura un correo del GCM en los datos locales; el
-                            servidor lo resolverá al enviar.
-                          </span>
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
 
                 <dl className="grid grid-cols-1 gap-3 rounded-[var(--radius-card)] border border-edge bg-raised p-3.5 sm:grid-cols-2">
                   <div>

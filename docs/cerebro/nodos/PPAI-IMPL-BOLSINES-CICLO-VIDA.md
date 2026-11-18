@@ -14,6 +14,7 @@ tags:
     reapertura,
     frontend,
     backend,
+    nacho,
   ]
 conectado_con:
   [
@@ -58,3 +59,10 @@ Resumen breve del contrato que usa la UI de `/bolsines` (`BolsinesView`, `Bolsin
   - **Regla ([[PPAI-PAT-STATE-BOLSIN]]):** Solo válido si el bolsín está en `Cerrado`. Rompe el precinto actual (`numeroPrecinto: null` o marcado como roto) y vuelve a estado `Creado`.
   - **Respuesta `200 OK`:** `BolsinListadoItem` actualizado con `estadoActual: { id, nombre: "Creado" }`.
 - **Respaldo en UI:** Si devuelve `404`/`405`, la UI registra `precintoAnterior` en memoria y pasa el estado visual a `Creado` para exigir un precinto distinto al volver a cerrarlo.
+
+## [NACHO] Agrupación del listado por Comisión Médica de origen
+
+En /bolsines, BolsinesView incorpora la opción Agrupar por CM origen. Se aplica sobre el resultado de combinar búsqueda, estado y CM origen. Con la opción activa, los resultados se ordenan por código de comisión antes de paginar. Cada sección muestra el código y el nombre de su CM en escritorio y móvil. Si una sección continúa en otra página, vuelve a mostrar su encabezado. Activar o desactivar la opción lleva a la primera página y conserva los filtros. La agrupación usa los datos que ya devuelve la API y no modifica el contrato ni el modelo de dominio.
+
+Vitest aprobó 293 pruebas. ESLint y Prettier aprobaron el componente.
+El typecheck global quedó bloqueado por un error de tipos previo en MapaLibreSeguimiento.tsx.
